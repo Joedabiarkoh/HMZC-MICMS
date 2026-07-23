@@ -146,8 +146,16 @@
 .insp-cert-title-row { display: flex; justify-content: space-between; align-items: center; margin: 8px 0 10px; }
 .insp-cert-title-row h2 { font-family: Georgia, "Times New Roman", serif; font-size: 17px; color: var(--insp-navy); margin: 0; text-transform: uppercase; }
 
-table.insp-id-table { width: 100%; border-collapse: collapse; font-size: 11.5px; margin-bottom: 12px; }
-table.insp-id-table td { border: 1px solid #CBD2D8; padding: 5px 8px; }
+/* table-layout: fixed — without it, the browser's auto layout sizes
+   each column by its own content across every row, so a long value
+   (e.g. a certificate number like CERT/HMZCS/FF/20260723-001) pulls
+   extra width into its column at the other value column's expense,
+   even though both are meant to be equal, symmetric halves of the row.
+   With fixed layout, only the first row's cell widths matter — the two
+   16%-wide label cells stay 16%, and the two unset value cells split
+   the remaining 68% evenly (34% each), regardless of content length. */
+table.insp-id-table { width: 100%; table-layout: fixed; border-collapse: collapse; font-size: 11.5px; margin-bottom: 12px; }
+table.insp-id-table td { border: 1px solid #CBD2D8; padding: 5px 8px; overflow-wrap: break-word; }
 table.insp-id-table td.insp-label-cell { background: #F4F6F7; font-weight: 700; color: var(--insp-navy); width: 16%; }
 
 table.insp-print-chk { width: 100%; border-collapse: collapse; font-size: 10px; margin-bottom: 10px; }
