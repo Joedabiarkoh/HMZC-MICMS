@@ -25,6 +25,7 @@ export default function OfflineBanner() {
   return (
     <div
       role="status"
+      className="no-print"
       style={{
         background: "#B4690E",
         color: "#fff",

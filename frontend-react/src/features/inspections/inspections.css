@@ -172,6 +172,66 @@ table.insp-print-chk tr.insp-section-row td { background: #EEF1F3; font-weight: 
 .insp-btn-outline { background: #fff; border-color: #C9D1D8; color: var(--insp-text); }
 .insp-btn-row { display: flex; gap: 8px; flex-wrap: wrap; padding: 0 20px 20px; }
 
+/* ---- print ---- */
+/* No @media print existed anywhere before this — printing (or "Save as
+   PDF", which goes through the same print path) rendered the full
+   desktop app: nav shell, topbar, subtabs, the editable form panel
+   sitting right next to the certificate, and critically,
+   .insp-cert-scroll's max-height: 80vh + overflow: auto, which several
+   browsers print as-is — only the portion that happened to be
+   scrolled into view, silently cutting off anything below it. That
+   combination is what "some certificates don't fit the page" actually
+   was: longer certificates (a multi-section boat checklist, or an FFE
+   fixed-system cert with a 25-item checklist) have more content below
+   that fold than a short one does, so they were the ones visibly
+   missing content or overflowing, while a short certificate happened
+   to fit by accident. */
+@media print {
+  .insp-topbar, .insp-subtabs, .insp-btn-row, .insp-panel-header {
+    display: none !important;
+  }
+  /* .insp-layout always has exactly two .insp-panel children — the
+     editable form, then the preview — across every equipment type
+     (boat, crane, FFE, and the view-only single-panel path never hits
+     this rule at all, since it has no .insp-layout wrapper). Only the
+     preview should print. */
+  .insp-layout {
+    display: block !important;
+    padding: 0 !important;
+    gap: 0 !important;
+  }
+  .insp-layout > .insp-panel:first-child {
+    display: none !important;
+  }
+  .insp-panel {
+    border: none !important;
+    border-radius: 0 !important;
+  }
+  .insp-cert-scroll {
+    max-height: none !important;
+    overflow: visible !important;
+    padding: 0 !important;
+    background: none !important;
+  }
+  .insp-cert-page {
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: none !important;
+    box-shadow: none !important;
+    overflow: visible !important;
+    /* One certificate can be several .insp-cert-page blocks (Statement,
+       Boat Checklist, Davit Checklist, Equipment List) — each is its
+       own physical page when printed, not stacked on one. */
+    page-break-after: always;
+    break-after: page;
+  }
+  .insp-cert-page:last-child {
+    page-break-after: auto;
+    break-after: auto;
+  }
+}
+
 /* ---- coming soon ---- */
 .insp-coming-soon {
   margin: 20px; padding: 24px; background: #fff; border: 1px dashed var(--insp-line); border-radius: 10px;

@@ -46,3 +46,33 @@
   outline: 2px solid var(--insp-navy);
   outline-offset: 2px;
 }
+
+/* There was no @media print anywhere in this project at all — every
+   window.print() call (certificates, invoices/quotations) printed the
+   full desktop app: nav shell, offline banner, sync badge, and the
+   editable form panel sitting right next to the printable content, all
+   at full viewport width with no explicit page size. That's what "some
+   certificates don't fit the page" actually was — not a sizing bug in
+   any one certificate, but nothing telling the browser what should and
+   shouldn't be on the printed page at all. Module-specific print rules
+   (hiding the form panel, letting scrollable preview containers expand
+   to their full content instead of clipping to the on-screen viewport)
+   live in inspections.css/finance.css next to what they target; this is
+   only the app-wide chrome every printable page shares. */
+@page {
+  size: A4;
+  margin: 12mm 14mm;
+}
+@media print {
+  /* .shell-header already contains BackendStatusDot and SyncStatusBadge
+     (see AppShell.tsx), so hiding it covers both without needing their
+     own selectors. OfflineBanner renders as a sibling, not nested
+     inside the header, so it needs its own "no-print" class. */
+  .shell-header,
+  .no-print {
+    display: none !important;
+  }
+  .shell-body {
+    min-height: 0 !important;
+  }
+}
