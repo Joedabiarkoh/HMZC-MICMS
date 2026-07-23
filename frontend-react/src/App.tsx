@@ -12,6 +12,7 @@ import FinancialReports from "./features/finance/pages/FinancialReports";
 import InspectionWorkspace from "./features/inspections/pages/InspectionWorkspace";
 import CertificateLog from "./features/inspections/pages/CertificateLog";
 import VesselSearch from "./features/inspections/pages/VesselSearch";
+import VerifyCertificate from "./features/inspections/pages/VerifyCertificate";
 import SignIn from "./features/auth/pages/SignIn";
 import SignUp from "./features/auth/pages/SignUp";
 import ChangePassword from "./features/auth/pages/ChangePassword";
@@ -64,6 +65,10 @@ export default function App() {
           <Route path="/" element={<Navigate to="/signin" replace />} />
           <Route path="/signin" element={<SignIn />} />
           <Route path="/signup" element={<SignUp />} />
+          {/* Public — no sign-in required. This is what a certificate's
+              printed QR code links to (see CertificateQR.tsx), reachable
+              by anyone scanning a printed page, not just signed-in staff. */}
+          <Route path="/verify/:certNo" element={<VerifyCertificate />} />
 
           <Route element={<RequireAuth />}>
             <Route element={<AppShell />}>

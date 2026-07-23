@@ -11,7 +11,7 @@ from app.core.imo_validation import is_valid_imo_checksum
 from app.core.permissions import CERT_DELETE, CERT_EDIT, CERT_VIEW, CERT_VIEW_ALL, get_user_permissions
 from app.models.certificate import Certificate
 from app.models.user import User
-from app.schemas.certificate import CertificateCreate, CertificateResponse, VesselLookupResult, VesselSummary
+from app.schemas.certificate import CertificateCreate, CertificateResponse, CertificateVerifyResult, VesselLookupResult, VesselSummary
 
 # Answers the "who issued which certificate at what time" request
 # directly: every save is tied to the authenticated user via
@@ -243,6 +243,39 @@ def vessel_lookup(
         name_imo_conflict=conflict,
         conflict_detail=conflict_detail,
         history=history,
+    )
+
+
+# Requested directly: the QR code printed on every certificate page
+# should stop confirming the certificate once it's been deleted. No
+# permission/auth dependency on this route at all — deliberately public,
+# since whoever scans a printed certificate's QR code (a port state
+# inspector, a class surveyor, a client) has no HMZC login and shouldn't
+# need one just to confirm a document they're holding is genuine. A
+# missing/deleted cert_no returns valid: false rather than 404, so the
+# frontend verification page can show a clear "not a valid certificate"
+# message instead of a generic error page.
+@router.get("/verify/{cert_no:path}", response_model=CertificateVerifyResult)
+def verify_certificate(cert_no: str, db: Session = Depends(get_database)):
+    cert = (
+        db.query(Certificate)
+        .options(joinedload(Certificate.issued_by))
+        .filter(Certificate.cert_no == cert_no)
+        .first()
+    )
+    if not cert:
+        return CertificateVerifyResult(valid=False, cert_no=cert_no)
+
+    return CertificateVerifyResult(
+        valid=True,
+        cert_no=cert.cert_no,
+        equipment_type=cert.equipment_type,
+        vessel_name=cert.vessel_name,
+        imo_no=cert.imo_no,
+        status=cert.status,
+        date_of_servicing=cert.date_of_servicing,
+        issued_by_name=(cert.issued_by.full_name or cert.issued_by.email) if cert.issued_by else None,
+        issued_at=cert.created_at,
     )
 
 

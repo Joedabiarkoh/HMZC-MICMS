@@ -99,6 +99,31 @@ export interface VesselLookupResult {
   history: VesselHistoryEntry[];
 }
 
+export interface CertificateVerifyResult {
+  valid: boolean;
+  cert_no: string;
+  equipment_type: string | null;
+  vessel_name: string | null;
+  imo_no: string | null;
+  status: string | null;
+  date_of_servicing: string | null;
+  issued_by_name: string | null;
+  issued_at: string | null;
+}
+
+/**
+ * Public, unauthenticated — this is what the QR code on every printed
+ * certificate page now links to (see CertificateQR.tsx's
+ * buildCertQrPayload), so a certificate that's been deleted stops
+ * confirming itself the moment someone scans it, instead of the QR
+ * code just encoding static descriptive text that never checked
+ * anything against the actual database.
+ */
+export async function verifyCertificate(certNo: string): Promise<CertificateVerifyResult> {
+  const response = await api.get<CertificateVerifyResult>(`/certificates/verify/${encodeURIComponent(certNo)}`);
+  return response.data;
+}
+
 export interface VesselSummary {
   vessel_name: string | null;
   imo_no: string | null;

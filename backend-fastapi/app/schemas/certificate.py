@@ -78,6 +78,28 @@ class VesselLookupResult(BaseModel):
     history: List[CertificateSummary] = []
 
 
+# Requested directly: the QR code printed on every certificate page
+# should stop confirming a certificate once it's been deleted. This is
+# what the QR now actually links to (see CertificateQR.tsx) — a public,
+# unauthenticated endpoint (get_verify_certificate below) rather than
+# the plain descriptive text it used to just encode, which never checked
+# anything and couldn't "stop working" no matter what happened to the
+# certificate. Deliberately excludes payload (photos, checklist detail,
+# signatures) — anyone with the printed page can scan this, so only the
+# same non-sensitive summary fields already shown on the printed page
+# itself go out, nothing an issuer wouldn't already be printing publicly.
+class CertificateVerifyResult(BaseModel):
+    valid: bool
+    cert_no: str
+    equipment_type: Optional[str] = None
+    vessel_name: Optional[str] = None
+    imo_no: Optional[str] = None
+    status: Optional[str] = None
+    date_of_servicing: Optional[str] = None
+    issued_by_name: Optional[str] = None
+    issued_at: Optional[datetime] = None
+
+
 # One row per distinct vessel (grouped by name+IMO across this vessel's
 # certificates), not one row per certificate — the "search a vessel,
 # then decide what to do with it" flow needs a vessel-level list first

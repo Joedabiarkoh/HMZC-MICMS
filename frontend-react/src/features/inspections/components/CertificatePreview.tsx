@@ -338,7 +338,7 @@ function Letterhead({ cert }: { cert: InspectionCertificate }) {
           admin@hmzchealthinmarine.com&nbsp;|&nbsp;+244 972 320 300
         </div>
         <CertificateQR
-          payload={buildCertQrPayload(cert.certNo, cert.vesselName, cert.imoNo, cert.dateOfServicing)}
+          payload={buildCertQrPayload(cert.certNo)}
           size={54}
         />
       </div>
