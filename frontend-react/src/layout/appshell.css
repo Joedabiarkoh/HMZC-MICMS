@@ -49,6 +49,16 @@
 .shell-nav a:hover { background: #22364C; color: #fff; }
 .shell-nav a.active { background: var(--insp-green); color: #fff; }
 
+/* Department grouping (Technical / Finance / Admin / Account) — a
+   vertical divider between groups on the horizontal desktop bar (the
+   group label itself would be clutter at that width); the same label
+   becomes a real section heading once the nav collapses into the
+   vertical mobile dropdown, where there's room for it — same idea as
+   CRALOG's own labeled nav separators. */
+.shell-nav-group { display: flex; align-items: center; gap: 4px; }
+.shell-nav-divider { width: 1px; height: 18px; background: #3A5169; margin: 0 6px; }
+.shell-nav-group-label { display: none; }
+
 .shell-user {
   display: flex;
   align-items: center;
@@ -86,4 +96,19 @@
   .shell-nav a { padding: 10px 12px; }
   .shell-user { display: none; }
   .shell-nav.open .shell-user-mobile { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; padding: 10px 12px; border-top: 1px solid #3A5169; margin-top: 6px; color: #A9BBC9; font-size: 11.5px; }
+
+  /* Stacked sections instead of an inline horizontal row once collapsed
+     — the divider (meant for a single-line bar) stops making sense, and
+     the group label (hidden on desktop) becomes the section heading. */
+  .shell-nav-group { flex-direction: column; align-items: stretch; gap: 0; }
+  .shell-nav-divider { display: none; }
+  .shell-nav-group-label {
+    display: block;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+    color: #6B84A0;
+    padding: 10px 12px 4px;
+  }
 }

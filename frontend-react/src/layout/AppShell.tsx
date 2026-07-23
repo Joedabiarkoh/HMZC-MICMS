@@ -16,6 +16,11 @@ interface NavItem {
   permission?: string;
 }
 
+interface NavGroup {
+  label: string;
+  items: NavItem[];
+}
+
 // Was adminOnly/financeOnly booleans checked against user.role directly
 // — replaced with permission strings for the same reason App.tsx's
 // route gating was: a fixed role check can't express "this Sales
@@ -25,17 +30,46 @@ interface NavItem {
 // view-only accounts reach a certificate through Certificate Log's
 // "Open" button instead (see InspectionWorkspace.tsx's own permission
 // check for what that view-only visit actually looks like).
-const NAV_ITEMS: NavItem[] = [
-  { to: "/vessels", label: "Vessels", permission: PERM.CERT_VIEW },
-  { to: "/inspections", label: "Inspections", permission: PERM.CERT_EDIT },
-  { to: "/certificates/log", label: "Certificate Log", permission: PERM.CERT_VIEW },
-  { to: "/finance", label: "Finance Dashboard", permission: PERM.FIN_VIEW },
-  { to: "/finance/quotations", label: "Quotations", permission: PERM.FIN_VIEW },
-  { to: "/finance/invoices", label: "Invoices", permission: PERM.FIN_VIEW },
-  { to: "/finance/items", label: "Item Catalog", permission: PERM.FIN_CATALOG_MANAGE },
-  { to: "/admin/users", label: "Users", adminOnly: true },
-  { to: "/admin/audit-log", label: "Audit Log", adminOnly: true },
-  { to: "/account/change-password", label: "Change Password" },
+//
+// Requested directly: group into departments (Technical / Finance)
+// rather than one flat list — matches how HMZC actually organizes staff
+// (Technical does inspections/certificates, Finance handles quotations/
+// invoices/the item catalog), and mirrors the grouped-nav pattern
+// referenced from CRALOG (separator + label between sections). Admin
+// and Account stay their own small groups rather than folded into
+// either department — neither Users/Audit Log nor Change Password
+// belongs to one department's work.
+const NAV_GROUPS: NavGroup[] = [
+  {
+    label: "Technical",
+    items: [
+      { to: "/vessels", label: "Vessels", permission: PERM.CERT_VIEW },
+      { to: "/inspections", label: "Inspections", permission: PERM.CERT_EDIT },
+      { to: "/certificates/log", label: "Certificate Log", permission: PERM.CERT_VIEW },
+    ],
+  },
+  {
+    label: "Finance",
+    items: [
+      { to: "/finance", label: "Finance Dashboard", permission: PERM.FIN_VIEW },
+      { to: "/finance/quotations", label: "Quotations", permission: PERM.FIN_VIEW },
+      { to: "/finance/invoices", label: "Invoices", permission: PERM.FIN_VIEW },
+      { to: "/finance/items", label: "Item Catalog", permission: PERM.FIN_CATALOG_MANAGE },
+    ],
+  },
+  {
+    label: "Admin",
+    items: [
+      { to: "/admin/users", label: "Users", adminOnly: true },
+      { to: "/admin/audit-log", label: "Audit Log", adminOnly: true },
+    ],
+  },
+  {
+    label: "Account",
+    items: [
+      { to: "/account/change-password", label: "Change Password" },
+    ],
+  },
 ];
 
 /**
@@ -58,11 +92,15 @@ export default function AppShell() {
   const location = useLocation();
   const [open, setOpen] = useState(false);
 
-  const visibleItems = NAV_ITEMS.filter((item) => {
+  function isVisible(item: NavItem) {
     if (item.adminOnly && user?.role !== "admin") return false;
     if (item.permission && !hasPermission(user, item.permission)) return false;
     return true;
-  });
+  }
+  // Groups render their label/divider only if at least one item inside
+  // is actually visible to this user — an empty "Admin" heading for a
+  // non-admin account would be worse than the ungrouped list it replaced.
+  const visibleGroups = NAV_GROUPS.map((g) => ({ ...g, items: g.items.filter(isVisible) })).filter((g) => g.items.length > 0);
 
   const roleLabel = user ? (ROLE_LABELS[user.role] || user.role) : "";
 
@@ -77,15 +115,21 @@ export default function AppShell() {
           ☰
         </button>
         <nav className={`shell-nav ${open ? "open" : ""}`}>
-          {visibleItems.map((item) => (
-            <Link
-              key={item.to}
-              to={item.to}
-              className={location.pathname === item.to ? "active" : ""}
-              onClick={() => setOpen(false)}
-            >
-              {item.label}
-            </Link>
+          {visibleGroups.map((group, i) => (
+            <div className="shell-nav-group" key={group.label}>
+              {i > 0 && <span className="shell-nav-divider" aria-hidden="true" />}
+              <span className="shell-nav-group-label">{group.label}</span>
+              {group.items.map((item) => (
+                <Link
+                  key={item.to}
+                  to={item.to}
+                  className={location.pathname === item.to ? "active" : ""}
+                  onClick={() => setOpen(false)}
+                >
+                  {item.label}
+                </Link>
+              ))}
+            </div>
           ))}
           <div className="shell-user-mobile">
             {user && <span>{user.full_name || user.email} ({roleLabel})</span>}
