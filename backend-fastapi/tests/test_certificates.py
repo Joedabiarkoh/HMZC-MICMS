@@ -1,16 +1,32 @@
 """Not run — see conftest.py's module docstring."""
 
 
-def _register_and_login(client, email="tech@hmzc.test", role="inspector"):
-    """First account is auto-activated (bootstrap admin) — use it directly
-    rather than a second account needing separate approval, since these
-    tests are about certificates, not the approval flow (see test_auth.py
-    for that)."""
+def _register_and_login(client, email="tech@hmzc-test.com", role="inspector"):
+    """First account is auto-activated (bootstrap admin) — use this only
+    for the first account in a given test's fresh database. Any account
+    after that must go through _admin_create_and_login below instead:
+    self-registration for a second account is rejected outright now
+    (see the root README's "Admin-only account creation" section), not
+    created-but-pending the way it used to be."""
     client.post(
         "/api/auth/register",
         json={"email": email, "password": "password123", "full_name": "Tech", "role": role},
     )
     login = client.post("/api/auth/login", data={"username": email, "password": "password123"})
+    return login.json()["access_token"]
+
+
+def _admin_create_and_login(client, admin_token, email, role):
+    """For every account after the first in a test — admin-created
+    accounts are active immediately (no separate approval step), with a
+    generated temporary password this logs in with right away."""
+    create = client.post(
+        "/api/auth/users",
+        json={"email": email, "full_name": email.split("@")[0], "role": role},
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    temp_password = create.json()["temporary_password"]
+    login = client.post("/api/auth/login", data={"username": email, "password": temp_password})
     return login.json()["access_token"]
 
 
@@ -39,7 +55,7 @@ def test_create_certificate_sets_issuer_and_version_one(client):
     assert response.status_code == 200, response.text
     body = response.json()
     assert body["version"] == 1
-    assert body["issued_by"]["email"] == "tech@hmzc.test"
+    assert body["issued_by"]["email"] == "tech@hmzc-test.com"
 
 
 def test_saving_same_cert_no_twice_updates_not_duplicates(client):
@@ -67,25 +83,21 @@ def test_issued_by_does_not_change_on_later_edit(client):
     subtly wrong (e.g. an admin re-saving someone else's certificate
     and silently becoming the recorded issuer).
     """
-    tech_token = _register_and_login(client, email="original@hmzc.test", role="inspector")
-    client.post("/api/certificates", json=_sample_certificate(), headers={"Authorization": f"Bearer {tech_token}"})
+    original_token = _register_and_login(client, email="original@hmzc-test.com", role="inspector")
+    client.post("/api/certificates", json=_sample_certificate(), headers={"Authorization": f"Bearer {original_token}"})
 
-    admin_token = _register_and_login(client, email="admin2@hmzc.test", role="inspector")
-    # admin2 is the second account registered in this test's fresh
-    # database, so it is NOT auto-promoted — promote it via the actual
-    # bootstrap admin instead of assuming role="admin" would have worked.
-    # (Simpler alternative used here: register admin2 FIRST in its own
-    # test would make it the bootstrap admin, but that changes who
-    # "original" is — this test deliberately keeps `original` as the
-    # first/bootstrap account so its certificate save is unrestricted,
-    # and reuses that same account's admin rights to re-save it.)
+    # A genuinely different account — an admin, created via `original`'s
+    # own bootstrap-admin rights — re-saves the certificate `original`
+    # issued. issued_by must stay "original" throughout, not silently
+    # become the resaving admin.
+    other_admin_token = _admin_create_and_login(client, original_token, "otheradmin@hmzc-test.com", "admin")
     resave = client.post(
         "/api/certificates",
         json=_sample_certificate(version=1),
-        headers={"Authorization": f"Bearer {tech_token}"},
+        headers={"Authorization": f"Bearer {other_admin_token}"},
     )
     assert resave.status_code == 200, resave.text
-    assert resave.json()["issued_by"]["email"] == "original@hmzc.test"
+    assert resave.json()["issued_by"]["email"] == "original@hmzc-test.com"
 
 
 def test_conflicting_save_returns_409_not_silent_overwrite(client):
@@ -116,22 +128,15 @@ def test_certificate_view_permission_required(client):
     default (see core/permissions.py) — a Client account, which gets no
     default permissions, should be blocked from even listing certificates.
     """
-    tech_token = _register_and_login(client, email="tech3@hmzc.test", role="inspector")
+    tech_token = _register_and_login(client, email="tech3@hmzc-test.com", role="inspector")
     client.post("/api/certificates", json=_sample_certificate(), headers={"Authorization": f"Bearer {tech_token}"})
 
-    client_token = _register_and_login(client, email="client@hmzc.test", role="client")
-    # This second account isn't auto-active (not the bootstrap account)
-    # — but get_current_user only checks is_active, and require_permission
-    # runs after that, so an inactive client would fail on is_active
-    # first. Approve it via the bootstrap admin so this test actually
-    # exercises the permission check, not the approval gate.
-    admin_headers = {"Authorization": f"Bearer {tech_token}"}
-    users = client.get("/api/auth/users", headers=admin_headers).json()
-    client_id = next(u["id"] for u in users if u["email"] == "client@hmzc.test")
-    client.post(f"/api/auth/users/{client_id}/approve", headers=admin_headers)
+    # tech3 is the bootstrap account (first in this test's fresh
+    # database), so it's an admin — use its rights to create the client
+    # account directly. Admin-created accounts are active immediately,
+    # so there's no separate approval step needed before this test can
+    # exercise the actual permission check.
+    client_token = _admin_create_and_login(client, tech_token, "client@hmzc-test.com", "client")
 
-    fresh_login = client.post("/api/auth/login", data={"username": "client@hmzc.test", "password": "password123"})
-    fresh_token = fresh_login.json()["access_token"]
-
-    response = client.get("/api/certificates", headers={"Authorization": f"Bearer {fresh_token}"})
+    response = client.get("/api/certificates", headers={"Authorization": f"Bearer {client_token}"})
     assert response.status_code == 403

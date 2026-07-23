@@ -49,6 +49,7 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
+from sqlalchemy.pool import StaticPool
 
 import app.models  # noqa: F401 — registers every model with Base, same as main.py
 from app.core.database import Base, get_database
@@ -78,7 +79,22 @@ def _reset_rate_limiter():
 
 @pytest.fixture()
 def db_session():
-    engine = create_engine(TEST_DATABASE_URL, connect_args={"check_same_thread": False})
+    # poolclass=StaticPool is required, not optional, for an in-memory
+    # SQLite engine used across threads — without it, each new
+    # connection checkout can get its own separate, empty in-memory
+    # database (SQLite's :memory: only persists within one connection).
+    # FastAPI's TestClient runs sync route handlers via anyio's
+    # threadpool, so the actual request handling happens on a different
+    # thread than this fixture's create_all() call — the exact scenario
+    # this bit. Confirmed by actually running the suite: every test
+    # failed with "no such table: users" despite create_all() running
+    # immediately above, because the session used inside the request
+    # was silently a different, freshly-empty in-memory database.
+    engine = create_engine(
+        TEST_DATABASE_URL,
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
     Base.metadata.create_all(bind=engine)
     TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
     session = TestingSessionLocal()
@@ -113,11 +129,11 @@ def admin_token(client):
     """
     client.post(
         "/api/auth/register",
-        json={"email": "admin@hmzc.test", "password": "adminpassword123", "full_name": "Test Admin", "role": "inspector"},
+        json={"email": "admin@hmzc-test.com", "password": "adminpassword123", "full_name": "Test Admin", "role": "inspector"},
     )
     response = client.post(
         "/api/auth/login",
-        data={"username": "admin@hmzc.test", "password": "adminpassword123"},
+        data={"username": "admin@hmzc-test.com", "password": "adminpassword123"},
     )
     assert response.status_code == 200, response.text
     return response.json()["access_token"]
