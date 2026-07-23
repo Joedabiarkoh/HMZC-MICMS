@@ -244,6 +244,11 @@ function FFECertificatePage({ cert, ffe }: { cert: InspectionCertificate; ffe: F
 
       <div className="insp-remarks-box">Comments: {ffe.comments || "None"}</div>
 
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginTop: 18 }}>
+        <SignBox label="Master" name={cert.captainName} sig={cert.captainSig} />
+        <SignBox label="Technician" name={cert.engineerName} sig={cert.engineerSig} />
+      </div>
+
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginTop: 18 }}>
         <div style={{ fontSize: 10, color: "var(--insp-muted)" }}>
           This Certificate is valid for {cfg.validityYears === 2 ? "Two Years" : "One Year"} from the date of issue.

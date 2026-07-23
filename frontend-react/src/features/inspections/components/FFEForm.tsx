@@ -2,6 +2,7 @@ import { FFE_CERT_TYPES, getFFEConfig } from "../data/ffeCertTypes";
 import { freshFFEState } from "../data/inspectionHelpers";
 import { InspectionCertificate } from "../types/inspection.types";
 import VesselLookupPanel from "./VesselLookupPanel";
+import SignatureCanvas from "./SignatureCanvas";
 
 interface Props {
   current: InspectionCertificate;
@@ -228,6 +229,27 @@ export default function FFEForm({ current, updateField, openCertificate }: Props
       <fieldset className="insp-fieldset">
         <legend className="insp-legend">Comments</legend>
         <textarea rows={3} value={ffe.comments} onChange={(e) => updateFFE({ comments: e.target.value })} />
+      </fieldset>
+
+      {/* Requested directly — most of the 27 source templates didn't show
+          a formal signature block (a few had a free-text "Prepared By /
+          Approved By" line instead), so this was left out of the first
+          pass. Reuses the same captainName/captainSig/engineerName/
+          engineerSig fields the boat/crane certificates already have on
+          InspectionCertificate — "Master" here is that same field boat
+          certs label "Captain", "Technician" is the same field they
+          label "Service Engineer" — rather than adding a parallel set of
+          FFE-only signature fields for what's functionally identical. */}
+      <fieldset className="insp-fieldset">
+        <legend className="insp-legend">Signatures</legend>
+        <div className="insp-row2">
+          <div className="insp-field"><label>Master Name (optional)</label><input value={current.captainName} onChange={(e) => updateField("captainName", e.target.value)} /></div>
+          <div className="insp-field"><label>Technician Name</label><input value={current.engineerName} onChange={(e) => updateField("engineerName", e.target.value)} /></div>
+        </div>
+        <div className="insp-row2">
+          <SignatureCanvas label="Master Signature" value={current.captainSig} onChange={(v) => updateField("captainSig", v)} />
+          <SignatureCanvas label="Technician Signature" value={current.engineerSig} onChange={(v) => updateField("engineerSig", v)} />
+        </div>
       </fieldset>
     </>
   );

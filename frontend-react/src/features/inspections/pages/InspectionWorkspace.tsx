@@ -3,7 +3,7 @@ import { useSearchParams } from "react-router-dom";
 import "../inspections.css";
 import { INSPECTION_TYPES } from "../data/inspectionChecklists";
 import { useInspections } from "../hooks/useInspections";
-import { EquipmentTypeKey, ChecklistSection, EquipResult } from "../types/inspection.types";
+import { EquipmentTypeKey, ChecklistSection, EquipResult, InspectionCertificate } from "../types/inspection.types";
 import ChecklistGroup from "../components/ChecklistGroup";
 import ComingSoon from "./ComingSoon";
 import CertificatePreview from "../components/CertificatePreview";
@@ -77,9 +77,28 @@ export default function InspectionWorkspace() {
   // latest `current`.
   const saveCurrentRef = useRef(saveCurrent);
   saveCurrentRef.current = saveCurrent;
-  const lastSavedSnapshot = useRef<string>(JSON.stringify(current));
+  // Dirty-check key — deliberately excludes version/issuedBy/issuedAt.
+  // Those three are set by the SERVER, not the user, and land on
+  // `current` asynchronously, after saveCurrent's promise resolves (see
+  // its .then() in useInspections.ts) — strictly later than the
+  // snapshot taken when a save was initiated. Comparing full
+  // JSON.stringify(current) against a snapshot taken before that async
+  // merge meant every single save — auto or manual — was immediately
+  // followed by an apparent "diff" on the very next tick, purely from
+  // the server's response arriving, with zero actual user edits. Since
+  // the interval hardcodes status: "draft", that phantom diff kept
+  // re-firing every 20 seconds forever, and would eventually stomp a
+  // certificate that had just been manually finalized back to draft —
+  // confirmed by watching the actual network requests: two consecutive
+  // auto-saves 20 seconds apart, both "draft", with only `version`
+  // differing between them and every user-facing field identical.
+  function dirtyKey(cert: InspectionCertificate): string {
+    const { version, issuedBy, issuedAt, ...rest } = cert;
+    return JSON.stringify(rest);
+  }
+  const lastSavedSnapshot = useRef<string>(dirtyKey(current));
   useEffect(() => {
-    lastSavedSnapshot.current = JSON.stringify(current);
+    lastSavedSnapshot.current = dirtyKey(current);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [current.certNo]); // reset the baseline whenever a *different* certificate is loaded
 
@@ -88,17 +107,21 @@ export default function InspectionWorkspace() {
     if (!canAutoSave) return;
 
     const interval = window.setInterval(() => {
-      const snapshot = JSON.stringify(currentRef.current);
+      const snapshot = dirtyKey(currentRef.current);
       if (snapshot === lastSavedSnapshot.current) return; // nothing changed since the last save
       const hasAnyIdentity = currentRef.current.vesselName.trim() || currentRef.current.imoNo.trim();
       if (!hasAnyIdentity) return; // don't auto-save a still-completely-blank new draft
       const savedByName = user ? (user.full_name || user.email) : currentRef.current.savedBy;
-      saveCurrentRef.current("draft", savedByName);
-      lastSavedSnapshot.current = snapshot;
+      const saved = saveCurrentRef.current("draft", savedByName);
+      // Baseline from what was actually saved (includes the new
+      // status/savedAt this very call set), not the pre-save snapshot
+      // — using the pre-save one would itself immediately look "dirty"
+      // on the next tick purely because status/savedAt just changed.
+      lastSavedSnapshot.current = dirtyKey(saved);
     }, 20_000);
 
     function handleBeforeUnload(e: BeforeUnloadEvent) {
-      if (JSON.stringify(currentRef.current) === lastSavedSnapshot.current) return;
+      if (dirtyKey(currentRef.current) === lastSavedSnapshot.current) return;
       e.preventDefault();
       e.returnValue = ""; // required for Chrome to show the native confirmation
     }
@@ -239,14 +262,19 @@ export default function InspectionWorkspace() {
       problems.push("Vessel name or IMO number is required");
     }
 
-    // FFE certificates don't carry the boat/crane captain/engineer
-    // signature block at all (none of the 27 source templates have
-    // one) — their own completeness check is just "at least one item
-    // was actually recorded," for sub-types that have an item register.
     if (cfg.kind === "ffe") {
       const ffeCfg = getFFEConfig(current.ffe?.subType || "");
       if (ffeCfg.itemColumns?.length && (current.ffe?.items.length || 0) === 0) {
         problems.push(`At least one row is required in ${ffeCfg.itemTableLabel || "the item table"}`);
+      }
+      // Technician (the "Service Engineer" field, relabeled for FFE)
+      // required, same as boat/crane certificates — Master ("Captain")
+      // stays optional there too, so it stays optional here.
+      if (!current.engineerName.trim()) {
+        problems.push("Technician name is required");
+      }
+      if (!current.engineerSig) {
+        problems.push("Technician signature is required");
       }
       return problems;
     }
@@ -280,6 +308,10 @@ export default function InspectionWorkspace() {
     }
     const savedByName = user ? (user.full_name || user.email) : current.savedBy;
     const saved = saveCurrent(status, savedByName);
+    // A manual save (this function) never updated the auto-save
+    // effect's dirty-check baseline — see dirtyKey's own comment above
+    // for the full mechanism this closes.
+    lastSavedSnapshot.current = dirtyKey(saved);
     window.alert(`Certificate ${saved.certNo} saved as ${status.toUpperCase()}.`);
   }
 
