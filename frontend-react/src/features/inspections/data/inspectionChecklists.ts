@@ -295,8 +295,7 @@ export const INSPECTION_TYPES: Record<EquipmentTypeKey, EquipmentTypeConfig> = {
     minPhotos: { checklist: 2 },
   },
   firefighting: {
-    kind: "placeholder", typeName: "Firefighting Equipment", label: "Firefighting Equipment",
-    divisionNote: "Firefighting Equipment inspection checklist has not been loaded yet. Send HMZC's firefighting equipment inspection sheet (extinguishers, fixed systems, breathing apparatus, etc.) and it will be built into this division with the same item-by-item structure as the lifeboat and crane checklists.",
+    kind: "ffe", typeName: "Firefighting Equipment", label: "Firefighting Equipment",
   },
   loosegear: {
     kind: "placeholder", typeName: "Loose Gear & Lifting Equipment", label: "Loose Gear & Lifting Equipment",

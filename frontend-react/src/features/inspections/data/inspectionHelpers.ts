@@ -1,8 +1,10 @@
 import { INSPECTION_TYPES } from "./inspectionChecklists";
+import { FFE_CERT_TYPES } from "./ffeCertTypes";
 import {
   ChecklistSection,
   ChecklistSectionDef,
   EquipmentTypeKey,
+  FFEChecklistResult,
   InspectionCertificate,
 } from "../types/inspection.types";
 
@@ -64,7 +66,9 @@ export function freshCertificate(type: EquipmentTypeKey, existingNumbers: Set<st
     savedBy: "",
   };
 
-  if (cfg.kind === "boat") {
+  if (cfg.kind === "ffe") {
+    base.ffe = freshFFEState(FFE_CERT_TYPES[0].id);
+  } else if (cfg.kind === "boat") {
     base.capacity = "";
     base.boat = { typeName: "", serial: "", mfgDate: "", manufacturer: "" };
     base.release = { typeName: "", serial: "", mfgDate: "", manufacturer: "" };
@@ -82,4 +86,33 @@ export function freshCertificate(type: EquipmentTypeKey, existingNumbers: Set<st
   }
 
   return base;
+}
+
+// Rebuilds the FFE-specific state for a given sub-type — called both
+// when a brand-new FFE certificate starts and when the sub-type
+// selector changes on an existing draft (switching from, say, "Fire
+// Extinguisher" to "Fixed CO2 System" needs a completely different set
+// of technical fields/checklist, not the old sub-type's leftover data).
+export function freshFFEState(subTypeId: string) {
+  const cfg = FFE_CERT_TYPES.find((t) => t.id === subTypeId) || FFE_CERT_TYPES[0];
+  const technicalValues: Record<string, string> = {};
+  for (const f of cfg.technicalFields || []) technicalValues[f.key] = "";
+
+  const checklist: FFEChecklistResult[] = (cfg.checklistItems || []).map((c) => ({
+    no: c.no,
+    description: c.description,
+    result: "" as const,
+    comment: "",
+  }));
+
+  return {
+    subType: cfg.id,
+    certClass: "",
+    placeOfService: "",
+    technicalValues,
+    items: [] as Record<string, string>[],
+    items2: [] as Record<string, string>[],
+    checklist,
+    comments: "",
+  };
 }

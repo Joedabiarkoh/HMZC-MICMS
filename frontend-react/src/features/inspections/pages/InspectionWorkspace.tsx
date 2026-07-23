@@ -10,6 +10,8 @@ import CertificatePreview from "../components/CertificatePreview";
 import SignatureCanvas from "../components/SignatureCanvas";
 import PhotoUpload from "../components/PhotoUpload";
 import VesselLookupPanel from "../components/VesselLookupPanel";
+import FFEForm from "../components/FFEForm";
+import { getFFEConfig } from "../data/ffeCertTypes";
 import { useAuth } from "../../../context/AuthContext";
 import { hasPermission, PERM } from "../../auth/types/auth.types";
 
@@ -236,6 +238,19 @@ export default function InspectionWorkspace() {
     if (!current.vesselName.trim() && !current.imoNo.trim()) {
       problems.push("Vessel name or IMO number is required");
     }
+
+    // FFE certificates don't carry the boat/crane captain/engineer
+    // signature block at all (none of the 27 source templates have
+    // one) — their own completeness check is just "at least one item
+    // was actually recorded," for sub-types that have an item register.
+    if (cfg.kind === "ffe") {
+      const ffeCfg = getFFEConfig(current.ffe?.subType || "");
+      if (ffeCfg.itemColumns?.length && (current.ffe?.items.length || 0) === 0) {
+        problems.push(`At least one row is required in ${ffeCfg.itemTableLabel || "the item table"}`);
+      }
+      return problems;
+    }
+
     if (!current.engineerName.trim()) {
       problems.push("Service Engineer name is required");
     }
@@ -310,6 +325,58 @@ export default function InspectionWorkspace() {
             Open a certificate from the <a href="/certificates/log">Certificate Log</a> to view it here.
           </div>
         )}
+      </div>
+    );
+  }
+
+  // FFE certificates don't fit the boat/crane subtab structure at all —
+  // no boat/davit/equipment-list split, just one form whose shape
+  // varies by the selected sub-type (see FFEForm.tsx). Rendered as its
+  // own branch rather than forcing it through the subtabs below.
+  if (cfg.kind === "ffe") {
+    return (
+      <div className="inspections-page" data-type={type}>
+        <TopBar type={type} onTypeChange={handleTypeChange} />
+        {syncError && (
+          <div style={{ margin: "10px 20px 0", background: "#FBF0E2", border: "1px solid #B4690E", color: "#7A4A08", borderRadius: 6, padding: "8px 12px", fontSize: 12, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+            <span>{syncError}</span>
+            {pendingSyncCount > 0 && (
+              <button className="insp-btn insp-btn-outline" style={{ padding: "3px 10px", fontSize: 11 }} onClick={retrySync}>Retry Now</button>
+            )}
+          </div>
+        )}
+        <div className="insp-layout">
+          <div className="insp-panel">
+            <div className="insp-panel-header">FFE Certificate & Checklist</div>
+            <div className="insp-panel-body">
+              <FFEForm current={current} updateField={updateField} openCertificate={openCertificate} />
+            </div>
+          </div>
+          <div className="insp-panel">
+            <div className="insp-panel-header">Certificate Preview</div>
+            <div className="insp-cert-scroll">
+              <CertificatePreview cert={current} config={cfg} />
+            </div>
+          </div>
+        </div>
+        {getFinalizeBlockers().length > 0 && (
+          <div style={{ margin: "0 20px 10px", background: "#FBF0E2", border: "1px solid #B4690E", borderRadius: 6, padding: "8px 12px", fontSize: 12, color: "#7A4A08" }}>
+            <strong>Not ready to finalize yet:</strong> {getFinalizeBlockers().join(" · ")}
+          </div>
+        )}
+        <div className="insp-btn-row">
+          <button className="insp-btn insp-btn-outline" onClick={() => handleSave("draft")}>Save Draft</button>
+          <button
+            className="insp-btn insp-btn-primary"
+            onClick={() => handleSave("final")}
+            disabled={getFinalizeBlockers().length > 0}
+            title={getFinalizeBlockers().length > 0 ? `Not ready to finalize: ${getFinalizeBlockers().join("; ")}` : undefined}
+          >
+            Finalize &amp; Save
+          </button>
+          <button className="insp-btn insp-btn-outline" onClick={() => window.print()}>Print</button>
+          <button className="insp-btn insp-btn-outline" onClick={() => startNew(type)}>New Certificate</button>
+        </div>
       </div>
     );
   }

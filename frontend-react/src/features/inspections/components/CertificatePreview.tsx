@@ -1,4 +1,5 @@
-import { EquipmentTypeConfig, InspectionCertificate, ChecklistStatus, EquipResult } from "../types/inspection.types";
+import { EquipmentTypeConfig, InspectionCertificate, ChecklistStatus, EquipResult, FFEData } from "../types/inspection.types";
+import { getFFEConfig } from "../data/ffeCertTypes";
 import { HMZC_LOGO_DATA_URI } from "../assets/logo";
 import CertificateQR, { buildCertQrPayload } from "./CertificateQR";
 
@@ -29,6 +30,10 @@ function equipLabel(s: EquipResult) {
 }
 
 export default function CertificatePreview({ cert, config }: Props) {
+  if (config.kind === "ffe" && cert.ffe) {
+    return <FFECertificatePage cert={cert} ffe={cert.ffe} />;
+  }
+
   const isBoat = config.kind === "boat";
 
   return (
@@ -134,6 +139,149 @@ export default function CertificatePreview({ cert, config }: Props) {
       {!isBoat && cert.checklist && (
         <ChecklistPage title={config.checklistTitle || "Inspection Checklist"} config={config} cert={cert} sections={cert.checklist} outstandingKey="checklist" />
       )}
+    </>
+  );
+}
+
+function checklistResultLabel(r: string) {
+  return { done: "Carried Out", not_done: "Not Carried Out", na: "N/A", "": "—" }[r] || r;
+}
+
+function FFECertificatePage({ cert, ffe }: { cert: InspectionCertificate; ffe: FFEData }) {
+  const cfg = getFFEConfig(ffe.subType);
+  return (
+    <div className="insp-cert-page" style={watermarkStyle}>
+      <Letterhead cert={cert} />
+      <div className="insp-cert-title-row">
+        <h2>Certificate &amp; Checklist</h2>
+        <span className="insp-badge">{cfg.label.toUpperCase()}</span>
+      </div>
+
+      <table className="insp-id-table">
+        <tbody>
+          <tr>
+            <td className="insp-label-cell">Vessel</td><td>{cert.vesselName || "—"}</td>
+            <td className="insp-label-cell">Certificate No</td><td>{cert.certNo}</td>
+          </tr>
+          <tr>
+            <td className="insp-label-cell">IMO No</td><td>{cert.imoNo || "—"}</td>
+            <td className="insp-label-cell">Date</td><td>{fmtDate(cert.dateOfServicing)}</td>
+          </tr>
+          <tr>
+            <td className="insp-label-cell">Class</td><td>{ffe.certClass || "—"}</td>
+            <td className="insp-label-cell">Place of Service</td><td>{ffe.placeOfService || "—"}</td>
+          </tr>
+        </tbody>
+      </table>
+
+      {!!cfg.workCodes?.length && (
+        <>
+          <div style={{ fontWeight: 700, fontSize: 11.5, color: "var(--insp-navy)", margin: "10px 0 4px" }}>Description of Work Codes</div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1px 16px", fontSize: 10.5 }}>
+            {cfg.workCodes.map((w) => <div key={w}>{w}</div>)}
+          </div>
+        </>
+      )}
+
+      {!!cfg.technicalFields?.length && (
+        <>
+          <div style={{ fontWeight: 700, fontSize: 11.5, color: "var(--insp-navy)", margin: "10px 0 4px" }}>Technical Description</div>
+          <table className="insp-id-table">
+            <tbody>
+              {cfg.technicalFields.map((f) => (
+                <tr key={f.key}><td className="insp-label-cell">{f.label}</td><td colSpan={3}>{ffe.technicalValues[f.key] || "—"}</td></tr>
+              ))}
+            </tbody>
+          </table>
+        </>
+      )}
+
+      {!!cfg.itemColumns?.length && (
+        <FFEItemsTable title={cfg.itemTableLabel || "Items"} columns={cfg.itemColumns} rows={ffe.items} />
+      )}
+      {!!cfg.items2Columns?.length && (
+        <FFEItemsTable title={cfg.items2Label || "Items"} columns={cfg.items2Columns} rows={ffe.items2} />
+      )}
+
+      {!!cfg.checklistItems?.length && (
+        <>
+          <div style={{ fontWeight: 700, fontSize: 11.5, color: "var(--insp-navy)", margin: "10px 0 4px" }}>Description of Inspection/Tests</div>
+          <table className="insp-print-chk">
+            <thead><tr><th>No</th><th>Description</th><th>Result</th><th>Comment</th></tr></thead>
+            <tbody>
+              {ffe.checklist.map((row) => (
+                <tr key={row.no}>
+                  <td>{row.no}</td>
+                  <td>{row.description}</td>
+                  <td><span className={`insp-pill ${row.result === "done" ? "good" : row.result === "not_done" ? "repair" : row.result === "na" ? "na" : ""}`}>{checklistResultLabel(row.result)}</span></td>
+                  <td>{row.comment || "—"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </>
+      )}
+
+      {!!cfg.readingsRows?.length && (
+        <>
+          <div style={{ fontWeight: 700, fontSize: 11.5, color: "var(--insp-navy)", margin: "10px 0 4px" }}>Readings</div>
+          <table className="insp-print-chk">
+            <thead><tr><th>Type of Vapor/Gas</th><th>Measured Value</th><th>Maximum Allowed</th></tr></thead>
+            <tbody>
+              {cfg.readingsRows.map((r) => (
+                <tr key={r.key}>
+                  <td>{r.label}</td>
+                  <td>{ffe.technicalValues[`reading_${r.key}`] || "—"}</td>
+                  <td>{r.maxAllowed}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </>
+      )}
+
+      {cfg.note && <div style={{ fontSize: 10, color: "var(--insp-muted)", marginTop: 8 }}>{cfg.note}</div>}
+
+      <div className="insp-remarks-box">Comments: {ffe.comments || "None"}</div>
+
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginTop: 18 }}>
+        <div style={{ fontSize: 10, color: "var(--insp-muted)" }}>
+          This Certificate is valid for {cfg.validityYears === 2 ? "Two Years" : "One Year"} from the date of issue.
+          {cert.issuedBy && (
+            <div style={{ marginTop: 4 }}>
+              Issued by {cert.issuedBy}{cert.issuedAt ? ` — ${new Date(cert.issuedAt).toLocaleString()}` : ""}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function FFEItemsTable({ title, columns, rows }: { title: string; columns: { key: string; label: string }[]; rows: Record<string, string>[] }) {
+  return (
+    <>
+      <div style={{ fontWeight: 700, fontSize: 11.5, color: "var(--insp-navy)", margin: "10px 0 4px" }}>{title}</div>
+      <table className="insp-print-chk">
+        <thead>
+          <tr>
+            <th>#</th>
+            {columns.map((c) => <th key={c.key}>{c.label}</th>)}
+          </tr>
+        </thead>
+        <tbody>
+          {rows.length === 0 ? (
+            <tr><td colSpan={columns.length + 1} style={{ color: "var(--insp-muted)" }}>No rows recorded.</td></tr>
+          ) : (
+            rows.map((row, i) => (
+              <tr key={i}>
+                <td>{i + 1}</td>
+                {columns.map((c) => <td key={c.key}>{row[c.key] || "—"}</td>)}
+              </tr>
+            ))
+          )}
+        </tbody>
+      </table>
     </>
   );
 }

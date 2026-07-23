@@ -108,6 +108,9 @@ export interface InspectionCertificate {
   checklist?: ChecklistSection[];
   loadTest?: LoadTestRecord;
 
+  // Firefighting-equipment fields (type === "firefighting")
+  ffe?: FFEData;
+
   remarks: string;
   remarksAuto: boolean;
   outstanding: Record<string, string>;
@@ -135,8 +138,42 @@ export interface InspectionCertificate {
   version?: number;
 }
 
+// FFE (Firefighting Equipment) — one incrementable row in an item
+// register table (e.g. one fire extinguisher, one BA set) or a cylinder
+// specification table. Keyed loosely (Record<string,string>) rather than
+// a fixed interface because the actual columns vary per FFE sub-type
+// (see FFESubTypeConfig.itemColumns in ffeCertTypes.ts) — a fire
+// extinguisher's row doesn't have the same fields as a CO2 cylinder's.
+export type FFEItemRow = Record<string, string>;
+
+export interface FFEChecklistResult {
+  no: string;
+  description: string;
+  result: "done" | "not_done" | "na" | "";
+  comment: string;
+}
+
+// Full FFE-specific state, present only when type === "firefighting".
+// Deliberately separate from the boat/crane fields above rather than
+// reusing them — an FFE certificate (e.g. a fire extinguisher register)
+// has nothing in common with a lifeboat's boat/davit/winch identity
+// blocks. Kept on the same InspectionCertificate interface (not a
+// parallel type) so the existing save/offline-queue/vessel-search
+// infrastructure — all keyed on certNo, vesselName, imoNo, type, status
+// — works for FFE certificates without any changes.
+export interface FFEData {
+  subType: string; // key into FFE_CERT_TYPES, see ffeCertTypes.ts
+  certClass: string; // harmonized header's "Class" field
+  placeOfService: string; // harmonized header's "Place of Service" field
+  technicalValues: Record<string, string>; // keyed by FFESubTypeConfig.technicalFields[].key
+  items: FFEItemRow[]; // the primary incrementable item/cylinder register
+  items2: FFEItemRow[]; // second table — only MO2 Set uses this (set details + cylinder specs)
+  checklist: FFEChecklistResult[];
+  comments: string;
+}
+
 export interface EquipmentTypeConfig {
-  kind: "boat" | "crane" | "placeholder";
+  kind: "boat" | "crane" | "ffe" | "placeholder";
   typeName: string;
   label: string;
   statementIntro?: string;
