@@ -1,0 +1,28 @@
+version: "3.9"
+
+services:
+
+  postgres:
+    image: postgres:16
+    container_name: hmzc_database
+    environment:
+      POSTGRES_USER: hmzc_user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: hmzc_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  backend:
+    build: .
+    container_name: hmzc_backend
+    depends_on:
+      - postgres
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+
+volumes:
+  postgres_data:

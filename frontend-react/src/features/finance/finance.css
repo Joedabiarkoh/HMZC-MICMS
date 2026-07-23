@@ -1,0 +1,126 @@
+/*
+  Finance previously had no stylesheet at all — FinanceDashboard.tsx
+  referenced classes like finance-dashboard__cards that nothing defined
+  (see docs/UX_AUDIT.md, section 5). This uses the same --insp-* tokens
+  from src/styles/theme.css that Inspections and Auth already use,
+  rather than inventing a second, different-looking design system.
+*/
+
+.finance-page {
+  font-family: "Segoe UI", Inter, Arial, sans-serif;
+  color: var(--insp-text);
+  padding: 20px;
+  max-width: 1100px;
+  margin: 0 auto;
+}
+.finance-page h1 {
+  color: var(--insp-navy);
+  font-size: 19px;
+  margin: 0 0 4px;
+}
+.finance-page h2 {
+  color: var(--insp-navy);
+  font-size: 14px;
+  margin: 22px 0 10px;
+}
+.finance-subtitle { color: var(--insp-muted); font-size: 12px; margin: 0 0 18px; }
+
+.finance-toolbar { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 14px; }
+
+.finance-dashboard__cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+  margin: 14px 0 24px;
+}
+.finance-card {
+  background: #fff;
+  border: 1px solid var(--insp-line);
+  border-radius: 10px;
+  padding: 16px;
+}
+.finance-card__label { font-size: 11px; color: var(--insp-muted); text-transform: uppercase; letter-spacing: .04em; }
+.finance-card__value { font-size: 24px; font-weight: 700; color: var(--insp-navy); margin-top: 6px; }
+
+table.finance-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: #fff;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid var(--insp-line);
+  font-size: 12.5px;
+}
+table.finance-table th {
+  background: var(--insp-navy);
+  color: #fff;
+  text-align: left;
+  padding: 9px 12px;
+  font-size: 11px;
+  text-transform: uppercase;
+}
+table.finance-table td { padding: 9px 12px; border-bottom: 1px solid var(--insp-line); }
+table.finance-table tr:hover td { background: #F8FAF7; }
+table.finance-table a { color: var(--insp-green); font-weight: 700; text-decoration: none; }
+
+.finance-status-pill {
+  display: inline-block; padding: 2px 9px; border-radius: 20px; font-size: 10.5px;
+  font-weight: 700; color: #fff; text-transform: uppercase;
+}
+.finance-status-pill.draft { background: #8B93A0; }
+.finance-status-pill.sent, .finance-status-pill.issued { background: var(--insp-amber); }
+.finance-status-pill.accepted, .finance-status-pill.paid { background: var(--insp-green); }
+.finance-status-pill.rejected, .finance-status-pill.void { background: var(--insp-red); }
+
+.finance-btn {
+  display: inline-block; padding: 8px 15px; border-radius: 6px; border: 1px solid transparent;
+  font-size: 12.5px; font-weight: 700; cursor: pointer; text-decoration: none;
+}
+.finance-btn-primary { background: var(--insp-green); color: #fff; }
+.finance-btn-outline { background: #fff; border-color: #C9D1D8; color: var(--insp-text); }
+.finance-btn-danger { background: #fff; border-color: var(--insp-red); color: var(--insp-red); }
+
+/* ---- Document form (create/edit invoice or quotation) ---- */
+.finance-form-layout { display: grid; grid-template-columns: minmax(340px, 440px) 1fr; gap: 16px; }
+@media (max-width: 1000px) { .finance-form-layout { grid-template-columns: 1fr; } }
+
+.finance-panel { background: #fff; border: 1px solid var(--insp-line); border-radius: 10px; padding: 16px; }
+.finance-field { margin-bottom: 10px; }
+.finance-field label { display: block; font-size: 11px; color: var(--insp-muted); margin-bottom: 3px; font-weight: 600; }
+.finance-field input, .finance-field select { width: 100%; padding: 7px 9px; border: 1px solid #C9D1D8; border-radius: 5px; font-size: 13px; }
+.finance-row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+
+/* ---- Item picker ---- */
+.item-picker { position: relative; margin-bottom: 14px; }
+.item-picker input { width: 100%; padding: 9px 10px; border: 1px solid #C9D1D8; border-radius: 6px; font-size: 13px; }
+.item-picker-results {
+  position: absolute; top: 100%; left: 0; right: 0; background: #fff; border: 1px solid var(--insp-line);
+  border-radius: 0 0 8px 8px; max-height: 260px; overflow-y: auto; z-index: 20; box-shadow: 0 6px 14px rgba(0,0,0,.1);
+}
+.item-picker-result {
+  padding: 8px 10px; cursor: pointer; border-bottom: 1px solid #EEF0F2; font-size: 12.5px; display: flex; justify-content: space-between;
+}
+.item-picker-result:hover { background: var(--insp-green-light); }
+.item-picker-result .code { font-family: monospace; color: var(--insp-navy); font-weight: 700; margin-right: 8px; }
+.item-picker-result .price { color: var(--insp-muted); }
+
+table.line-items-table { width: 100%; border-collapse: collapse; font-size: 12px; margin-bottom: 14px; }
+table.line-items-table th { background: #F1F3F4; text-align: left; padding: 6px 8px; font-size: 10.5px; text-transform: uppercase; color: var(--insp-muted); }
+table.line-items-table td { padding: 5px 8px; border-bottom: 1px solid #EEF0F2; vertical-align: middle; }
+table.line-items-table input { width: 100%; padding: 4px 6px; border: 1px solid #DDE2E6; border-radius: 4px; font-size: 12px; }
+table.line-items-table .remove-btn { background: none; border: none; color: var(--insp-red); font-weight: 700; cursor: pointer; font-size: 15px; }
+
+.finance-totals { margin-left: auto; width: 260px; font-size: 13px; }
+.finance-totals-row { display: flex; justify-content: space-between; padding: 4px 0; }
+.finance-totals-row.grand { border-top: 2px solid var(--insp-navy); margin-top: 6px; padding-top: 8px; font-weight: 700; font-size: 15px; color: var(--insp-navy); }
+
+/* ---- Document preview (invoice/quotation as issued — same treatment as certificates) ---- */
+.finance-doc-page {
+  background: #fff; max-width: 800px; margin: 0 auto 24px; padding: 30px 42px 26px;
+  border: 1px solid #d7dbdf; box-shadow: 0 2px 10px rgba(0,0,0,.06); position: relative; overflow: hidden;
+}
+.finance-doc-page::before {
+  content: ""; position: absolute; inset: 0; background-image: var(--insp-watermark-url);
+  background-repeat: no-repeat; background-position: center; background-size: 56%; opacity: .05; pointer-events: none; z-index: 0;
+}
+.finance-doc-page > * { position: relative; z-index: 1; }

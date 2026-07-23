@@ -1,0 +1,180 @@
+/*
+  Color palette ported 1:1 from the standalone HMZC Certification Platform
+  (hmzc_certificate_system_v3.html) so this module looks and feels like
+  the previous system. Each equipment type keeps its own accent colour,
+  switched via a data-type attribute on the page wrapper instead of the
+  old approach of swapping a body class.
+
+  The shared :root tokens (--insp-navy etc.) now live in
+  src/styles/theme.css, imported once globally in main.tsx — this file
+  only adds the per-equipment-type accent overrides below, which are
+  specific to Inspections and don't belong in the shared theme file.
+*/
+
+/* Per-equipment-type accent, matching the old tool's body.type-* rules */
+.inspections-page[data-type="lifeboat"] { --insp-accent: var(--insp-green); --insp-accent-light: var(--insp-green-light); }
+.inspections-page[data-type="rescueboat"] { --insp-accent: var(--insp-amber); --insp-accent-light: var(--insp-amber-light); }
+.inspections-page[data-type="freefall_dry"],
+.inspections-page[data-type="freefall_tanker"] { --insp-accent: var(--insp-teal); --insp-accent-light: var(--insp-teal-light); }
+.inspections-page[data-type="crane"] { --insp-accent: var(--insp-purple); --insp-accent-light: var(--insp-purple-light); }
+.inspections-page[data-type="firefighting"] { --insp-accent: var(--insp-red); --insp-accent-light: #FBEEEC; }
+.inspections-page[data-type="loosegear"] { --insp-accent: var(--insp-steel); --insp-accent-light: var(--insp-steel-light); }
+
+.inspections-page {
+  font-family: "Segoe UI", Inter, Arial, sans-serif;
+  color: var(--insp-text);
+  background: var(--insp-grey-bg);
+  min-height: 100%;
+}
+
+/* ---- top bar / type switcher ---- */
+.insp-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 20px;
+  background: var(--insp-deep-navy);
+  color: #fff;
+  flex-wrap: wrap;
+}
+.insp-topbar h1 { font-size: 15px; margin: 0; font-weight: 600; }
+.insp-topbar p { margin: 0; font-size: 11px; color: #A9BBC9; }
+
+.insp-type-select {
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid #C9D1D8;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--insp-navy);
+  min-width: 260px;
+}
+
+.insp-badge {
+  display: inline-block;
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+  padding: 4px 11px;
+  border-radius: 20px;
+  color: #fff;
+  background: var(--insp-accent);
+}
+
+/* ---- subtabs ---- */
+.insp-subtabs { display: flex; gap: 6px; flex-wrap: wrap; padding: 14px 20px 0; }
+.insp-subtab {
+  background: #fff;
+  border: 1px solid #C9D1D8;
+  color: var(--insp-text);
+  padding: 8px 14px;
+  border-radius: 20px;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.insp-subtab.active { background: var(--insp-navy); border-color: var(--insp-navy); color: #fff; }
+
+/* ---- layout ---- */
+.insp-layout {
+  display: grid;
+  grid-template-columns: minmax(340px, 460px) 1fr;
+  gap: 16px;
+  padding: 16px 20px;
+}
+@media (max-width: 1050px) { .insp-layout { grid-template-columns: 1fr; } }
+
+.insp-panel { background: #fff; border: 1px solid var(--insp-line); border-radius: 10px; overflow: hidden; }
+.insp-panel-header {
+  background: var(--insp-navy);
+  color: #fff;
+  padding: 9px 14px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+.insp-panel-body { padding: 14px; }
+
+/* ---- form fields ---- */
+.insp-fieldset { border: none; margin: 0 0 16px; padding: 0; }
+.insp-legend {
+  font-size: 11px; font-weight: 700; color: var(--insp-accent);
+  text-transform: uppercase; letter-spacing: .06em; margin-bottom: 8px;
+}
+.insp-field { margin-bottom: 9px; }
+.insp-field label { display: block; font-size: 11px; color: var(--insp-muted); margin-bottom: 3px; font-weight: 600; }
+.insp-field input, .insp-field select, .insp-field textarea {
+  width: 100%; padding: 6px 8px; border: 1px solid #C9D1D8; border-radius: 5px; font-size: 12.5px;
+}
+.insp-row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.insp-help-note { font-size: 10.5px; color: var(--insp-muted); margin-top: 6px; line-height: 1.5; }
+
+/* ---- checklist groups ---- */
+.insp-chk-group { margin-bottom: 14px; border: 1px solid var(--insp-line); border-radius: 8px; overflow: hidden; }
+.insp-chk-group-title { background: #EEF1F3; padding: 7px 10px; font-size: 11.5px; font-weight: 700; color: var(--insp-navy); }
+.insp-chk-row { display: flex; align-items: center; gap: 6px; padding: 5px 10px; border-top: 1px solid #EEF0F2; }
+.insp-chk-row .insp-chk-name { flex: 1; font-size: 11.5px; }
+.insp-chk-toggle { display: flex; gap: 2px; flex-shrink: 0; }
+.insp-chk-toggle button {
+  border: 1px solid #C9D1D8; background: #fff; font-size: 9px; font-weight: 700;
+  padding: 3px 6px; border-radius: 3px; cursor: pointer; color: var(--insp-muted);
+}
+.insp-chk-toggle button.sel-good { background: var(--insp-green); border-color: var(--insp-green); color: #fff; }
+.insp-chk-toggle button.sel-part { background: #B8860B; border-color: #B8860B; color: #fff; }
+.insp-chk-toggle button.sel-repair { background: var(--insp-red); border-color: var(--insp-red); color: #fff; }
+.insp-chk-toggle button.sel-na { background: #8B93A0; border-color: #8B93A0; color: #fff; }
+.insp-chk-remark { width: 105px; flex-shrink: 0; padding: 3px 6px; border: 1px solid #DDE2E6; border-radius: 3px; font-size: 10.5px; }
+
+/* ---- certificate preview (print-like) ---- */
+.insp-cert-scroll { max-height: 80vh; overflow: auto; padding: 20px; background: #EAECEE; }
+.insp-cert-page {
+  background: #fff; max-width: 800px; margin: 0 auto 24px; padding: 30px 42px 26px;
+  border: 1px solid #d7dbdf; box-shadow: 0 2px 10px rgba(0,0,0,.06); position: relative; overflow: hidden;
+}
+.insp-cert-page::before {
+  content: ""; position: absolute; inset: 0; background-image: var(--insp-watermark-url);
+  background-repeat: no-repeat; background-position: center;
+  background-size: 56%; opacity: .05; pointer-events: none; z-index: 0;
+}
+.insp-cert-page > * { position: relative; z-index: 1; }
+.insp-letterhead { display: flex; justify-content: space-between; border-bottom: 3px solid var(--insp-accent); padding-bottom: 9px; margin-bottom: 10px; }
+.insp-letterhead img { height: 42px; }
+.insp-letterhead .insp-lh-right { text-align: right; font-size: 10px; color: var(--insp-muted); line-height: 1.5; }
+.insp-cert-title-row { display: flex; justify-content: space-between; align-items: center; margin: 8px 0 10px; }
+.insp-cert-title-row h2 { font-family: Georgia, "Times New Roman", serif; font-size: 17px; color: var(--insp-navy); margin: 0; text-transform: uppercase; }
+
+table.insp-id-table { width: 100%; border-collapse: collapse; font-size: 11.5px; margin-bottom: 12px; }
+table.insp-id-table td { border: 1px solid #CBD2D8; padding: 5px 8px; }
+table.insp-id-table td.insp-label-cell { background: #F4F6F7; font-weight: 700; color: var(--insp-navy); width: 16%; }
+
+table.insp-print-chk { width: 100%; border-collapse: collapse; font-size: 10px; margin-bottom: 10px; }
+table.insp-print-chk th { background: var(--insp-navy); color: #fff; text-align: left; padding: 4px 6px; font-size: 9px; text-transform: uppercase; }
+table.insp-print-chk td { padding: 3px 6px; border: 1px solid #E4E7E9; }
+table.insp-print-chk tr.insp-section-row td { background: #EEF1F3; font-weight: 700; color: var(--insp-navy); font-size: 9.5px; text-transform: uppercase; }
+
+.insp-pill { display: inline-block; padding: 1px 7px; border-radius: 20px; font-size: 8.5px; font-weight: 700; color: #fff; }
+.insp-pill.good, .insp-pill.ok { background: var(--insp-green); }
+.insp-pill.part, .insp-pill.expired { background: #B8860B; }
+.insp-pill.repair, .insp-pill.missing, .insp-pill.damaged { background: var(--insp-red); }
+.insp-pill.na { background: #8B93A0; }
+
+.insp-remarks-box { border: 1px solid var(--insp-accent); background: var(--insp-accent-light); border-radius: 6px; padding: 10px 12px; font-size: 11px; font-weight: 600; color: var(--insp-navy); margin: 12px 0; }
+
+/* ---- buttons ---- */
+.insp-btn {
+  display: inline-block; padding: 8px 15px; border-radius: 6px; border: 1px solid transparent;
+  font-size: 12.5px; font-weight: 700; cursor: pointer;
+}
+.insp-btn-primary { background: var(--insp-accent); color: #fff; }
+.insp-btn-outline { background: #fff; border-color: #C9D1D8; color: var(--insp-text); }
+.insp-btn-row { display: flex; gap: 8px; flex-wrap: wrap; padding: 0 20px 20px; }
+
+/* ---- coming soon ---- */
+.insp-coming-soon {
+  margin: 20px; padding: 24px; background: #fff; border: 1px dashed var(--insp-line); border-radius: 10px;
+}
+.insp-coming-soon h2 { color: var(--insp-navy); margin-top: 0; }
+.insp-coming-soon p { color: var(--insp-muted); font-size: 13px; line-height: 1.6; }

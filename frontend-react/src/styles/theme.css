@@ -1,0 +1,48 @@
+/*
+  HMZC design tokens — the same palette used throughout the standalone
+  Certification Platform tool, now shared across every module in this
+  project. Extracted out of inspections.css (which had been the only
+  place these existed) when the Finance module and the app-wide
+  navigation shell needed the same colors and would otherwise have been
+  a third copy-paste of the same hex values with the risk of drifting
+  out of sync. Imported once, globally, in main.tsx — every other
+  stylesheet (inspections.css, auth.css, finance.css, appshell.css)
+  reads these via var(--insp-*) rather than redefining :root itself.
+
+  The --insp- prefix is kept (rather than renamed to something more
+  generic like --hmzc-) purely to avoid touching every existing
+  var(--insp-...) reference across inspections.css and
+  CertificatePreview.tsx for a rename with no functional benefit.
+*/
+
+:root {
+  --insp-navy: #1F3B5C;
+  --insp-deep-navy: #16283D;
+  --insp-green: #4C7A3A;
+  --insp-green-light: #EAF1E7;
+  --insp-amber: #B4690E;
+  --insp-amber-light: #FBF0E2;
+  --insp-teal: #0E7C86;
+  --insp-teal-light: #E3F2F3;
+  --insp-purple: #6A4C93;
+  --insp-purple-light: #EFE9F5;
+  --insp-red: #B3382C;
+  --insp-steel: #455A73;
+  --insp-steel-light: #E7ECF1;
+  --insp-grey-bg: #F4F6F7;
+  --insp-line: #DCE1E5;
+  --insp-text: #243040;
+  --insp-muted: #6B7480;
+  --insp-white: #FFFFFF;
+
+  --insp-accent: var(--insp-green);
+  --insp-accent-light: var(--insp-green-light);
+}
+
+/* Visible keyboard focus ring, applied globally — see the UX audit's
+   accessibility section. Browser default outlines were being relied on
+   implicitly (and inconsistently) everywhere before this. */
+:focus-visible {
+  outline: 2px solid var(--insp-navy);
+  outline-offset: 2px;
+}

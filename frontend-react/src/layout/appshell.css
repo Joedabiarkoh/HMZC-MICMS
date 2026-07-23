@@ -1,0 +1,89 @@
+.shell {
+  min-height: 100vh;
+  background: var(--insp-grey-bg);
+}
+.shell-header {
+  background: var(--insp-deep-navy);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 16px;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+.shell-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.shell-brand img { height: 28px; }
+.shell-brand span { font-size: 13px; font-weight: 700; }
+
+.shell-menu-btn {
+  background: none;
+  border: 1px solid #3A5169;
+  color: #fff;
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-size: 16px;
+  cursor: pointer;
+  display: none;
+}
+
+.shell-nav {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+.shell-nav a {
+  color: #CBD8E2;
+  text-decoration: none;
+  font-size: 12.5px;
+  font-weight: 600;
+  padding: 7px 11px;
+  border-radius: 6px;
+}
+.shell-nav a:hover { background: #22364C; color: #fff; }
+.shell-nav a.active { background: var(--insp-green); color: #fff; }
+
+.shell-user {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 11.5px;
+  color: #A9BBC9;
+}
+.shell-user button {
+  background: transparent;
+  border: 1px solid #3A5169;
+  color: #fff;
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-size: 11.5px;
+  cursor: pointer;
+}
+
+.shell-body { min-height: calc(100vh - 52px); }
+
+@media (max-width: 860px) {
+  .shell-menu-btn { display: inline-block; }
+  .shell-nav {
+    display: none;
+    flex-direction: column;
+    align-items: stretch;
+    width: 100%;
+    position: absolute;
+    top: 52px;
+    left: 0;
+    background: var(--insp-deep-navy);
+    padding: 8px;
+    box-shadow: 0 6px 12px rgba(0,0,0,.2);
+  }
+  .shell-nav.open { display: flex; }
+  .shell-nav a { padding: 10px 12px; }
+  .shell-user { display: none; }
+  .shell-nav.open .shell-user-mobile { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; padding: 10px 12px; border-top: 1px solid #3A5169; margin-top: 6px; color: #A9BBC9; font-size: 11.5px; }
+}

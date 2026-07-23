@@ -1,0 +1,53 @@
+.auth-page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #F4F6F7;
+  font-family: "Segoe UI", Inter, Arial, sans-serif;
+  padding: 20px;
+}
+.auth-card {
+  background: #fff;
+  border-radius: 12px;
+  max-width: 380px;
+  width: 100%;
+  padding: 28px 26px;
+  box-shadow: 0 10px 40px rgba(0,0,0,.12);
+}
+.auth-card img { height: 44px; display: block; margin: 0 auto 10px; }
+.auth-title { text-align: center; font-size: 14px; font-weight: 700; color: #1F3B5C; }
+.auth-subtitle { text-align: center; font-size: 10.5px; color: #6B7480; margin-top: 2px; margin-bottom: 18px; }
+.auth-field { margin-bottom: 12px; }
+.auth-field label { display: block; font-size: 11px; color: #6B7480; margin-bottom: 3px; font-weight: 600; }
+.auth-field input, .auth-field select {
+  width: 100%; padding: 8px 10px; border: 1px solid #C9D1D8; border-radius: 6px; font-size: 13px;
+}
+.auth-btn {
+  width: 100%; padding: 10px; border-radius: 6px; border: none; background: #4C7A3A; color: #fff;
+  font-size: 13px; font-weight: 700; cursor: pointer; margin-top: 6px;
+}
+.auth-btn:disabled { opacity: .6; cursor: default; }
+.auth-error { background: #FBEEEC; color: #7A241B; border: 1px solid #B3382C; border-radius: 6px; padding: 8px 10px; font-size: 12px; margin-bottom: 12px; }
+.auth-switch { text-align: center; font-size: 11.5px; color: #6B7480; margin-top: 14px; }
+.auth-switch a { color: #4C7A3A; font-weight: 700; text-decoration: none; cursor: pointer; }
+
+.users-page { padding: 20px; font-family: "Segoe UI", Inter, Arial, sans-serif; }
+.users-page h1 { color: #1F3B5C; font-size: 18px; }
+table.users-table { width: 100%; border-collapse: collapse; background: #fff; border-radius: 8px; overflow: hidden; border: 1px solid #DCE1E5; margin-top: 12px; }
+table.users-table th { background: #1F3B5C; color: #fff; text-align: left; padding: 9px 12px; font-size: 11px; text-transform: uppercase; }
+table.users-table td { padding: 9px 12px; font-size: 12.5px; border-bottom: 1px solid #DCE1E5; }
+.role-pill { display: inline-block; padding: 2px 9px; border-radius: 20px; font-size: 10.5px; font-weight: 700; color: #fff; text-transform: uppercase; }
+.role-pill.admin { background: #6A4C93; }
+.role-pill.inspector { background: #4C7A3A; }
+.role-pill.finance { background: #B4690E; }
+.role-pill.client { background: #455A73; }
+/* Were missing entirely — every new role added for the Certificates/
+   Finance permission-separation request would have rendered with no
+   background at all (white text, invisible) until this was added. */
+.role-pill.sales { background: #0E7C86; }
+.role-pill.administration { background: #8B93A0; }
+.role-pill.service_coordination { background: #1F3B5C; }
+.role-pill.limited_admin { background: #B3382C; }
+
+.perm-pill { display: inline-block; padding: 1px 7px; margin: 1px; border-radius: 10px; font-size: 9.5px; font-weight: 600; background: #E7ECF1; color: #243040; }

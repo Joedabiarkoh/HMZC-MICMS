@@ -1,0 +1,7 @@
+-r requirements.txt
+
+# Added for the test suite in tests/ — wasn't here before because there
+# was no test suite before. httpx is required by FastAPI's TestClient
+# in recent versions even though nothing imports it directly.
+pytest
+httpx

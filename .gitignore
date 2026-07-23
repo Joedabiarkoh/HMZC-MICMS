@@ -1,0 +1,27 @@
+# Missing entirely before this — worth having given files are being
+# uploaded to GitHub directly (see root README's GitHub-upload note)
+# rather than via a git client that some setups configure separately.
+
+# Frontend
+frontend-react/node_modules/
+frontend-react/dist/
+frontend-react/.env.local
+frontend-react/.env.*.local
+
+# Backend
+backend-fastapi/__pycache__/
+backend-fastapi/**/__pycache__/
+backend-fastapi/*.egg-info/
+backend-fastapi/.venv/
+backend-fastapi/venv/
+backend-fastapi/.env
+# Created harmlessly by importing app.main during a pytest run — see
+# tests/conftest.py's comment on why DATABASE_URL points here for tests.
+backend-fastapi/test_import_time.db
+backend-fastapi/.pytest_cache/
+
+# Editors / OS
+.DS_Store
+.vscode/
+.idea/
+*.pyc
