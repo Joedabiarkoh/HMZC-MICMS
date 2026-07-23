@@ -57,6 +57,18 @@ class Settings(BaseSettings):
     class Config:
         env_file = ".env"
 
+    @field_validator("DATABASE_URL")
+    @classmethod
+    def normalize_postgres_scheme(cls, v: str) -> str:
+        # Some hosts (Render, formerly Heroku) hand out connection strings
+        # starting "postgres://" — valid for libpq, but SQLAlchemy 2.x +
+        # psycopg2 reject that scheme outright (NoSuchModuleError). Accept
+        # either and normalize, rather than requiring every hosting
+        # provider's copy-pasted URL to be hand-edited first.
+        if v.startswith("postgres://"):
+            return "postgresql://" + v[len("postgres://"):]
+        return v
+
     @field_validator("SECRET_KEY")
     @classmethod
     def secret_key_must_be_changed_and_strong(cls, v: str) -> str:

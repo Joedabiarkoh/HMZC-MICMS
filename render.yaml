@@ -1,0 +1,74 @@
+# Render Blueprint — deploys the whole stack from this repo in one go.
+# In the Render dashboard: New -> Blueprint -> connect this GitHub repo.
+# Render reads this file and creates all three resources below.
+#
+# After the first deploy, two follow-up manual steps are needed (Render
+# assigns hostnames at creation time, so they can't be known in advance):
+#   1. Check the actual frontend URL Render assigned (Dashboard ->
+#      hmzc-micms-frontend -> the URL at the top).
+#   2. If it isn't exactly https://hmzc-micms-frontend.onrender.com,
+#      update the backend's CORS_ORIGINS env var to match, and the
+#      frontend's VITE_API_BASE_URL if the backend's URL also differs
+#      from the prediction below — then trigger a manual redeploy of
+#      whichever service you changed.
+
+databases:
+  - name: hmzc-micms-db
+    plan: free
+    databaseName: hmzc_db
+    user: hmzc_user
+
+services:
+  - type: web
+    name: hmzc-micms-backend
+    runtime: docker
+    plan: free
+    dockerfilePath: ./backend-fastapi/Dockerfile
+    dockerContext: ./backend-fastapi
+    healthCheckPath: /api/health
+    envVars:
+      - key: APP_NAME
+        value: HMZC Marine Inspection System
+      - key: DATABASE_URL
+        fromDatabase:
+          name: hmzc-micms-db
+          property: connectionString
+      - key: SECRET_KEY
+        generateValue: true
+      - key: ALGORITHM
+        value: HS256
+      - key: ACCESS_TOKEN_EXPIRE_MINUTES
+        value: "60"
+      # Prediction — confirm/update after first deploy, see note above.
+      - key: CORS_ORIGINS
+        value: https://hmzc-micms-frontend.onrender.com
+      - key: FRONTEND_URL
+        value: https://hmzc-micms-frontend.onrender.com
+      # SMTP left unset — account creation/password reset still work,
+      # the temporary password just won't also be emailed (shown
+      # on-screen to the admin instead). Add SMTP_HOST/USERNAME/PASSWORD/
+      # FROM_EMAIL here later if real email delivery is wanted.
+
+  - type: web
+    name: hmzc-micms-frontend
+    runtime: static
+    buildCommand: >-
+      cd frontend-react &&
+      npm install &&
+      echo "VITE_API_BASE_URL=$VITE_API_BASE_URL" > .env.production.local &&
+      npm run build
+    staticPublishPath: ./frontend-react/dist
+    envVars:
+      # Prediction — confirm/update after the backend's first deploy,
+      # see note above. .env.production.local (written by buildCommand)
+      # takes priority over the committed .env.production, so this is
+      # the value that actually lands in the built bundle.
+      - key: VITE_API_BASE_URL
+        value: https://hmzc-micms-backend.onrender.com/api
+    routes:
+      # SPA fallback — same reason frontend-react/nginx.conf needed
+      # try_files for the local Docker deploy: without this, refreshing
+      # or deep-linking to any client-side route (e.g. /signin) 404s.
+      - type: rewrite
+        source: /*
+        destination: /index.html
