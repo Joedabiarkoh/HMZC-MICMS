@@ -5,11 +5,10 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-import app.models  # noqa: F401 — registers every model with Base before create_all runs below
+import app.models  # noqa: F401 — registers every model with Base for relationship resolution
 from app.api.routes import auth, backup as backup_routes, certificates, finance, health, photos
 from app.core.backup import is_backup_configured, run_backup
 from app.core.config import settings
-from app.core.database import Base, engine
 
 logger = logging.getLogger("hmzc.startup")
 
@@ -43,44 +42,45 @@ async def lifespan(_: FastAPI):
     yield
     task.cancel()
 
-# Module 2 (Users + Auth) additions, merged in rather than replacing this
-# file wholesale — the pasted chat output regenerated its own main.py from
-# scratch (different title, no health route), so only what's actually new
-# was added here:
-#   - CORS middleware, so the React frontend (a different origin in dev)
-#     can call this API.
-#   - Base.metadata.create_all(bind=engine) as a stand-in until Alembic
-#     migrations exist (see migrations/ — still empty).
-#   - auth.router, mounted at /api/auth (register/login/me/users), the
-#     same way health.router is already mounted at /api.
-#   - certificates.router, mounted at /api/certificates — the backend
-#     table certificates previously only lived in browser localStorage
-#     for (see inspection.storage.ts and the README's former "Next step").
-#   - finance.router, mounted at /api/finance — item catalog, quotations,
-#     invoices. The chat's original finance.api.ts already called
-#     /finance/dashboard, /finance/quotation(s), /finance/invoice(s) etc.
-#     with no backend behind any of it; this is that backend's first
-#     real piece (catalog + quotations + invoices — dashboard/payments/
-#     expenses/job-costing/reports still aren't built).
-#
-# Base.metadata.create_all(bind=engine) below is NOT "a stand-in until
-# Alembic migrations exist" anymore — migrations/ now has real ones (see
-# migrations/README.md). create_all() is kept because it's genuinely
-# harmless to leave running (it only creates tables that don't exist
-# yet, checkfirst=True by default — it can't conflict with Alembic or
-# touch existing data) and it's convenient for a truly fresh install.
-# What it can NOT do is add a new column to a table that already
-# exists — that's what caused users.must_change_password to be missing
-# from any database stood up before migrations existed, and it's why
-# migrations/README.md, not this comment, is the real source of truth
-# for "how do I actually apply a schema change."
-Base.metadata.create_all(bind=engine)
-
+# Schema is created/updated by `alembic upgrade head` (see the
+# Dockerfile's CMD, which runs it before uvicorn on every single
+# container start — local Docker Compose and Railway alike). This used
+# to also call Base.metadata.create_all(bind=engine) here as a stand-in,
+# which was fine for creating brand new tables but could never ALTER an
+# existing one — exactly what let users.must_change_password quietly go
+# missing from any database stood up before migrations existed. Removed
+# now that every environment's database is stamped to a real Alembic
+# revision and every startup actually runs migrations, not just once
+# manually remembered by whoever happened to be setting up that database.
 app = FastAPI(
     title="HMZC Marine Inspection & Certification Management System",
     version="1.0",
     lifespan=lifespan,
 )
+
+# Found during a security review — this app had no security headers at
+# all beyond FastAPI's own defaults. None of these change behavior for
+# a legitimate client; they only close off classes of attack a browser
+# would otherwise still allow:
+#   - X-Content-Type-Options: nosniff stops a browser from guessing a
+#     response's type against its declared Content-Type (MIME sniffing),
+#     which matters most for the photo-serving endpoint (core/photo_
+#     storage.py's files are user-supplied images, saved and served back).
+#   - X-Frame-Options: DENY / frame-ancestors stop this API's responses
+#     (particularly the public /verify and /photos endpoints, the only
+#     ones without auth) from being framed on another site for
+#     clickjacking.
+#   - Referrer-Policy limits what leaks in the Referer header on
+#     outbound links/requests, since URLs here can contain cert numbers.
+@app.middleware("http")
+async def add_security_headers(request, call_next):
+    response = await call_next(request)
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["Content-Security-Policy"] = "frame-ancestors 'none'"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    return response
+
 
 app.add_middleware(
     CORSMiddleware,
