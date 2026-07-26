@@ -1,0 +1,43 @@
+name: Tests
+
+# Runs both test suites on every push and PR. Added alongside the
+# frontend's first real tests — a test suite nobody runs automatically
+# only protects against regressions if someone remembers to run it by
+# hand every time, which isn't a real guarantee.
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install dependencies
+        working-directory: backend-fastapi
+        run: pip install -r requirements.txt -r requirements-dev.txt
+      - name: Run backend tests
+        working-directory: backend-fastapi
+        run: python -m pytest tests/ -v
+
+  frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Install dependencies
+        working-directory: frontend-react
+        run: npm install
+      - name: Run frontend tests
+        working-directory: frontend-react
+        run: npm test
+      - name: Type-check and build
+        working-directory: frontend-react
+        run: npm run build

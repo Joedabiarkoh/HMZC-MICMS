@@ -4,16 +4,10 @@ import "../inspections.css";
 import { useInspections } from "../hooks/useInspections";
 import { useAuth } from "../../../context/AuthContext";
 import { INSPECTION_TYPES } from "../data/inspectionChecklists";
-import { EquipmentTypeKey, InspectionCertificate } from "../types/inspection.types";
+import { EquipmentTypeKey } from "../types/inspection.types";
+import { groupCertificatesByVessel, VesselGroup } from "../data/groupCertificatesByVessel";
 import { hasPermission, PERM } from "../../auth/types/auth.types";
 import { confirmAction } from "../../../components/ConfirmDialog";
-
-interface VesselGroup {
-  key: string;
-  vesselName: string;
-  imoNo: string;
-  certs: InspectionCertificate[];
-}
 
 /**
  * The previous standalone tool had a "Certificate Log" tab for exactly
@@ -39,41 +33,10 @@ export default function CertificateLog() {
   const [search, setSearch] = useState("");
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
 
-  const groups = useMemo<VesselGroup[]>(() => {
-    const q = search.trim().toLowerCase();
-    const filtered = Object.values(certificates).filter((c) => {
-      if (!q) return true;
-      return (
-        c.certNo.toLowerCase().includes(q) ||
-        (c.vesselName || "").toLowerCase().includes(q) ||
-        (c.imoNo || "").toLowerCase().includes(q) ||
-        (c.issuedBy || c.savedBy || "").toLowerCase().includes(q)
-      );
-    });
-
-    const byVessel = new Map<string, VesselGroup>();
-    for (const c of filtered) {
-      const vesselName = c.vesselName?.trim() || "";
-      const imoNo = c.imoNo?.trim() || "";
-      const key = vesselName || imoNo ? `${vesselName}|${imoNo}` : "__unrecorded__";
-      let group = byVessel.get(key);
-      if (!group) {
-        group = { key, vesselName, imoNo, certs: [] };
-        byVessel.set(key, group);
-      }
-      group.certs.push(c);
-    }
-
-    for (const group of byVessel.values()) {
-      group.certs.sort((a, b) => (b.issuedAt || b.savedAt || "").localeCompare(a.issuedAt || a.savedAt || ""));
-    }
-
-    return Array.from(byVessel.values()).sort((a, b) => {
-      const aLatest = a.certs[0]?.issuedAt || a.certs[0]?.savedAt || "";
-      const bLatest = b.certs[0]?.issuedAt || b.certs[0]?.savedAt || "";
-      return bLatest.localeCompare(aLatest);
-    });
-  }, [certificates, search]);
+  const groups = useMemo<VesselGroup[]>(
+    () => groupCertificatesByVessel(certificates, search),
+    [certificates, search]
+  );
 
   function toggle(key: string) {
     setExpanded((prev) => {

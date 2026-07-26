@@ -12,6 +12,7 @@ import PhotoUpload from "../components/PhotoUpload";
 import VesselLookupPanel from "../components/VesselLookupPanel";
 import FFEForm from "../components/FFEForm";
 import { getFFEConfig } from "../data/ffeCertTypes";
+import { dirtyKey } from "../data/dirtyKey";
 import { useAuth } from "../../../context/AuthContext";
 import { hasPermission, PERM } from "../../auth/types/auth.types";
 
@@ -77,25 +78,8 @@ export default function InspectionWorkspace() {
   // latest `current`.
   const saveCurrentRef = useRef(saveCurrent);
   saveCurrentRef.current = saveCurrent;
-  // Dirty-check key — deliberately excludes version/issuedBy/issuedAt.
-  // Those three are set by the SERVER, not the user, and land on
-  // `current` asynchronously, after saveCurrent's promise resolves (see
-  // its .then() in useInspections.ts) — strictly later than the
-  // snapshot taken when a save was initiated. Comparing full
-  // JSON.stringify(current) against a snapshot taken before that async
-  // merge meant every single save — auto or manual — was immediately
-  // followed by an apparent "diff" on the very next tick, purely from
-  // the server's response arriving, with zero actual user edits. Since
-  // the interval hardcodes status: "draft", that phantom diff kept
-  // re-firing every 20 seconds forever, and would eventually stomp a
-  // certificate that had just been manually finalized back to draft —
-  // confirmed by watching the actual network requests: two consecutive
-  // auto-saves 20 seconds apart, both "draft", with only `version`
-  // differing between them and every user-facing field identical.
-  function dirtyKey(cert: InspectionCertificate): string {
-    const { version, issuedBy, issuedAt, ...rest } = cert;
-    return JSON.stringify(rest);
-  }
+  // Dirty-check key — see data/dirtyKey.ts for why it excludes
+  // version/issuedBy/issuedAt.
   const lastSavedSnapshot = useRef<string>(dirtyKey(current));
   useEffect(() => {
     lastSavedSnapshot.current = dirtyKey(current);
