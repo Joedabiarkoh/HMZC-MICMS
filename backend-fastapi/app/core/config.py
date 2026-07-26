@@ -54,6 +54,40 @@ class Settings(BaseSettings):
     # frontend's real deployed URL otherwise. Defaults to local Vite dev.
     FRONTEND_URL: str = "http://localhost:5173"
 
+    # Where inspection photos/signatures land once core/photo_storage.py
+    # externalizes them out of the certificates.payload JSON column — see
+    # that file's own comment for why this exists at all. Must be backed
+    # by a real Docker volume (see docker-compose.yml's photo_uploads
+    # volume) — without one, every photo would vanish the next time the
+    # backend container gets recreated, since the container's own
+    # filesystem is thrown away on every rebuild.
+    PHOTOS_DIR: str = "/app/uploads/photos"
+
+    # Optional, and left unset for local Docker Compose on purpose — there,
+    # the frontend's own nginx proxies /api/ to the backend on the same
+    # origin (see frontend-react/nginx.conf), so a relative "/api/photos/..."
+    # URL in a certificate's payload resolves correctly no matter what host
+    # the browser used. That stops being true the moment frontend and
+    # backend are two separate services with two separate origins (e.g.
+    # Railway) — a relative URL then resolves against the FRONTEND's
+    # origin, hitting ITS dead/no-op /api/ proxy instead of ever reaching
+    # this backend. Proven by testing, not assumed: photos 502'd on
+    # Railway until this was added. When set, core/photo_storage.py builds
+    # fully-qualified photo URLs instead of relative ones.
+    PUBLIC_BASE_URL: Optional[str] = None
+
+    # Optional, same reasoning as SMTP above — a real backup destination
+    # (an S3-compatible bucket) is an external resource someone has to
+    # actually provision, so its absence shouldn't block the app from
+    # starting. When unset, core/backup.py's scheduled task logs a
+    # warning and skips running rather than crashing. See that file for
+    # what "backup" actually covers (database + photo volume).
+    BACKUP_S3_ENDPOINT: Optional[str] = None
+    BACKUP_S3_BUCKET: Optional[str] = None
+    BACKUP_S3_ACCESS_KEY_ID: Optional[str] = None
+    BACKUP_S3_SECRET_ACCESS_KEY: Optional[str] = None
+    BACKUP_RETENTION_DAYS: int = 30
+
     class Config:
         env_file = ".env"
 

@@ -9,6 +9,7 @@ from app.core.audit import record_audit
 from app.core.database import get_database
 from app.core.imo_validation import is_valid_imo_checksum
 from app.core.permissions import CERT_DELETE, CERT_EDIT, CERT_VIEW, CERT_VIEW_ALL, get_user_permissions
+from app.core.photo_storage import collect_photo_filenames, delete_photo_files, externalize_photos
 from app.models.certificate import Certificate
 from app.models.user import User
 from app.schemas.certificate import CertificateCreate, CertificateResponse, CertificateVerifyResult, VesselLookupResult, VesselSummary
@@ -35,6 +36,12 @@ def save_certificate(
     later edit — the record of who originally issued it shouldn't
     change just because someone (an admin) opens and re-saves it.
     """
+    # Strips embedded base64 photos/signatures out to files on disk and
+    # replaces them with URLs before anything touches the database — see
+    # core/photo_storage.py for why. Applied here, once, ahead of both
+    # the update and create branches below, rather than duplicated in each.
+    externalized_payload = externalize_photos(cert_in.payload, cert_in.cert_no)
+
     existing = db.query(Certificate).filter(Certificate.cert_no == cert_in.cert_no).first()
 
     if existing:
@@ -53,15 +60,25 @@ def save_certificate(
                     f"Reload it and re-apply your changes."
                 ),
             )
+        # A photo removed in this edit (the technician deleted it before
+        # re-saving) leaves an orphaned file behind unless it's cleaned up
+        # here — the new payload no longer references it, and nothing
+        # else ever will, so there's no other point this gets caught.
+        old_files = set(collect_photo_filenames(existing.payload))
+        new_files = set(collect_photo_filenames(externalized_payload))
+        removed_files = old_files - new_files
+
         existing.equipment_type = cert_in.equipment_type
         existing.vessel_name = cert_in.vessel_name
         existing.imo_no = cert_in.imo_no
         existing.status = cert_in.status
         existing.date_of_servicing = cert_in.date_of_servicing
-        existing.payload = cert_in.payload
+        existing.payload = externalized_payload
         existing.version += 1
         db.commit()
         db.refresh(existing)
+        if removed_files:
+            delete_photo_files(list(removed_files))
         record_audit(db, request, "certificate.save", user_id=current_user.id, resource_type="certificate", resource_id=existing.cert_no, detail=f"status={existing.status}, version={existing.version}")
         return existing
 
@@ -72,7 +89,7 @@ def save_certificate(
         imo_no=cert_in.imo_no,
         status=cert_in.status,
         date_of_servicing=cert_in.date_of_servicing,
-        payload=cert_in.payload,
+        payload=externalized_payload,
         issued_by_id=current_user.id,
     )
     db.add(cert)
@@ -296,5 +313,8 @@ def delete_certificate(
     cert = db.query(Certificate).filter(Certificate.cert_no == cert_no).first()
     if not cert:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Certificate not found")
+    photo_files = collect_photo_filenames(cert.payload)
     db.delete(cert)
     db.commit()
+    if photo_files:
+        delete_photo_files(photo_files)

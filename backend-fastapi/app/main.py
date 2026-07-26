@@ -1,10 +1,47 @@
+import asyncio
+import logging
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 import app.models  # noqa: F401 — registers every model with Base before create_all runs below
-from app.api.routes import auth, certificates, finance, health
+from app.api.routes import auth, backup as backup_routes, certificates, finance, health, photos
+from app.core.backup import is_backup_configured, run_backup
 from app.core.config import settings
 from app.core.database import Base, engine
+
+logger = logging.getLogger("hmzc.startup")
+
+BACKUP_INTERVAL_SECONDS = 24 * 60 * 60
+
+
+async def _backup_loop() -> None:
+    """
+    Runs on Railway, inside this same always-on process — not on anyone's
+    laptop (see core/backup.py's own comment for why that distinction
+    matters). First run happens shortly after startup as a fast sanity
+    check rather than waiting a full day to discover misconfiguration;
+    every run after that is 24 hours apart.
+    """
+    if not is_backup_configured():
+        logger.warning("BACKUP_S3_* not configured — scheduled backups are OFF.")
+        return
+    await asyncio.sleep(60)
+    while True:
+        try:
+            result = await asyncio.to_thread(run_backup)
+            logger.info("Scheduled backup finished: %s", result)
+        except Exception:
+            logger.exception("Scheduled backup raised an unhandled exception")
+        await asyncio.sleep(BACKUP_INTERVAL_SECONDS)
+
+
+@asynccontextmanager
+async def lifespan(_: FastAPI):
+    task = asyncio.create_task(_backup_loop())
+    yield
+    task.cancel()
 
 # Module 2 (Users + Auth) additions, merged in rather than replacing this
 # file wholesale — the pasted chat output regenerated its own main.py from
@@ -42,6 +79,7 @@ Base.metadata.create_all(bind=engine)
 app = FastAPI(
     title="HMZC Marine Inspection & Certification Management System",
     version="1.0",
+    lifespan=lifespan,
 )
 
 app.add_middleware(
@@ -61,6 +99,8 @@ app.include_router(health.router, prefix="/api")
 app.include_router(auth.router, prefix="/api/auth")
 app.include_router(certificates.router, prefix="/api/certificates")
 app.include_router(finance.router, prefix="/api/finance")
+app.include_router(photos.router, prefix="/api/photos")
+app.include_router(backup_routes.router, prefix="/api/backup")
 
 
 @app.get("/")
