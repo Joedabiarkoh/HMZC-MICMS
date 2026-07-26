@@ -27,24 +27,42 @@ anything with real data.
 """
 from alembic import op
 import sqlalchemy as sa
+from sqlalchemy.dialects import postgresql
 
 revision = "0001_baseline"
 down_revision = None
 branch_labels = None
 depends_on = None
 
-# Was inferred from SQLAlchemy's default enum-naming behavior (flagged
-# directly as unverified in a readiness review, since there was no live
-# database to confirm it against). Fixed at the source instead:
-# app/models/user.py now explicitly names this Column(Enum(UserRole,
-# name="userrole"), ...) rather than leaving it implicit, so this line
-# is a guaranteed match with the model, not a guess about what
-# SQLAlchemy would have picked on its own.
-user_role_enum = sa.Enum("admin", "inspector", "finance", "client", name="userrole")
+# Values are UPPERCASE ("ADMIN", not "admin") — proven necessary by
+# actually running this against a real disposable Postgres and diffing
+# the result against Base.metadata.create_all()'s output, not assumed.
+# app/models/user.py declares Column(Enum(UserRole, name="userrole"))
+# with no values_callable, so SQLAlchemy's default behavior applies: for
+# a Python str-Enum class, it stores each member's *name* in the
+# database, not its .value — UserRole.ADMIN = "admin" (lowercase value)
+# still gets written to Postgres as the label "ADMIN". A migration using
+# the lowercase values would create a database the running app couldn't
+# actually write a single user to (psycopg2.errors.InvalidTextRepresentation
+# on the very first insert).
+#
+# create_type=False here (also proven necessary the same way):
+# op.create_table() below does its own "does this column's type need
+# creating" check with checkfirst=False, so if the column referenced the
+# same live-and-already-created type object, it would try to CREATE TYPE
+# userrole a second time and fail with DuplicateObject. The explicit
+# .create() call in upgrade() below (a separate throwaway instance,
+# default create_type=True) is what actually creates it; this one is
+# only ever used as the column's type reference.
+user_role_enum = postgresql.ENUM(
+    "ADMIN", "INSPECTOR", "FINANCE", "CLIENT", name="userrole", create_type=False
+)
 
 
 def upgrade() -> None:
-    user_role_enum.create(op.get_bind(), checkfirst=True)
+    postgresql.ENUM(
+        "ADMIN", "INSPECTOR", "FINANCE", "CLIENT", name="userrole"
+    ).create(op.get_bind(), checkfirst=True)
 
     op.create_table(
         "users",
@@ -52,7 +70,7 @@ def upgrade() -> None:
         sa.Column("email", sa.String(), nullable=False, unique=True, index=True),
         sa.Column("hashed_password", sa.String(), nullable=False),
         sa.Column("full_name", sa.String(), nullable=True),
-        sa.Column("role", user_role_enum, nullable=False, server_default="inspector"),
+        sa.Column("role", user_role_enum, nullable=False, server_default="INSPECTOR"),
         sa.Column("is_active", sa.Boolean(), nullable=False, server_default=sa.false()),
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
         sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.func.now(), onupdate=sa.func.now()),

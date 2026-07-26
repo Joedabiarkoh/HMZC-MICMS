@@ -14,13 +14,18 @@ would have a `users` table missing this column entirely, and inserting
 a user with one of the new roles would fail outright (the Postgres enum
 type wouldn't accept a value it doesn't know about).
 
-IMPORTANT — not run against a real database, same caveat as every other
-migration here. One thing specifically worth verifying on a real
-Postgres instance: `ALTER TYPE ... ADD VALUE` cannot run inside the same
-transaction as a statement that *uses* the newly-added value. This
-migration only adds the values and does nothing else with them, which
-should be safe — but "should be" is exactly the kind of claim that
-needs a real database to actually confirm.
+This was actually run against a real (disposable) Postgres instance and
+diffed against Base.metadata.create_all()'s output — that run caught two
+real bugs, both fixed here and in 0001_baseline.py: the ADD VALUE
+autocommit_block below (confirmed to work exactly as expected, no real
+database surprise there), and separately, this file's role-value strings
+originally being lowercase ("sales", "administration", ...) when
+SQLAlchemy actually stores UserRole's uppercase *names* ("SALES",
+"ADMINISTRATION", ...) in the database by default (see 0001_baseline.py's
+comment on user_role_enum for the full explanation) — the lowercase
+version would have added labels the app would never actually use, while
+leaving the real uppercase labels the ORM writes still missing from the
+enum type.
 """
 from alembic import op
 import sqlalchemy as sa
@@ -30,7 +35,7 @@ down_revision = "0002_must_change_password"
 branch_labels = None
 depends_on = None
 
-NEW_ROLE_VALUES = ["sales", "administration", "service_coordination", "limited_admin"]
+NEW_ROLE_VALUES = ["SALES", "ADMINISTRATION", "SERVICE_COORDINATION", "LIMITED_ADMIN"]
 
 
 def upgrade() -> None:
