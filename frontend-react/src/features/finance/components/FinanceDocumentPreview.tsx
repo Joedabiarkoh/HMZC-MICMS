@@ -37,8 +37,7 @@ export default function FinanceDocumentPreview({
           <div>
             HMZC LTD — Marine Engineering Services<br />
             Cabinda HQ: Urbanização 4 De Abril, Cabinda, Angola<br />
-            Luanda: N.º 5 Rua da Igreja (Vulgo Bento Raimundo), Próximo ao Mercado Kiffca,<br />
-            Bairro Chinguar, Bairro Benfica-Talatona, Luanda<br />
+            Luanda, Benfica Rua Bento Raimundo.<br />
             admin@hmzchealthinmarine.com&nbsp;|&nbsp;+244 972 320 300
           </div>
           <CertificateQR payload={`HMZC ${kind}\nNo: ${docNo}\nCustomer: ${customer || "—"}\nTotal: $${total.toFixed(2)}`} size={54} />
