@@ -12,7 +12,7 @@
 // else's data. Offline writes (saving a certificate without a
 // connection) are handled by the app itself, not this service worker
 // — see src/offline/syncQueue.ts.
-const SHELL_CACHE = "hmzc-shell-v1";
+const SHELL_CACHE = "hmzc-shell-v2";
 const SHELL_ASSETS = ["/", "/manifest.webmanifest", "/icons/icon-192.png", "/icons/icon-512.png"];
 
 self.addEventListener("install", (event) => {
