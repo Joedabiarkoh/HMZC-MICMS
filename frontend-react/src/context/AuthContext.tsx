@@ -66,6 +66,13 @@ interface AuthContextValue {
   register: (payload: RegisterPayload) => Promise<User>;
   changePassword: (payload: PasswordChangePayload) => Promise<void>;
   logout: () => void;
+  // Lets a component that already made its own API call (e.g.
+  // SignatureCanvas saving/clearing a default signature) sync the result
+  // back into the shared user object, the same way changePassword does
+  // above — without this, the freshly saved saved_signature_url would
+  // only exist in that one component's local state until the next full
+  // page load re-fetched /auth/me.
+  updateUser: (user: User) => void;
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
@@ -163,8 +170,13 @@ export function AuthProvider({ children }: { children: any }) {
     setUser(null);
   }
 
+  function updateUser(updated: User) {
+    setUser(updated);
+    cacheUser(updated);
+  }
+
   return (
-    <AuthContext.Provider value={{ user, loading, error, login, register, changePassword, logout }}>
+    <AuthContext.Provider value={{ user, loading, error, login, register, changePassword, logout, updateUser }}>
       {children}
     </AuthContext.Provider>
   );

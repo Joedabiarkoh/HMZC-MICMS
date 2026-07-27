@@ -719,7 +719,7 @@ function StatementForm({ type, current, updateField, updateNested, toggleAutoRem
         </div>
         <div className="insp-row2">
           <SignatureCanvas label="Captain Signature" value={current.captainSig} onChange={(v: string) => updateSignature("captainSig", v)} />
-          <SignatureCanvas label="Service Engineer Signature" value={current.engineerSig} onChange={(v: string) => updateSignature("engineerSig", v)} />
+          <SignatureCanvas label="Service Engineer Signature" value={current.engineerSig} onChange={(v: string) => updateSignature("engineerSig", v)} allowSavedDefault />
         </div>
       </fieldset>
     </>

@@ -57,6 +57,11 @@ export interface User {
   // actually grants.
   permissions: string[];
   created_at: string;
+  // This account's saved default signature (see PUT/DELETE
+  // /auth/me/signature) — set once, then reused on every certificate
+  // this person signs so they don't have to redraw it each time. null
+  // if they've never saved one.
+  saved_signature_url: string | null;
 }
 
 export function hasPermission(user: User | null, permission: string): boolean {

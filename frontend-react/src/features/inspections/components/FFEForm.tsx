@@ -248,7 +248,7 @@ export default function FFEForm({ current, updateField, openCertificate }: Props
         </div>
         <div className="insp-row2">
           <SignatureCanvas label="Master Signature" value={current.captainSig} onChange={(v) => updateField("captainSig", v)} />
-          <SignatureCanvas label="Technician Signature" value={current.engineerSig} onChange={(v) => updateField("engineerSig", v)} />
+          <SignatureCanvas label="Technician Signature" value={current.engineerSig} onChange={(v) => updateField("engineerSig", v)} allowSavedDefault />
         </div>
       </fieldset>
     </>

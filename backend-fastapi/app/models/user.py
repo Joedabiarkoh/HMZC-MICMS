@@ -75,6 +75,14 @@ class User(BaseModel):
     # via PATCH /auth/users/{id}/permissions. Empty list, not null, by
     # default — simplifies get_user_permissions (no None-check needed).
     extra_permissions = Column(JSON, nullable=False, default=list)
+    # Requested directly: a technician re-draws their own signature on
+    # every single certificate they issue — this lets them save it once
+    # and have it reused automatically on new certificates (see
+    # core/photo_storage.py for how the actual image file is stored;
+    # this column only holds the URL, same pattern as certificate
+    # photos). Nullable — most accounts (Sales, Admin, Client roles)
+    # never sign a certificate at all, so there's no default to set.
+    saved_signature_url = Column(String, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 

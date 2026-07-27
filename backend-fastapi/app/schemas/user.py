@@ -38,6 +38,10 @@ class UserResponse(UserBase):
     # the frontend needs to gate UI on, not the raw pieces that produced it.
     permissions: List[str]
     created_at: datetime
+    # URL of this user's saved default signature, if they've set one (see
+    # User.saved_signature_url) — None for accounts that never sign a
+    # certificate, or that just haven't saved one yet.
+    saved_signature_url: Optional[str] = None
 
     class Config:
         from_attributes = True
@@ -95,3 +99,13 @@ class PermissionUpdate(BaseModel):
     # purpose: that check lives in the route (api/routes/auth.py) so the
     # error message can name exactly which permission string was invalid.
     extra_permissions: List[str]
+
+
+# ---- Added for per-user reusable signatures ----
+
+class SignatureUpdate(BaseModel):
+    # A data:image/...;base64,... URI, same shape SignatureCanvas.tsx
+    # already produces for a certificate's own signature fields — see
+    # core/photo_storage.py's externalize_signature for how this gets
+    # turned into a stored file + URL.
+    signature: str

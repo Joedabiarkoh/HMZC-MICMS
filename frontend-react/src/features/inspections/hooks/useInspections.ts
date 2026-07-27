@@ -4,6 +4,7 @@ import { loadCertificates, persistCertificates } from "../services/inspection.st
 import { listCertificates, listCertificateNumbers, saveCertificateRemote, deleteCertificateRemote, CertificateConflictError } from "../services/inspection.api";
 import { freshCertificate } from "../data/inspectionHelpers";
 import { queueSave, queueDelete, flushQueue, pendingCount, pendingCertNos } from "../../../offline/syncQueue";
+import { useAuth } from "../../../context/AuthContext";
 
 const PERIODIC_RETRY_MS = 30_000;
 
@@ -36,6 +37,7 @@ const PERIODIC_RETRY_MS = 30_000;
  * creating two certificates that share a number.
  */
 export function useInspections(initialType: EquipmentTypeKey = "lifeboat") {
+  const { user } = useAuth();
   const [certificates, setCertificates] = useState<Record<string, InspectionCertificate>>({});
   const [allCertNos, setAllCertNos] = useState<Set<string>>(new Set());
   const [current, setCurrent] = useState<InspectionCertificate>(() => freshCertificate(initialType, new Set()));
@@ -144,6 +146,23 @@ export function useInspections(initialType: EquipmentTypeKey = "lifeboat") {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Requested directly: "so they will not need to sign one after the
+  // other." A blank, never-yet-saved draft gets the signed-in user's
+  // saved default signature filled in automatically as soon as it's
+  // known. This is separate from the freshCertificate() calls below on
+  // purpose — AuthContext's cached user can still be loading when this
+  // hook's own mount effect below runs (both are effects racing on the
+  // same commit), so a one-time fill at creation time can miss it; this
+  // re-checks whenever `user` itself changes instead. Guarded by
+  // `!prev.savedAt` so it only ever touches a genuinely fresh draft, not
+  // an existing certificate someone opened that happens to have no
+  // signature yet — that should stay exactly as blank as they left it.
+  useEffect(() => {
+    if (!user?.saved_signature_url) return;
+    const defaultSig = user.saved_signature_url;
+    setCurrent((prev) => (prev.status === "draft" && !prev.savedAt && !prev.engineerSig ? { ...prev, engineerSig: defaultSig } : prev));
+  }, [user]);
+
   const saveCurrent = useCallback(
     (status: "draft" | "final", savedBy: string) => {
       const toSave: InspectionCertificate = { ...current, status, savedAt: new Date().toISOString(), savedBy };
@@ -192,10 +211,11 @@ export function useInspections(initialType: EquipmentTypeKey = "lifeboat") {
       fresh.vesselName = vesselName;
       fresh.imoNo = imoNo;
       if (date) fresh.dateOfServicing = date;
+      if (user?.saved_signature_url) fresh.engineerSig = user.saved_signature_url;
       setCurrent(fresh);
       return fresh;
     },
-    [allCertNos]
+    [allCertNos, user]
   );
 
   const openCertificate = useCallback((certNo: string) => {

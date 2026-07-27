@@ -113,3 +113,20 @@ export async function updateUserPermissions(userId: number, payload: PermissionU
   const response = await api.patch(`/auth/users/${userId}/permissions`, payload);
   return response.data;
 }
+
+/**
+ * Self-service. Saves this account's default signature (a data URI, same
+ * shape SignatureCanvas already produces) so it can be reused on every
+ * certificate this person issues instead of being redrawn each time.
+ * Overwrites whatever was saved before.
+ */
+export async function saveMySignature(signature: string): Promise<User> {
+  const response = await api.put("/auth/me/signature", { signature });
+  return response.data;
+}
+
+/** Self-service. Clears the saved default signature. */
+export async function deleteMySignature(): Promise<User> {
+  const response = await api.delete("/auth/me/signature");
+  return response.data;
+}

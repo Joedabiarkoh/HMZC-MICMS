@@ -212,3 +212,45 @@ def test_admin_reset_password_forces_change_on_next_login(client, admin_token):
     token = new_login.json()["access_token"]
     me = client.get("/api/auth/me", headers={"Authorization": f"Bearer {token}"})
     assert me.json()["must_change_password"] is True
+
+
+# 1x1 transparent PNG, base64-encoded — smallest possible valid image for
+# exercising the data-URI decode path without shipping a real signature.
+_TINY_PNG_DATA_URI = (
+    "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII="
+)
+
+
+def test_saved_signature_persists_and_is_reused(client, admin_token):
+    """
+    Requested directly: a user saves their signature once (PUT
+    /auth/me/signature) and it should come back on every subsequent
+    /auth/me — the frontend auto-fill (useInspections.ts) relies on this
+    being present without the user having to redraw it.
+    """
+    save_response = client.put(
+        "/api/auth/me/signature",
+        json={"signature": _TINY_PNG_DATA_URI},
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    assert save_response.status_code == 200, save_response.text
+    saved_url = save_response.json()["saved_signature_url"]
+    assert saved_url  # a real URL was written, not left null
+    assert "/api/photos/" in saved_url
+
+    me = client.get("/api/auth/me", headers={"Authorization": f"Bearer {admin_token}"})
+    assert me.json()["saved_signature_url"] == saved_url
+
+
+def test_deleting_saved_signature_clears_it(client, admin_token):
+    client.put(
+        "/api/auth/me/signature",
+        json={"signature": _TINY_PNG_DATA_URI},
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    delete_response = client.delete("/api/auth/me/signature", headers={"Authorization": f"Bearer {admin_token}"})
+    assert delete_response.status_code == 200, delete_response.text
+    assert delete_response.json()["saved_signature_url"] is None
+
+    me = client.get("/api/auth/me", headers={"Authorization": f"Bearer {admin_token}"})
+    assert me.json()["saved_signature_url"] is None

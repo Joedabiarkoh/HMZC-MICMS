@@ -27,6 +27,7 @@ const sampleUser = {
   must_change_password: false,
   permissions: ["certificates.view"],
   created_at: "2026-01-01T00:00:00Z",
+  saved_signature_url: null,
 };
 
 function networkError() {

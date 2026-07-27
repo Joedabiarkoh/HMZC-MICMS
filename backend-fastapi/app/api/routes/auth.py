@@ -10,6 +10,7 @@ from app.core.database import get_database
 from app.core.email import send_account_created_email, send_password_reset_email
 from app.core.config import settings
 from app.core.permissions import ALL_PERMISSIONS
+from app.core.photo_storage import delete_photo_files, externalize_signature, collect_photo_filenames
 from app.core.rate_limit import check_rate_limit
 from app.core.security import create_access_token, generate_temporary_password, hash_password, verify_password
 from app.models.audit_log import AuditLog
@@ -17,7 +18,7 @@ from app.models.certificate import Certificate
 from app.models.finance_document import Invoice, Quotation
 from app.models.user import User, UserRole
 from app.schemas.audit import AuditLogResponse
-from app.schemas.user import AdminCreateUser, PasswordChange, PasswordResetResult, PermissionUpdate, Token, UserCreate, UserResponse
+from app.schemas.user import AdminCreateUser, PasswordChange, PasswordResetResult, PermissionUpdate, SignatureUpdate, Token, UserCreate, UserResponse
 
 # Transcribed from the pasted Module 2 chat output (app/api/v1/auth.py),
 # adapted to match what already existed in this project:
@@ -153,6 +154,42 @@ def login(
 
 @router.get("/me", response_model=UserResponse)
 def read_current_user(current_user: User = Depends(get_current_user)):
+    return current_user
+
+
+# Requested directly: "let allow for each account user be able to load
+# their signature and use it on all certificate they will issue so they
+# will not need to sign one after the other." Self-service, not
+# admin-gated — this is a personal default the signer controls, same as
+# choosing what to draw on any single certificate today. Overwrites
+# whatever was saved before (a new drawing replaces the old one) and
+# cleans up the old file so signature images don't pile up unused.
+@router.put("/me/signature", response_model=UserResponse)
+def save_my_signature(
+    payload: SignatureUpdate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_database),
+):
+    old_url = current_user.saved_signature_url
+    current_user.saved_signature_url = externalize_signature(payload.signature, current_user.email)
+    db.commit()
+    db.refresh(current_user)
+    if old_url:
+        delete_photo_files(collect_photo_filenames(old_url))
+    return current_user
+
+
+@router.delete("/me/signature", response_model=UserResponse)
+def delete_my_signature(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_database),
+):
+    old_url = current_user.saved_signature_url
+    current_user.saved_signature_url = None
+    db.commit()
+    db.refresh(current_user)
+    if old_url:
+        delete_photo_files(collect_photo_filenames(old_url))
     return current_user
 
 

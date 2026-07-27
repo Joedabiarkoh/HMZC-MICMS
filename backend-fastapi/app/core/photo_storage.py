@@ -107,6 +107,16 @@ def externalize_photos(payload: Any, cert_no: str) -> Any:
     return payload
 
 
+def externalize_signature(data_uri: str, email: str) -> str:
+    """Single-image counterpart to externalize_photos() — for a user's
+    saved default signature (see User.saved_signature_url), which isn't
+    part of a certificate payload at all, so the recursive walk above
+    doesn't apply. Reuses the same data-URI decode/write logic so saved
+    signatures live in the same PHOTOS_DIR, served by the same
+    /api/photos/ route, as everything else."""
+    return _externalize_string(data_uri, email)
+
+
 def collect_photo_filenames(payload: Any) -> list[str]:
     """The inverse direction — used by delete_certificate to clean up the
     actual files on disk when a certificate (and therefore its photos)
