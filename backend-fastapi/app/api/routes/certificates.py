@@ -60,6 +60,25 @@ def save_certificate(
                     f"Reload it and re-apply your changes."
                 ),
             )
+        # Requested directly: a finalized certificate can still be edited
+        # later (correcting a mistake found after issue, say), but only by
+        # the person who originally created it — anyone else with
+        # certificates.edit gets 403 here, and the frontend keeps them on
+        # the same view-only preview it already shows for someone with no
+        # edit permission at all (see InspectionWorkspace.tsx's
+        # isLockedToCreator). Checked against the record's CURRENT status
+        # (before this save applies), not the incoming one, since a
+        # currently-final certificate is what needs protecting — an edit
+        # that also happens to change status has already gotten this far
+        # illegitimately if it didn't pass this check. cert_no itself was
+        # never at risk of changing regardless (this is an upsert keyed
+        # on cert_no, and the frontend always sends the certificate's own
+        # unchanged number).
+        if existing.status == "final" and existing.issued_by_id != current_user.id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="This certificate has already been finalized. Only the person who originally issued it can edit it further.",
+            )
         # A photo removed in this edit (the technician deleted it before
         # re-saving) leaves an orphaned file behind unless it's cleaned up
         # here — the new payload no longer references it, and nothing

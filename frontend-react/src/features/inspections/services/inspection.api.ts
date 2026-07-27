@@ -49,6 +49,7 @@ function fromBackend(row: BackendCertificate): InspectionCertificate {
   return {
     ...row.payload,
     issuedBy: row.issued_by ? (row.issued_by.full_name || row.issued_by.email) : row.payload.savedBy,
+    issuedById: row.issued_by?.id,
     issuedAt: row.created_at,
     version: row.version,
   };

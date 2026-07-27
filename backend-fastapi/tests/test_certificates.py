@@ -140,3 +140,40 @@ def test_certificate_view_permission_required(client):
 
     response = client.get("/api/certificates", headers={"Authorization": f"Bearer {client_token}"})
     assert response.status_code == 403
+
+
+def test_finalized_certificate_can_only_be_edited_by_its_creator(client):
+    """
+    Requested directly: once finalized, only whoever originally issued a
+    certificate can edit it further — everyone else with
+    certificates.edit gets rejected, even an admin. cert_no itself never
+    changes either way (this is an upsert keyed on cert_no throughout).
+    """
+    bootstrap_token = _register_and_login(client, email="bootstrap@hmzc-test.com")
+    creator_token = _admin_create_and_login(client, bootstrap_token, "creator@hmzc-test.com", "inspector")
+    final_cert = _sample_certificate()
+    final_cert["status"] = "final"
+    created = client.post("/api/certificates", json=final_cert, headers={"Authorization": f"Bearer {creator_token}"})
+    assert created.status_code == 200, created.text
+    assert created.json()["status"] == "final"
+
+    # Uses the bootstrap admin's own rights to create this second admin
+    # account — creator_token (an inspector) has no rights to create
+    # other accounts itself.
+    other_token = _admin_create_and_login(client, bootstrap_token, "other-admin@hmzc-test.com", "admin")
+    blocked_attempt = _sample_certificate(version=1)
+    blocked_attempt["status"] = "final"
+    rejected = client.post("/api/certificates", json=blocked_attempt, headers={"Authorization": f"Bearer {other_token}"})
+    assert rejected.status_code == 403, rejected.text
+    assert "only" in rejected.json()["detail"].lower()
+
+    # The original creator, on the other hand, can still edit their own
+    # finalized certificate — this is a real edit-after-finalize allowance,
+    # not a full lock.
+    own_edit = _sample_certificate(version=1)
+    own_edit["status"] = "final"
+    own_edit["remarks"] = "corrected after issue"
+    allowed = client.post("/api/certificates", json=own_edit, headers={"Authorization": f"Bearer {creator_token}"})
+    assert allowed.status_code == 200, allowed.text
+    assert allowed.json()["cert_no"] == final_cert["cert_no"]  # cert_no never changes
+    assert allowed.json()["version"] == 2

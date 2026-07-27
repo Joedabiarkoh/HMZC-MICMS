@@ -316,15 +316,24 @@ export default function InspectionWorkspace() {
   // action buttons below, which is what "can see certificate issued and
   // download but cannot make changes" actually means in this UI.
   const canEdit = hasPermission(user, PERM.CERT_EDIT);
-  if (!canEdit) {
+  // Requested directly: once finalized, a certificate can still be
+  // edited later, but only by whoever originally issued it — everyone
+  // else with certificates.edit falls back to the same view-only
+  // preview as someone with no edit permission at all. The backend
+  // enforces this independently (see certificates.py's save_certificate)
+  // and is the real authority; this is what keeps the UI from showing
+  // an editable form for a save that would just get rejected as 403.
+  const isLockedToCreator = current.status === "final" && !!current.issuedById && current.issuedById !== user?.id;
+  if (!canEdit || isLockedToCreator) {
     const isViewingRealCert = !!certificates[current.certNo];
     return (
       <div className="inspections-page" data-type={type}>
         <TopBar type={type} onTypeChange={handleTypeChange} viewOnly />
         <div style={{ padding: "10px 20px 0" }}>
           <div style={{ background: "#E7ECF1", border: "1px solid #455A73", borderRadius: 6, padding: "8px 12px", fontSize: 12, color: "#243040" }}>
-            View-only access — you can see and print/download certificates, but only Technical staff
-            or an administrator can create or edit them.
+            {isLockedToCreator
+              ? `View-only — this certificate was finalized by ${current.issuedBy || "another user"}. Only they can edit it further; you can still view and print it here.`
+              : "View-only access — you can see and print/download certificates, but only Technical staff or an administrator can create or edit them."}
           </div>
         </div>
         {isViewingRealCert ? (

@@ -130,6 +130,13 @@ export interface InspectionCertificate {
   // rather than the free-text savedBy above. Undefined for certificates
   // that only exist in the local offline cache and haven't synced yet.
   issuedBy?: string;
+  // The numeric user id behind issuedBy's display name — requested
+  // directly: once a certificate is finalized, only the person who
+  // originally created it may edit it further (everyone else gets the
+  // view-only preview, same as someone without edit permission at all).
+  // A display name string can't be compared against the logged-in
+  // user's own id, so this is tracked separately.
+  issuedById?: number;
   issuedAt?: string;
   // Set once the certificate has been saved to the backend at least once
   // (see inspection.api.ts). Sent back on the next save so the server can
