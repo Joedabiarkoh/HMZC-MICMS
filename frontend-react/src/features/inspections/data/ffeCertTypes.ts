@@ -1,12 +1,19 @@
 // Firefighting Equipment (FFE) certificate sub-types — built from 27
-// real HMZC certificate templates (Downloads/FFE certificate/*.docx).
-// Several templates were near-duplicates of each other (three CO2
-// variants differing only in which space they protect; three Foam
-// System variants differing only in "Distribution Lines" vs "Monitors";
-// two Life Jacket templates that were the same certificate with a
-// different row count) — merged into one config each rather than kept
-// as separate, functionally-identical sub-types, with a free-text field
+// real HMZC certificate templates (Downloads/FFE certificate/*.docx),
+// then updated and extended from a second batch of 18 templates
+// (Downloads/Cert. Simples/*.docx) that superseded some of the
+// originals and added others HMZC hadn't supplied before. Several
+// templates were near-duplicates of each other (three CO2 variants
+// differing only in which space they protect; three Foam System
+// variants differing only in "Distribution Lines" vs "Monitors"; two
+// Life Jacket templates that were the same certificate with a different
+// row count) — merged into one config each rather than kept as
+// separate, functionally-identical sub-types, with a free-text field
 // covering what actually varied (e.g. CO2's "Protected Space(s)").
+//
+// Every source template (both batches) header-tables its vessel
+// identity as "Class / Flag", not "Class" alone — FFEForm.tsx and
+// CertificatePreview.tsx's harmonized header were updated to match.
 //
 // Every sub-type here is one of four repeating shapes (archetypes) the
 // source templates fell into:
@@ -118,6 +125,9 @@ export const FFE_CERT_TYPES: FFESubTypeConfig[] = [
     validityYears: 1,
   },
   {
+    // itemColumns updated from the "FIRE MAN OUTFITS - CERTIFICATE"
+    // template (Cert. Simples batch) — replaced Type/Model + Size with
+    // Location + Remarks.
     id: "fireman_outfit",
     label: "Fireman Outfit",
     archetype: "items",
@@ -125,7 +135,11 @@ export const FFE_CERT_TYPES: FFESubTypeConfig[] = [
       "1 = Checked condition of Jacket, trousers & Gloves", "2 = Checked condition of Boot and Helmet",
       "3 = Torch lights checked for proper operation", "4 = Checked condition of Rope and Axe",
     ],
-    itemColumns: SERIAL_MAKE_MODEL_COLS,
+    itemColumns: [
+      { key: "serialNo", label: "Serial No" }, { key: "maker", label: "Maker" },
+      { key: "manDate", label: "Man. Date" }, { key: "location", label: "Location" },
+      { key: "workDone", label: "Work Done" }, { key: "remarks", label: "Remarks" },
+    ],
     validityYears: 1,
     note: "Fireman Outfit consists of: Fireman Suit, Trouser, Jacket, Gloves, Helmet, Boots, Fire Axe, Waist Belt, Safety Lamp, Lifeline.",
   },
@@ -177,29 +191,38 @@ export const FFE_CERT_TYPES: FFESubTypeConfig[] = [
       { key: "make", label: "Make" }, { key: "capacity", label: "Capacity" },
       { key: "workingPressure", label: "Working Pressure" }, { key: "htPressure", label: "H.T Pressure" },
       { key: "lastHydroTestDate", label: "Last Hydro Test Date" }, { key: "workDone", label: "Work Done" },
+      { key: "remarks", label: "Remarks" },
     ],
     validityYears: 1,
   },
   {
+    // Updated from the "SCBA CERTIFICATE" template (Cert. Simples batch)
+    // — the set/mask/harness itself is now tracked here with a simpler
+    // column set (no cylinder capacity/pressure fields), separate from
+    // the cylinder's own hydro-test data, which now has its own
+    // certificate (see ba_spare_cylinder below, updated from "BA CYL
+    // CERTIFICATE" in the same batch). Was one combined 9-column table
+    // covering both the set and its cylinder in one row.
     id: "ba_set",
-    label: "Breathing Apparatus (BA Set)",
+    label: "SCBA / Breathing Apparatus Set",
     archetype: "items",
     workCodes: [
       "1 = Face mask checked/sanitized", "2 = Breathing valve checked",
       "3 = Reducer valve, Hose, Harness inspected & checked", "4 = Functional test carried out",
-      "5 = Warning device inspected", "6 = Rejected", "7 = Repaired", "8 = New BA Set/Cylinder",
-      "I = Inspected", "PR = Pressure Checked", "R = Recharge", "HT = Hydro tested",
+      "5 = Warning Device Inspected", "6 = Rejected", "7 = Repaired", "8 = New BA Set/Cylinder",
+      "I = Inspected", "PR = Pressure Checked", "R = Recharge", "HT = Hydro Tested",
     ],
     itemColumns: [
       { key: "setSerialNo", label: "Set Serial No" }, { key: "make", label: "Make" },
-      { key: "model", label: "Model" }, { key: "cylSerialNo", label: "Cylinder Serial No" },
-      { key: "capacity", label: "Capacity" }, { key: "workingPressure", label: "Working Pressure" },
-      { key: "htPressure", label: "H.T Pressure" }, { key: "lastHydroTestDate", label: "Last Hydro Test Date" },
-      { key: "workDone", label: "Work Done" },
+      { key: "type", label: "Type" }, { key: "workDone", label: "Work Done" }, { key: "remarks", label: "Remarks" },
     ],
     validityYears: 1,
   },
   {
+    // Updated from "BA CYL CERTIFICATE" (Cert. Simples batch, titled
+    // "BREATHING APPARATUS" but cylinder-specification-focused) — added
+    // a Remarks column. Covers the cylinder specifically; see ba_set
+    // above for the set/mask/harness itself.
     id: "ba_spare_cylinder",
     label: "Breathing Air Spare Cylinders",
     archetype: "items",
@@ -211,8 +234,32 @@ export const FFE_CERT_TYPES: FFESubTypeConfig[] = [
       { key: "serialNo", label: "Serial No" }, { key: "make", label: "Make" },
       { key: "capacity", label: "Capacity" }, { key: "workingPressure", label: "Working Pressure" },
       { key: "hydroTestPressure", label: "Hydro Test Pressure" }, { key: "lastHydroTestDate", label: "Last Hydro Test Date" },
-      { key: "workDone", label: "Work Done" },
+      { key: "workDone", label: "Work Done" }, { key: "remarks", label: "Remarks" },
     ],
+    validityYears: 1,
+  },
+  {
+    id: "ba_trolley_rescue_set",
+    label: "B.A Trolley & Rescue Set",
+    archetype: "items",
+    workCodes: [
+      "1 = Face mask checked/sanitized", "2 = Breathing valve checked",
+      "3 = Reducer valve, Hose, Harness inspected & checked", "4 = Functional test carried out",
+      "5 = Warning Device Inspected", "6 = Rejected", "7 = Repaired", "8 = New BA Set/Cylinder",
+      "I = Inspected", "PR = Pressure Checked", "R = Recharge", "HT = Hydro Tested",
+    ],
+    itemColumns: [
+      { key: "serialNo", label: "Serial No" }, { key: "make", label: "Make" },
+      { key: "cylCapacity", label: "Cyl. Capacity" }, { key: "workingPressure", label: "Working Pressure" },
+      { key: "htPressure", label: "H.T Pressure" }, { key: "lastHydroTestDate", label: "Last Hydro Test Date" },
+      { key: "workDone", label: "Work Done" }, { key: "remarks", label: "Remarks" },
+    ],
+    itemTableLabel: "BA Cylinder Specifications",
+    items2Columns: [
+      { key: "serialNo", label: "Serial No" }, { key: "make", label: "Make" },
+      { key: "type", label: "Type" }, { key: "workDone", label: "Work Done" }, { key: "remarks", label: "Remarks" },
+    ],
+    items2Label: "Trolley & Rescue Set Details",
     validityYears: 1,
   },
   {
@@ -233,43 +280,51 @@ export const FFE_CERT_TYPES: FFESubTypeConfig[] = [
     validityYears: 1,
   },
   {
+    // itemColumns (set details) updated from "MO2 CERT" (Cert. Simples
+    // batch) — replaced Model/Manufacture Year with I/P and O/P
+    // (inlet/outlet) Pressure; added Remarks to the cylinder table.
     id: "mo2_set",
     label: "Medical Oxygen Resuscitator (MO2 Set)",
     archetype: "items",
     workCodes: [
       "1 = Face mask checked/sanitized", "2 = Cylinder valve checked", "3 = Regulator unit inspected",
-      "4 = Hose inspected", "5 = Visual inspection", "6 = Rejected", "7 = Repaired", "8 = New MO2 Set/Cylinder",
-      "I = Inspected", "PR = Pressure Checked", "R = Recharge", "HT = Hydro tested",
+      "4 = Hose inspected", "5 = Visual Inspection", "6 = Rejected", "7 = Repaired", "8 = New MO2 Set/Cylinder",
+      "I = Inspected", "PR = Pressure Checked", "R = Recharge", "HT = Hydro Tested",
     ],
     itemColumns: [
-      { key: "setNo", label: "Set No" }, { key: "make", label: "Make" }, { key: "model", label: "Model" },
-      { key: "manufactureYear", label: "Manufacture Year" }, { key: "workDone", label: "Work Done" },
+      { key: "setNo", label: "Set No" }, { key: "make", label: "Make" },
+      { key: "ipPressure", label: "I/P Pressure" }, { key: "opPressure", label: "O/P Pressure" },
+      { key: "workDone", label: "Work Done" },
     ],
-    itemTableLabel: "MO2 Set Details",
+    itemTableLabel: "Regulator Details",
     items2Columns: [
       { key: "serialNo", label: "Serial No" }, { key: "make", label: "Make" },
       { key: "capacity", label: "Capacity" }, { key: "workingPressure", label: "Working Pressure" },
       { key: "htPressure", label: "H.T Pressure" }, { key: "lastHydroTestDate", label: "Last Hydro Test Date" },
-      { key: "workDone", label: "Work Done" },
+      { key: "workDone", label: "Work Done" }, { key: "remarks", label: "Remarks" },
     ],
     items2Label: "Set Cylinder Specifications",
     validityYears: 1,
   },
   {
+    // itemColumns updated from "FIRE EXT CERTIFICATE" (Cert. Simples
+    // batch) — added Cartridge Exp. Date, Cartridge Weight, and Remarks
+    // (for cartridge-operated extinguisher types).
     id: "fire_extinguisher",
     label: "Fire Extinguisher",
     archetype: "items",
     workCodes: [
       "1 = Inspection", "2 = Service", "3 = Content Checked", "4 = Recharge", "5 = Painted",
-      "6 = New Extinguisher", "7 = Hydro test", "8 = Condemned",
-      "F = Foam", "W = Water", "CO2 = Carbon Di Oxide", "WC = Wet Chemical", "DCP = Dry Chemical Powder",
-      "PK = Purple K", "A+B = Chemical Foam A+B", "AFFF = Aqueous Film Forming", "FP = Flouro Protein",
-      "Cart = Cartridge Type", "PRE = Pressure Type",
+      "6 = New Extinguisher", "7 = Hydro Test", "8 = Condemned",
+      "F = Foam", "W = Water", "CO2 = Carbon Dioxide", "WC = Wet Chemical", "DCP = Dry Chemical Powder",
+      "PK = Purple K", "A+B = Chemical Foam A+B", "AFFF = Aqueous Film Forming Foam", "FP = Flouro Protein",
+      "Cart = Cartridge Type", "PRE = Pressure Type", "WT = Weighing", "HT = Hydro Test",
     ],
     itemColumns: [
       { key: "serialNo", label: "Serial No" }, { key: "make", label: "Make" }, { key: "type", label: "Type" },
-      { key: "capacity", label: "Capacity" }, { key: "lastHydroTestDate", label: "Last Hydro Test Date" },
-      { key: "workDone", label: "Work Done" },
+      { key: "capacity", label: "Cap" }, { key: "lastHydroTestDate", label: "Last HT" },
+      { key: "cartridgeExp", label: "Cartridge Exp." }, { key: "cartridgeWt", label: "Cartridge WT" },
+      { key: "workDone", label: "Work Done" }, { key: "remarks", label: "Remarks" },
     ],
     validityYears: 1,
     note: "Record portable and non-portable extinguishers as separate rows (add a row per unit, noting portable/non-portable in Work Done or a remark).",
@@ -314,8 +369,109 @@ export const FFE_CERT_TYPES: FFESubTypeConfig[] = [
     note: "Standard finding: cylinders hydro tested and found in good condition, unless a row's Test Result says otherwise.",
   },
 
+  // ---------- New sub-types added from the Cert. Simples batch (18
+  // templates) — none of these had an equivalent in the original 27. ----------
+  {
+    id: "fire_blanket",
+    label: "Fire Blanket",
+    archetype: "items",
+    workCodes: [
+      "1 = Inspected all parts for serviceability", "2 = Check fire blanket containers are not damaged",
+      "3 = Check if fire blanket is unobstructed and visible", "4 = Rejected", "5 = New Supply",
+    ],
+    itemColumns: [
+      { key: "serialNo", label: "Serial No" }, { key: "make", label: "Make" },
+      { key: "strapCondition", label: "Strap & All Condition" }, { key: "workDone", label: "Work Done" }, { key: "remarks", label: "Remarks" },
+    ],
+    validityYears: 1,
+  },
+  {
+    id: "foam_can",
+    label: "Foam Can",
+    archetype: "items",
+    workCodes: [
+      "I = Inspection", "PK = Purple K", "F = Foam", "W = Water", "WC = Wet Chemical", "FP = Flouro Protein",
+      "A+B = Chemical Foam A+B", "AFFF = Aqueous Film Forming", "NS = New Supply",
+    ],
+    itemColumns: [
+      { key: "serialNo", label: "Serial No" }, { key: "make", label: "Make" }, { key: "manDate", label: "Man. Date" },
+      { key: "type", label: "Type" }, { key: "concentration", label: "Concentration" }, { key: "capacity", label: "Capacity" },
+      { key: "workDone", label: "Work Done" }, { key: "remarks", label: "Remarks" },
+    ],
+    validityYears: 1,
+    note: "The foam concentrate is free from PFOA and PFOS, as per the manufacturer's declaration. A copy of the declaration is attached to the certificate for reference.",
+  },
+  {
+    id: "line_thrower",
+    label: "Line Thrower",
+    archetype: "items",
+    workCodes: ["I = Inspected"],
+    itemColumns: [
+      { key: "serialNo", label: "Serial No" }, { key: "maker", label: "Maker" }, { key: "manDate", label: "Man. Date" },
+      { key: "expireDate", label: "Expire Date" }, { key: "workDone", label: "Work Done" }, { key: "remarks", label: "Remarks" },
+    ],
+    validityYears: 1,
+  },
+  {
+    id: "bumerang_plt",
+    label: "Bumerang PLT R-230 (Line Throwing Rocket)",
+    archetype: "items",
+    workCodes: ["I = Inspected all parts for serviceability"],
+    itemColumns: [
+      { key: "maker", label: "Maker" }, { key: "shootingDeviceSerialNo", label: "Shooting Device Serial No" },
+      { key: "cylinderSerialNo", label: "Cylinder Serial No" }, { key: "cylinderCapacity", label: "Cylinder Capacity" },
+      { key: "workingPressure", label: "Working Pressure" }, { key: "htPressure", label: "H.T Pressure" },
+      { key: "lastHT", label: "Last H.T" }, { key: "remarks", label: "Remarks" },
+    ],
+    validityYears: 1,
+  },
+  {
+    id: "spare_cartridge",
+    label: "Spare Cartridge for Fire Extinguisher",
+    archetype: "items",
+    workCodes: [
+      "1 = Inspection", "2 = Service", "3 = Content Checked", "4 = Condemned", "5 = Recharge", "6 = Hydro Test",
+      "CO2 = Carbon Dioxide", "WT = Weighing", "AFFF = Aqueous Film Forming",
+    ],
+    itemColumns: [
+      { key: "serialNo", label: "S\\N" }, { key: "make", label: "Make" }, { key: "cartCap", label: "Cart. Cap" },
+      { key: "manDate", label: "Man. Date" }, { key: "cartWeight", label: "Cart. Weight (Kg)" },
+      { key: "workDone", label: "Work Done" }, { key: "remarks", label: "Remarks" },
+    ],
+    validityYears: 1,
+  },
+  {
+    // Doc source (GAS DETECTOR CERTIFICATE) shows a fixed set of 4 gas
+    // types with several columns of calibration data each, not a single
+    // measured-value-vs-maximum-allowed pair like Air Quality Test's
+    // "readings" archetype — modelled as "items" instead so each of the
+    // 4 standard gas types (and any others actually fitted) is its own
+    // row with all the columns the real calibration certificate needs.
+    id: "gas_detector",
+    label: "Gas Detector — Maintenance & Calibration",
+    archetype: "items",
+    itemColumns: [
+      { key: "gasType", label: "Gas Type" }, { key: "spanReading", label: "Span Reading" },
+      { key: "alarmHigh", label: "Alarm Set Point (High)" }, { key: "alarmLow", label: "Alarm Set Point (Low)" },
+      { key: "twa", label: "TWA" }, { key: "stel", label: "STEL" }, { key: "cylNo", label: "Cyl #" },
+      { key: "calibrationTest", label: "Calibration Test" },
+    ],
+    validityYears: 1,
+    note: "Add one row per gas type actually fitted — the standard set is Combustible (%LEL), Oxygen (%VOL), Toxic Gas CO (PPM), and Toxic Gas H2S (PPM). Calibration is crucial for detector accuracy/reliability; follow the manufacturer's requirements to prevent premature failures.",
+  },
+
   // ---------- Archetype: system (fixed installations) ----------
   {
+    // itemColumns given its own array (not the shared CYLINDER_SPEC_COLS
+    // other system types below still use) — the "FIXED CO2 CERTIFICATE
+    // (EMERG. GENERATOR)" template (Cert. Simples batch) added Make, Gas
+    // Type and Remarks, and its source doc actually carries FOUR
+    // separate cylinder registers (Main, Pilot-Local, Pilot-Remote, Time
+    // Delay) rather than one combined table — kept as one incrementable
+    // table here (consistent with every other multi-cylinder sub-type
+    // in this file) with the note below telling the technician to
+    // identify which group each row belongs to, rather than adding a
+    // fourth distinct table shape just for this one sub-type.
     id: "co2_system",
     label: "Fixed CO2 System",
     archetype: "system",
@@ -328,8 +484,13 @@ export const FFE_CERT_TYPES: FFESubTypeConfig[] = [
       { key: "roomTemperature", label: "CO2 room temperature" },
     ],
     checklistItems: FIXED_SYSTEM_CHECKLIST_25,
-    itemColumns: CYLINDER_SPEC_COLS,
-    itemTableLabel: "Cylinder Specifications (main + pilot — note which in a remark or Work Done)",
+    itemColumns: [
+      { key: "serialNo", label: "Serial No" }, { key: "make", label: "Make" }, { key: "gasType", label: "Gas Type" },
+      { key: "capacityKg", label: "Capacity (Kg)" }, { key: "tareWt", label: "Tare Wt (Kg)" }, { key: "totalWt", label: "Total Wt (Kg)" },
+      { key: "workingPressure", label: "Working Pressure" }, { key: "hydroTestPressure", label: "Hydro Test Pressure" },
+      { key: "lastHydroTestDate", label: "Last Hydro Test Date" }, { key: "workDone", label: "Work Done" }, { key: "remarks", label: "Remarks" },
+    ],
+    itemTableLabel: "Cylinder Specifications (Main / Pilot-Local / Pilot-Remote / Time Delay — note which group in Remarks)",
     validityYears: 1,
   },
   {
@@ -436,21 +597,31 @@ export const FFE_CERT_TYPES: FFESubTypeConfig[] = [
 
   // ---------- Archetype: checklist (small, no item register) ----------
   {
+    // Updated from "FIRE DETECTION CERTIFICATE" (Cert. Simples batch) —
+    // technicalFields expanded (No. of Panels, Remote Display Units,
+    // detectors, call points, Area Protected added), and two more
+    // checklist items (trickle charger / battery voltage — logged as
+    // Comment values on the same Carried Out/Not/N/A row shape as every
+    // other item, matching the source template).
     id: "fire_detection_system",
     label: "Fire Detection System",
     archetype: "checklist",
     technicalFields: [
-      { key: "make", label: "Make" }, { key: "model", label: "Model" },
-      { key: "serialNo", label: "Serial No" }, { key: "zones", label: "No. of zones" },
+      { key: "make", label: "Make" }, { key: "model", label: "Model" }, { key: "serialNo", label: "Serial No." },
+      { key: "zones", label: "No. of Zones" }, { key: "panels", label: "No. of Panels" },
+      { key: "remoteDisplayUnits", label: "No. of Remote Display Unit" }, { key: "detectors", label: "No of detectors" },
+      { key: "callPoints", label: "No of Call Points" }, { key: "areaProtected", label: "Area Protected" },
     ],
     checklistItems: [
       { no: "1", description: "Inspect the panel and system coverage" },
       { no: "2", description: "Inspect the system to ensure the type of system control panel & functions of the system controller" },
       { no: "3", description: "Verify the fire detection and fire alarm control panel indicators are functional by operating the lamp/indicator test switch" },
-      { no: "4", description: "Check all detectors and call points by applying smoke & heat" },
+      { no: "4", description: "Check all detectors and call points by applying smoke and heat" },
       { no: "5", description: "Tested sounders, alarms" },
       { no: "6", description: "All instruction and warning signs on installation inspected" },
       { no: "7", description: "Inspection date tags attached" },
+      { no: "8", description: "Trickle Charger Voltage (record the reading in Comment)" },
+      { no: "9", description: "Battery Voltage — when system on battery (record the reading in Comment)" },
     ],
     validityYears: 1,
   },
