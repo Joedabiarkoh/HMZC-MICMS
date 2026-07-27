@@ -160,12 +160,36 @@ function checklistResultLabel(r: string) {
 // any one of them is) — one page for the header+technical info, one
 // per populated table section, one for comments/sign-off — each with
 // its own letterhead and its own SignatureFooter.
+// Requested directly: a certificate should be ONE page by default, and
+// only spill onto additional pages when there's actually enough content
+// (a long item register, a big checklist) to need it — not force
+// separate pages for "info", "items", "checklist" etc. as fixed
+// sections regardless of how short each one is, which is what the
+// previous <FFEPage>-per-section version did (a Fire Blanket cert with
+// two rows and no checklist still printed 3 forced pages).
+//
+// One .insp-cert-page div now holds every section, with ONE Letterhead
+// at the top and ONE SignatureFooter at the true end — natural browser
+// print pagination (no forced page-break-after) decides where content
+// actually needs to continue onto a new physical page. Each table's own
+// <thead> (item tables, checklist) still repeats its column headers on
+// a following page when a table itself spans more than one page — a
+// real, native browser behavior, not something built here — and
+// break-inside: avoid on individual rows (see inspections.css) stops a
+// single row being awkwardly split across the page boundary, which is
+// what keeps each page's row count naturally landing in a legible
+// range rather than an arbitrary fixed row count per page.
 function FFECertificatePage({ cert, ffe }: { cert: InspectionCertificate; ffe: FFEData }) {
   const cfg = getFFEConfig(ffe.subType);
-  const pages: JSX.Element[] = [];
 
-  pages.push(
-    <FFEPage key="info" cert={cert} cfg={cfg}>
+  return (
+    <div className="insp-cert-page" style={watermarkStyle}>
+      <Letterhead cert={cert} />
+      <div className="insp-cert-title-row">
+        <h2>Certificate &amp; Checklist</h2>
+        <span className="insp-badge">{cfg.label.toUpperCase()}</span>
+      </div>
+
       <table className="insp-id-table">
         <tbody>
           <tr>
@@ -177,7 +201,7 @@ function FFECertificatePage({ cert, ffe }: { cert: InspectionCertificate; ffe: F
             <td className="insp-label-cell">Date</td><td>{fmtDate(cert.dateOfServicing)}</td>
           </tr>
           <tr>
-            <td className="insp-label-cell">Class</td><td>{ffe.certClass || "—"}</td>
+            <td className="insp-label-cell">Class/Flag</td><td>{ffe.certClass || "—"}</td>
             <td className="insp-label-cell">Place of Service</td><td>{ffe.placeOfService || "—"}</td>
           </tr>
         </tbody>
@@ -206,68 +230,52 @@ function FFECertificatePage({ cert, ffe }: { cert: InspectionCertificate; ffe: F
       )}
 
       {cfg.note && <div style={{ fontSize: 10, color: "var(--insp-muted)", marginTop: 8 }}>{cfg.note}</div>}
-    </FFEPage>
-  );
 
-  if (cfg.itemColumns?.length) {
-    pages.push(
-      <FFEPage key="items" cert={cert} cfg={cfg}>
+      {!!cfg.itemColumns?.length && (
         <FFEItemsTable title={cfg.itemTableLabel || "Items"} columns={cfg.itemColumns} rows={ffe.items} />
-      </FFEPage>
-    );
-  }
+      )}
 
-  if (cfg.items2Columns?.length) {
-    pages.push(
-      <FFEPage key="items2" cert={cert} cfg={cfg}>
+      {!!cfg.items2Columns?.length && (
         <FFEItemsTable title={cfg.items2Label || "Items"} columns={cfg.items2Columns} rows={ffe.items2} />
-      </FFEPage>
-    );
-  }
+      )}
 
-  if (cfg.checklistItems?.length) {
-    pages.push(
-      <FFEPage key="checklist" cert={cert} cfg={cfg}>
-        <div style={{ fontWeight: 700, fontSize: 11.5, color: "var(--insp-navy)", margin: "10px 0 4px" }}>Description of Inspection/Tests</div>
-        <table className="insp-print-chk">
-          <thead><tr><th>No</th><th>Description</th><th>Result</th><th>Comment</th></tr></thead>
-          <tbody>
-            {ffe.checklist.map((row) => (
-              <tr key={row.no}>
-                <td>{row.no}</td>
-                <td>{row.description}</td>
-                <td><span className={`insp-pill ${row.result === "done" ? "good" : row.result === "not_done" ? "repair" : row.result === "na" ? "na" : ""}`}>{checklistResultLabel(row.result)}</span></td>
-                <td>{row.comment || "—"}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </FFEPage>
-    );
-  }
+      {!!cfg.checklistItems?.length && (
+        <>
+          <div style={{ fontWeight: 700, fontSize: 11.5, color: "var(--insp-navy)", margin: "10px 0 4px" }}>Description of Inspection/Tests</div>
+          <table className="insp-print-chk">
+            <thead><tr><th>No</th><th>Description</th><th>Result</th><th>Comment</th></tr></thead>
+            <tbody>
+              {ffe.checklist.map((row) => (
+                <tr key={row.no}>
+                  <td>{row.no}</td>
+                  <td>{row.description}</td>
+                  <td><span className={`insp-pill ${row.result === "done" ? "good" : row.result === "not_done" ? "repair" : row.result === "na" ? "na" : ""}`}>{checklistResultLabel(row.result)}</span></td>
+                  <td>{row.comment || "—"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </>
+      )}
 
-  if (cfg.readingsRows?.length) {
-    pages.push(
-      <FFEPage key="readings" cert={cert} cfg={cfg}>
-        <div style={{ fontWeight: 700, fontSize: 11.5, color: "var(--insp-navy)", margin: "10px 0 4px" }}>Readings</div>
-        <table className="insp-print-chk">
-          <thead><tr><th>Type of Vapor/Gas</th><th>Measured Value</th><th>Maximum Allowed</th></tr></thead>
-          <tbody>
-            {cfg.readingsRows.map((r) => (
-              <tr key={r.key}>
-                <td>{r.label}</td>
-                <td>{ffe.technicalValues[`reading_${r.key}`] || "—"}</td>
-                <td>{r.maxAllowed}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </FFEPage>
-    );
-  }
+      {!!cfg.readingsRows?.length && (
+        <>
+          <div style={{ fontWeight: 700, fontSize: 11.5, color: "var(--insp-navy)", margin: "10px 0 4px" }}>Readings</div>
+          <table className="insp-print-chk">
+            <thead><tr><th>Type of Vapor/Gas</th><th>Measured Value</th><th>Maximum Allowed</th></tr></thead>
+            <tbody>
+              {cfg.readingsRows.map((r) => (
+                <tr key={r.key}>
+                  <td>{r.label}</td>
+                  <td>{ffe.technicalValues[`reading_${r.key}`] || "—"}</td>
+                  <td>{r.maxAllowed}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </>
+      )}
 
-  pages.push(
-    <FFEPage key="comments" cert={cert} cfg={cfg}>
       <div className="insp-remarks-box">Comments: {ffe.comments || "None"}</div>
       <div style={{ fontSize: 10, color: "var(--insp-muted)", marginTop: 8 }}>
         This Certificate is valid for {cfg.validityYears === 2 ? "Two Years" : "One Year"} from the date of issue.
@@ -277,21 +285,7 @@ function FFECertificatePage({ cert, ffe }: { cert: InspectionCertificate; ffe: F
           </div>
         )}
       </div>
-    </FFEPage>
-  );
 
-  return <>{pages}</>;
-}
-
-function FFEPage({ cert, cfg, children }: { cert: InspectionCertificate; cfg: ReturnType<typeof getFFEConfig>; children: ReactNode }) {
-  return (
-    <div className="insp-cert-page" style={watermarkStyle}>
-      <Letterhead cert={cert} />
-      <div className="insp-cert-title-row">
-        <h2>Certificate &amp; Checklist</h2>
-        <span className="insp-badge">{cfg.label.toUpperCase()}</span>
-      </div>
-      {children}
       <SignatureFooter cert={cert} masterLabel="Master" techLabel="Technician" />
     </div>
   );

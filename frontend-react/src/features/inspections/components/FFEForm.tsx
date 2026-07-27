@@ -99,7 +99,7 @@ export default function FFEForm({ current, updateField, openCertificate }: Props
           <div className="insp-field"><label>Date</label><input type="date" value={current.dateOfServicing} onChange={(e) => updateField("dateOfServicing", e.target.value)} /></div>
         </div>
         <div className="insp-row2">
-          <div className="insp-field"><label>Class</label><input value={ffe.certClass} onChange={(e) => updateFFE({ certClass: e.target.value })} /></div>
+          <div className="insp-field"><label>Class/Flag</label><input value={ffe.certClass} onChange={(e) => updateFFE({ certClass: e.target.value })} /></div>
           <div className="insp-field"><label>Place of Service</label><input value={ffe.placeOfService} onChange={(e) => updateFFE({ placeOfService: e.target.value })} /></div>
         </div>
       </fieldset>

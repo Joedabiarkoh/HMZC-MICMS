@@ -96,7 +96,14 @@
   letter-spacing: .04em;
   text-transform: uppercase;
 }
-.insp-panel-body { padding: 14px; }
+/* overflow-x: auto — requested directly: wide content in the input
+   form (a checklist or readings table wider than the panel, e.g. FFE's
+   Fire Detection checklist with its Result/Comment columns) was getting
+   silently clipped by .insp-panel's own overflow: hidden (there for the
+   header's rounded corners), with no way to scroll to the cut-off part.
+   A scrollbar here, not on .insp-panel itself, so the rounded-corner
+   clipping is unaffected. */
+.insp-panel-body { padding: 14px; overflow-x: auto; }
 
 /* ---- form fields ---- */
 .insp-fieldset { border: none; margin: 0 0 16px; padding: 0; }
@@ -162,6 +169,21 @@ table.insp-print-chk { width: 100%; border-collapse: collapse; font-size: 10px; 
 table.insp-print-chk th { background: var(--insp-navy); color: #fff; text-align: left; padding: 4px 6px; font-size: 9px; text-transform: uppercase; }
 table.insp-print-chk td { padding: 3px 6px; border: 1px solid #E4E7E9; }
 table.insp-print-chk tr.insp-section-row td { background: #EEF1F3; font-weight: 700; color: var(--insp-navy); font-size: 9.5px; text-transform: uppercase; }
+
+/* Requested directly: a certificate should be one page by default and
+   only spread onto more pages when there's genuinely enough content
+   (a long item/checklist table) — not every table row forced apart from
+   its neighbors. break-inside: avoid on each row means a page break can
+   only land BETWEEN rows, never through the middle of one, so whatever
+   naturally fits before the page runs out is what prints there — no
+   hardcoded row-per-page count needed; a table's own <thead> already
+   repeats its column headers natively on whichever page it continues to. */
+@media print {
+  table.insp-print-chk tr, table.insp-id-table tr {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+}
 
 .insp-pill { display: inline-block; padding: 1px 7px; border-radius: 20px; font-size: 8.5px; font-weight: 700; color: #fff; }
 .insp-pill.good, .insp-pill.ok { background: var(--insp-green); }
