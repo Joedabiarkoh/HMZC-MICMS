@@ -475,6 +475,10 @@ export const FFE_CERT_TYPES: FFESubTypeConfig[] = [
     id: "co2_system",
     label: "Fixed CO2 System",
     archetype: "system",
+    workCodes: [
+      "R = Refilled", "I = Inspected", "HT = Hydro Tested", "S = Serviced", "P = Painted",
+      "N = New", "C = Condemned", "W = Weighed", "LL = Liquid Level", "PC = Pressure Checked",
+    ],
     technicalFields: [
       { key: "manufacturer", label: "Manufacturer" }, { key: "mfgDate", label: "Manufacturing Date" },
       { key: "mainCylinders", label: "Number of main cylinders" }, { key: "mainCylinderCapacity", label: "Main cylinders capacity (each)" },
