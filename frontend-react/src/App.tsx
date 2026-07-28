@@ -8,7 +8,7 @@ import ItemCatalog from "./features/finance/pages/ItemCatalog";
 import Payments from "./features/finance/pages/Payments";
 import Expenses from "./features/finance/pages/Expenses";
 import JobCosting from "./features/finance/pages/JobCosting";
-import FinancialReports from "./features/finance/pages/FinancialReports";
+import Reports from "./features/reports/pages/Reports";
 import InspectionWorkspace from "./features/inspections/pages/InspectionWorkspace";
 import CertificateLog from "./features/inspections/pages/CertificateLog";
 import VesselSearch from "./features/inspections/pages/VesselSearch";
@@ -95,7 +95,11 @@ export default function App() {
               <Route path="/finance/payments" element={<RequirePermission permission={PERM.FIN_VIEW}><Payments /></RequirePermission>} />
               <Route path="/finance/expenses" element={<RequirePermission permission={PERM.FIN_VIEW}><Expenses /></RequirePermission>} />
               <Route path="/finance/job-costing" element={<RequirePermission permission={PERM.FIN_VIEW}><JobCosting /></RequirePermission>} />
-              <Route path="/finance/reports" element={<RequirePermission permission={PERM.FIN_VIEW}><FinancialReports /></RequirePermission>} />
+              {/* No RequirePermission wrapper — Reports has two
+                  independent sections (certificates.view_all vs
+                  finance.view) and someone could reasonably have only
+                  one; see Reports.tsx's own comment. */}
+              <Route path="/reports" element={<Reports />} />
 
               {/* Certificates module (architecture diagram name) — inspection
                   checklists for lifeboats, rescue boats, free-fall lifeboats and

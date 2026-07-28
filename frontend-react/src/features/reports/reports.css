@@ -1,0 +1,77 @@
+.reports-page {
+  padding: 20px 26px;
+  max-width: 1100px;
+}
+.reports-page h1 { color: var(--insp-navy); margin: 0 0 2px; }
+.reports-subtitle { color: var(--insp-muted); font-size: 12px; margin: 0 0 18px; }
+
+.reports-section {
+  background: #fff;
+  border: 1px solid var(--insp-line);
+  border-radius: 10px;
+  padding: 16px 18px;
+  margin-bottom: 18px;
+}
+.reports-section h2 { margin: 0 0 4px; font-size: 15px; color: var(--insp-navy); }
+.reports-section-note { color: var(--insp-muted); font-size: 11.5px; margin: 0 0 14px; }
+
+.reports-cards { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
+.reports-card {
+  background: var(--insp-grey-bg);
+  border: 1px solid var(--insp-line);
+  border-radius: 8px;
+  padding: 10px 16px;
+  min-width: 140px;
+}
+.reports-card__label { font-size: 11px; color: var(--insp-muted); text-transform: uppercase; letter-spacing: .04em; }
+.reports-card__value { font-size: 22px; font-weight: 700; color: var(--insp-navy); margin-top: 4px; }
+
+/* Single-hue magnitude bar chart — navy is this app's existing brand
+   primary (see styles/theme.css --insp-navy), used consistently
+   throughout for the same "this is the main metric" role. */
+.reports-bar-chart { display: flex; flex-direction: column; gap: 6px; margin-bottom: 10px; }
+.reports-bar-row { display: grid; grid-template-columns: 70px 1fr 44px; align-items: center; gap: 8px; }
+.reports-bar-label { font-size: 11px; color: var(--insp-muted); white-space: nowrap; }
+.reports-bar-track { background: var(--insp-grey-bg); border-radius: 4px; height: 14px; overflow: hidden; }
+.reports-bar-fill { background: var(--insp-navy); height: 100%; border-radius: 4px; min-width: 2px; transition: width .2s ease; }
+.reports-bar-value { font-size: 11px; font-family: monospace; text-align: right; color: var(--insp-text); }
+
+.reports-table-toggle summary { cursor: pointer; font-size: 11.5px; color: var(--insp-navy); font-weight: 600; margin-bottom: 6px; }
+
+.reports-table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+.reports-table th, .reports-table td { padding: 6px 8px; border-bottom: 1px solid var(--insp-line); text-align: left; }
+.reports-table th { color: var(--insp-muted); font-size: 11px; text-transform: uppercase; letter-spacing: .03em; }
+.reports-table--compact th, .reports-table--compact td { padding: 4px 8px; }
+
+.reports-empty { color: var(--insp-muted); font-size: 12.5px; }
+
+/* Status pills mirror finance.css's .finance-status-pill convention
+   exactly (colored pill wrapping a text label, never color alone) —
+   kept as its own class here rather than importing finance.css into an
+   unrelated feature, but deliberately reuses the same --insp-amber/
+   --insp-red tokens so an "expiring soon"/"overdue" pill reads as
+   consistent with every other status pill already in this app. */
+.reports-status-pill {
+  display: inline-block;
+  padding: 2px 9px;
+  border-radius: 10px;
+  font-size: 10.5px;
+  font-weight: 700;
+  color: #fff;
+  white-space: nowrap;
+}
+.reports-status-pill.expiring-soon { background: var(--insp-amber); }
+.reports-status-pill.overdue { background: var(--insp-red); }
+
+.reports-toolbar { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
+.reports-btn {
+  padding: 7px 14px;
+  border-radius: 6px;
+  border: 1px solid #C9D1D8;
+  background: #fff;
+  color: var(--insp-text);
+  font-size: 12.5px;
+  cursor: pointer;
+}
+.reports-btn:hover { background: var(--insp-grey-bg); }
+.reports-no-access { color: var(--insp-muted); font-size: 12.5px; padding: 20px 0; text-align: center; }

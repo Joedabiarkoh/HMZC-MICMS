@@ -58,6 +58,16 @@ const NAV_GROUPS: NavGroup[] = [
     ],
   },
   {
+    // No `permission` on this single item, same as Account's items below
+    // — Reports.tsx has two independent sections (certificates.view_all
+    // vs finance.view) and decides its own visibility per-section, so
+    // there's no single permission string that correctly gates the nav
+    // entry itself without hiding it from someone who has only one of
+    // the two (Sales has the former, Finance-role has the latter).
+    label: "Reports",
+    items: [{ to: "/reports", label: "Reports & Analytics" }],
+  },
+  {
     label: "Admin",
     items: [
       { to: "/admin/users", label: "Users", adminOnly: true },

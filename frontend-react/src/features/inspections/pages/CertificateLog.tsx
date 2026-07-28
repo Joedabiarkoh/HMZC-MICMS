@@ -8,6 +8,7 @@ import { EquipmentTypeKey } from "../types/inspection.types";
 import { groupCertificatesByVessel, VesselGroup } from "../data/groupCertificatesByVessel";
 import { hasPermission, PERM } from "../../auth/types/auth.types";
 import { confirmAction } from "../../../components/ConfirmDialog";
+import { exportRowsToCsv } from "../../../utils/exportCsv";
 
 /**
  * The previous standalone tool had a "Certificate Log" tab for exactly
@@ -51,6 +52,19 @@ export default function CertificateLog() {
     navigate(`/inspections?type=${type}&open=${encodeURIComponent(certNo)}`);
   }
 
+  function handleExportCsv() {
+    const rows = groups.flatMap((group) => group.certs);
+    exportRowsToCsv(`certificate-log-${new Date().toISOString().slice(0, 10)}`, rows, [
+      { header: "Certificate No", value: (c) => c.certNo },
+      { header: "Type", value: (c) => INSPECTION_TYPES[c.type]?.typeName || c.type },
+      { header: "Vessel", value: (c) => c.vesselName },
+      { header: "IMO No", value: (c) => c.imoNo },
+      { header: "Status", value: (c) => c.status },
+      { header: "Issued By", value: (c) => c.issuedBy || c.savedBy },
+      { header: "Issued At", value: (c) => c.issuedAt || c.savedAt },
+    ]);
+  }
+
   return (
     <div className="inspections-page">
       <div className="insp-topbar">
@@ -76,13 +90,18 @@ export default function CertificateLog() {
             )}
           </div>
         )}
-        <input
-          type="text"
-          placeholder="Search by vessel, IMO, certificate no., or issuer..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          style={{ padding: "8px 10px", border: "1px solid #C9D1D8", borderRadius: 6, fontSize: 13, minWidth: 320, marginBottom: 14 }}
-        />
+        <div style={{ display: "flex", gap: 10, alignItems: "center", marginBottom: 14, flexWrap: "wrap" }}>
+          <input
+            type="text"
+            placeholder="Search by vessel, IMO, certificate no., or issuer..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            style={{ padding: "8px 10px", border: "1px solid #C9D1D8", borderRadius: 6, fontSize: 13, minWidth: 320 }}
+          />
+          <button type="button" className="insp-btn insp-btn-outline" onClick={handleExportCsv} disabled={groups.length === 0}>
+            Export CSV
+          </button>
+        </div>
         <table className="users-table" style={{ width: "100%", borderCollapse: "collapse", background: "#fff", borderRadius: 8, overflow: "hidden", border: "1px solid #DCE1E5" }}>
           <thead>
             <tr>
