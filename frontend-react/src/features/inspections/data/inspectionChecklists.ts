@@ -297,8 +297,11 @@ export const INSPECTION_TYPES: Record<EquipmentTypeKey, EquipmentTypeConfig> = {
   firefighting: {
     kind: "ffe", typeName: "Firefighting Equipment", label: "Firefighting Equipment",
   },
+  // Built from HMZC's own LOLER 1998 "Report of Thorough Examination"
+  // templates (single-item and "multiple items" register variants) —
+  // see LooseGearItem's own comment in inspection.types.ts for the
+  // per-item statutory declaration this implements.
   loosegear: {
-    kind: "placeholder", typeName: "Loose Gear & Lifting Equipment", label: "Loose Gear & Lifting Equipment",
-    divisionNote: "Loose Gear & Lifting Equipment inspection checklist has not been loaded yet. Send HMZC's loose gear inspection sheet (shackles, slings, chain blocks, wire strops, etc.) and it will be built into this division with the same item-by-item structure as the other checklists.",
+    kind: "loosegear", typeName: "Loose Gear & Lifting Equipment", label: "Loose Gear & Lifting Equipment",
   },
 };

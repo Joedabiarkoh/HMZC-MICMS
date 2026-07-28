@@ -5,12 +5,12 @@ import { INSPECTION_TYPES } from "../data/inspectionChecklists";
 import { useInspections } from "../hooks/useInspections";
 import { EquipmentTypeKey, ChecklistSection, EquipResult, InspectionCertificate } from "../types/inspection.types";
 import ChecklistGroup from "../components/ChecklistGroup";
-import ComingSoon from "./ComingSoon";
 import CertificatePreview from "../components/CertificatePreview";
 import SignatureCanvas from "../components/SignatureCanvas";
 import PhotoUpload from "../components/PhotoUpload";
 import VesselLookupPanel from "../components/VesselLookupPanel";
 import FFEForm from "../components/FFEForm";
+import LooseGearForm from "../components/LooseGearForm";
 import { getFFEConfig } from "../data/ffeCertTypes";
 import { dirtyKey } from "../data/dirtyKey";
 import { useAuth } from "../../../context/AuthContext";
@@ -87,7 +87,7 @@ export default function InspectionWorkspace() {
   }, [current.certNo]); // reset the baseline whenever a *different* certificate is loaded
 
   useEffect(() => {
-    const canAutoSave = cfg.kind !== "placeholder" && hasPermission(user, PERM.CERT_EDIT);
+    const canAutoSave = hasPermission(user, PERM.CERT_EDIT);
     if (!canAutoSave) return;
 
     const interval = window.setInterval(() => {
@@ -263,6 +263,24 @@ export default function InspectionWorkspace() {
       return problems;
     }
 
+    if (cfg.kind === "loosegear") {
+      const items = current.looseGear?.items || [];
+      if (items.length === 0) {
+        problems.push("At least one item is required in the register");
+      }
+      items.forEach((item, i) => {
+        if (!item.itemDescription.trim()) problems.push(`Item ${i + 1}: description is required`);
+        if (!item.safeToOperate) problems.push(`Item ${i + 1}: "Safe to operate" must be answered`);
+      });
+      if (!current.engineerName.trim()) {
+        problems.push("Technician name is required");
+      }
+      if (!current.engineerSig) {
+        problems.push("Technician signature is required");
+      }
+      return problems;
+    }
+
     if (!current.engineerName.trim()) {
       problems.push("Service Engineer name is required");
     }
@@ -299,14 +317,6 @@ export default function InspectionWorkspace() {
     window.alert(`Certificate ${saved.certNo} saved as ${status.toUpperCase()}.`);
   }
 
-  if (cfg.kind === "placeholder") {
-    return (
-      <div className="inspections-page" data-type={type}>
-        <TopBar type={type} onTypeChange={handleTypeChange} />
-        <ComingSoon config={cfg} />
-      </div>
-    );
-  }
 
   // Sales, Administration, and Service Coordination (by default — see
   // core/permissions.py's ROLE_DEFAULT_PERMISSIONS) reach this page with
@@ -376,6 +386,62 @@ export default function InspectionWorkspace() {
             <div className="insp-panel-header">FFE Certificate & Checklist</div>
             <div className="insp-panel-body">
               <FFEForm current={current} updateField={updateField} openCertificate={openCertificate} />
+            </div>
+          </div>
+          <div className="insp-panel">
+            <div className="insp-panel-header">Certificate Preview</div>
+            <div className="insp-cert-scroll">
+              <CertificatePreview cert={current} config={cfg} />
+            </div>
+          </div>
+        </div>
+        {getFinalizeBlockers().length > 0 && (
+          <div style={{ margin: "0 20px 10px", background: "#FBF0E2", border: "1px solid #B4690E", borderRadius: 6, padding: "8px 12px", fontSize: 12, color: "#7A4A08" }}>
+            <strong>Not ready to finalize yet:</strong> {getFinalizeBlockers().join(" · ")}
+          </div>
+        )}
+        <div className="insp-btn-row">
+          <div className="insp-btn-group">
+            <button className="insp-btn insp-btn-outline" onClick={() => handleSave("draft")}>Save Draft</button>
+            <button
+              className="insp-btn insp-btn-primary"
+              onClick={() => handleSave("final")}
+              disabled={getFinalizeBlockers().length > 0}
+              title={getFinalizeBlockers().length > 0 ? `Not ready to finalize: ${getFinalizeBlockers().join("; ")}` : undefined}
+            >
+              Finalize &amp; Save
+            </button>
+          </div>
+          <div className="insp-btn-group insp-btn-group--secondary">
+            <button className="insp-btn insp-btn-outline" onClick={() => window.print()}>Print</button>
+            <button className="insp-btn insp-btn-outline" onClick={() => startNew(type)}>New Certificate</button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Loose Gear & Lifting Equipment — same reasoning as the FFE branch
+  // above: an item register where every item carries its own full
+  // statutory declaration doesn't fit the boat/crane subtab structure
+  // at all, so it's rendered as its own branch (see LooseGearForm.tsx).
+  if (cfg.kind === "loosegear") {
+    return (
+      <div className="inspections-page" data-type={type}>
+        <TopBar type={type} onTypeChange={handleTypeChange} />
+        {syncError && (
+          <div style={{ margin: "10px 20px 0", background: "#FBF0E2", border: "1px solid #B4690E", color: "#7A4A08", borderRadius: 6, padding: "8px 12px", fontSize: 12, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+            <span>{syncError}</span>
+            {pendingSyncCount > 0 && (
+              <button className="insp-btn insp-btn-outline" style={{ padding: "3px 10px", fontSize: 11 }} onClick={retrySync}>Retry Now</button>
+            )}
+          </div>
+        )}
+        <div className="insp-layout">
+          <div className="insp-panel">
+            <div className="insp-panel-header">Loose Gear &amp; Lifting Equipment</div>
+            <div className="insp-panel-body">
+              <LooseGearForm current={current} updateField={updateField} openCertificate={openCertificate} />
             </div>
           </div>
           <div className="insp-panel">

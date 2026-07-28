@@ -6,6 +6,8 @@ import {
   EquipmentTypeKey,
   FFEChecklistResult,
   InspectionCertificate,
+  LooseGearData,
+  LooseGearItem,
 } from "../types/inspection.types";
 
 export function makeChecklist(sections: ChecklistSectionDef[] = []): ChecklistSection[] {
@@ -83,6 +85,8 @@ export function freshCertificate(type: EquipmentTypeKey, existingNumbers: Set<st
     base.wireRope = { typeName: "", diameter: "", length: "", certNo: "", dateInstalled: "" };
     base.checklist = makeChecklist(cfg.checklistSections);
     base.loadTest = { testLoad: "", swlPercent: "", radius: "", duration: "", result: "pass", testCertNo: "", remark: "" };
+  } else if (cfg.kind === "loosegear") {
+    base.looseGear = freshLooseGearState();
   }
 
   return base;
@@ -114,5 +118,45 @@ export function freshFFEState(subTypeId: string) {
     items2: [] as Record<string, string>[],
     checklist,
     comments: "",
+  };
+}
+
+export function freshLooseGearState(): LooseGearData {
+  return { jobPoNo: "", colourCode: "", items: [] };
+}
+
+// One blank statutory declaration block — see LooseGearItem's own
+// comment for why every item gets its own full set of these fields
+// rather than one shared declaration for the whole register.
+export function freshLooseGearItem(): LooseGearItem {
+  return {
+    itemSerialNo: "",
+    itemDescription: "",
+    swl: "",
+    itemLocation: "",
+    manufacturer: "",
+    previousCertificateNo: "",
+    previousInspectionDate: "",
+    testDate: "",
+    ecDeclarationAvailable: "",
+    ceMarkVisible: "",
+    firstExaminationAfterInstall: "",
+    installedCorrectly: "",
+    examinedWithin6Months: "",
+    examinedWithin12Months: "",
+    inAccordanceWithScheme: "",
+    afterExceptionalCircumstances: "",
+    defectDescription: "",
+    existingOrImminentDanger: "",
+    couldBecomeDangerBy: "",
+    repairParticulars: "",
+    testsCarriedOut: "",
+    observations: "",
+    safeToOperate: "",
+    reportedByName: "",
+    reportedByQualifications: "",
+    authenticatedByName: "",
+    employerNameAddress: "",
+    nextExaminationDue: "",
   };
 }

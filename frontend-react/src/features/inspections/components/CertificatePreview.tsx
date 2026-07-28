@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { EquipmentTypeConfig, InspectionCertificate, ChecklistStatus, EquipResult, FFEData } from "../types/inspection.types";
+import { EquipmentTypeConfig, InspectionCertificate, ChecklistStatus, EquipResult, FFEData, LooseGearData, LooseGearItem, LooseGearYesNo } from "../types/inspection.types";
 import { getFFEConfig } from "../data/ffeCertTypes";
 import { HMZC_LOGO_DATA_URI } from "../assets/logo";
 import CertificateQR, { buildCertQrPayload } from "./CertificateQR";
@@ -33,6 +33,10 @@ function equipLabel(s: EquipResult) {
 export default function CertificatePreview({ cert, config }: Props) {
   if (config.kind === "ffe" && cert.ffe) {
     return <FFECertificatePage cert={cert} ffe={cert.ffe} />;
+  }
+
+  if (config.kind === "loosegear" && cert.looseGear) {
+    return <LooseGearCertificatePage cert={cert} looseGear={cert.looseGear} />;
   }
 
   const isBoat = config.kind === "boat";
@@ -316,6 +320,135 @@ function FFEItemsTable({ title, columns, rows }: { title: string; columns: { key
         </tbody>
       </table>
     </>
+  );
+}
+
+function yesNoLabel(v: LooseGearYesNo) {
+  return { yes: "YES", no: "NO", "": "—" }[v] || v;
+}
+
+// Every item in the register prints its own full statutory declaration
+// (see LooseGearItem's own comment) — natural page flow, same as the
+// rest of this file: no forced page-break between items, browser
+// pagination decides where a long register actually needs to spill
+// onto another physical page.
+function LooseGearCertificatePage({ cert, looseGear }: { cert: InspectionCertificate; looseGear: LooseGearData }) {
+  return (
+    <div className="insp-cert-page" style={watermarkStyle}>
+      <Letterhead cert={cert} />
+      <div className="insp-cert-title-row">
+        <h2>Report of Thorough Examination</h2>
+        <span className="insp-badge">LOOSE GEAR &amp; LIFTING EQUIPMENT</span>
+      </div>
+
+      <table className="insp-id-table">
+        <tbody>
+          <tr>
+            <td className="insp-label-cell">Vessel</td><td>{cert.vesselName || "—"}</td>
+            <td className="insp-label-cell">Certificate No</td><td>{cert.certNo}</td>
+          </tr>
+          <tr>
+            <td className="insp-label-cell">IMO No</td><td>{cert.imoNo || "—"}</td>
+            <td className="insp-label-cell">Date of Report</td><td>{fmtDate(cert.dateOfServicing)}</td>
+          </tr>
+          <tr>
+            <td className="insp-label-cell">Job/PO No.</td><td>{looseGear.jobPoNo || "—"}</td>
+            <td className="insp-label-cell">Location/Port</td><td>{cert.location || "—"}</td>
+          </tr>
+          <tr>
+            <td className="insp-label-cell">Colour Code</td><td colSpan={3}>{looseGear.colourCode || "—"}</td>
+          </tr>
+        </tbody>
+      </table>
+
+      {looseGear.items.length === 0 ? (
+        <div style={{ color: "var(--insp-muted)", fontSize: 11.5, marginTop: 10 }}>No items recorded.</div>
+      ) : (
+        looseGear.items.map((item, i) => <LooseGearItemPage key={i} index={i} item={item} />)
+      )}
+
+      {cert.issuedBy && (
+        <div style={{ fontSize: 9, color: "var(--insp-muted)", marginTop: 8 }}>
+          Issued by {cert.issuedBy}{cert.issuedAt ? ` — ${new Date(cert.issuedAt).toLocaleString()}` : ""}
+        </div>
+      )}
+
+      <SignatureFooter cert={cert} masterLabel="Master" techLabel="Technician" />
+    </div>
+  );
+}
+
+function LooseGearItemPage({ index, item }: { index: number; item: LooseGearItem }) {
+  return (
+    <div style={{ marginTop: 14, breakInside: "avoid" }}>
+      <div style={{ fontWeight: 700, fontSize: 11.5, color: "var(--insp-navy)", margin: "10px 0 4px" }}>
+        Item {index + 1} — Statutory Declaration
+      </div>
+      <table className="insp-id-table">
+        <tbody>
+          <tr>
+            <td className="insp-label-cell">Serial No.</td><td>{item.itemSerialNo || "—"}</td>
+            <td className="insp-label-cell">Description</td><td>{item.itemDescription || "—"}</td>
+          </tr>
+          <tr>
+            <td className="insp-label-cell">SWL</td><td>{item.swl || "—"}</td>
+            <td className="insp-label-cell">Location</td><td>{item.itemLocation || "—"}</td>
+          </tr>
+          <tr>
+            <td className="insp-label-cell">Manufacturer</td><td>{item.manufacturer || "—"}</td>
+            <td className="insp-label-cell">Previous Cert No.</td><td>{item.previousCertificateNo || "—"}</td>
+          </tr>
+          <tr>
+            <td className="insp-label-cell">Previous Inspection</td><td>{fmtDate(item.previousInspectionDate)}</td>
+            <td className="insp-label-cell">Test Date</td><td>{fmtDate(item.testDate)}</td>
+          </tr>
+          <tr>
+            <td className="insp-label-cell">EC Declaration Available</td><td>{yesNoLabel(item.ecDeclarationAvailable)}</td>
+            <td className="insp-label-cell">CE Mark Visible</td><td>{yesNoLabel(item.ceMarkVisible)}</td>
+          </tr>
+          <tr>
+            <td className="insp-label-cell">First Exam After Install</td><td>{yesNoLabel(item.firstExaminationAfterInstall)}</td>
+            <td className="insp-label-cell">Installed Correctly</td><td>{yesNoLabel(item.installedCorrectly)}</td>
+          </tr>
+          <tr>
+            <td className="insp-label-cell">Within 6 Months</td><td>{yesNoLabel(item.examinedWithin6Months)}</td>
+            <td className="insp-label-cell">Within 12 Months</td><td>{yesNoLabel(item.examinedWithin12Months)}</td>
+          </tr>
+          <tr>
+            <td className="insp-label-cell">Per Examination Scheme</td><td>{yesNoLabel(item.inAccordanceWithScheme)}</td>
+            <td className="insp-label-cell">After Exceptional Circumstances</td><td>{yesNoLabel(item.afterExceptionalCircumstances)}</td>
+          </tr>
+        </tbody>
+      </table>
+      <div className="insp-remarks-box">Defect: {item.defectDescription || "NONE"}</div>
+      <table className="insp-id-table">
+        <tbody>
+          <tr>
+            <td className="insp-label-cell">Existing/Imminent Danger</td><td>{yesNoLabel(item.existingOrImminentDanger)}</td>
+            <td className="insp-label-cell">Could Become Danger By</td><td>{fmtDate(item.couldBecomeDangerBy)}</td>
+          </tr>
+        </tbody>
+      </table>
+      {item.repairParticulars && <div className="insp-remarks-box">Repair/Renewal Required: {item.repairParticulars}</div>}
+      {item.testsCarriedOut && <div className="insp-remarks-box">Tests Carried Out: {item.testsCarriedOut}</div>}
+      {item.observations && <div className="insp-remarks-box">Observations: {item.observations}</div>}
+      <table className="insp-id-table">
+        <tbody>
+          <tr>
+            <td className="insp-label-cell">Safe to Operate</td>
+            <td><span className={`insp-pill ${item.safeToOperate === "yes" ? "good" : item.safeToOperate === "no" ? "repair" : ""}`}>{yesNoLabel(item.safeToOperate)}</span></td>
+            <td className="insp-label-cell">Next Exam Due</td><td>{fmtDate(item.nextExaminationDue)}</td>
+          </tr>
+          <tr>
+            <td className="insp-label-cell">Reported By</td><td>{item.reportedByName || "—"}{item.reportedByQualifications ? ` (${item.reportedByQualifications})` : ""}</td>
+            <td className="insp-label-cell">Authenticated By</td><td>{item.authenticatedByName || "—"}</td>
+          </tr>
+          <tr>
+            <td className="insp-label-cell">Employer</td><td colSpan={3}>{item.employerNameAddress || "—"}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
   );
 }
 

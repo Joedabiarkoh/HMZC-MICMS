@@ -111,6 +111,9 @@ export interface InspectionCertificate {
   // Firefighting-equipment fields (type === "firefighting")
   ffe?: FFEData;
 
+  // Loose Gear & Lifting Equipment fields (type === "loosegear")
+  looseGear?: LooseGearData;
+
   remarks: string;
   remarksAuto: boolean;
   outstanding: Record<string, string>;
@@ -179,8 +182,68 @@ export interface FFEData {
   comments: string;
 }
 
+// Loose Gear & Lifting Equipment (type === "loosegear") — built from
+// HMZC's own LOLER 1998 "Report of Thorough Examination" templates
+// (Downloads/Report of Thorough Inspection*.docx): a single-item
+// statutory form (winch/crane-type lifting appliance) and a
+// "multiple items" register variant (shackles and other loose gear
+// inspected in batches). Requested directly: rather than pick one
+// shape, every item in the register carries its OWN full statutory
+// declaration (the LOLER yes/no questions, defect assessment, safe-to-
+// operate call, and sign-off) — not one shared declaration for the
+// whole batch — since each piece of lifting gear is its own legal
+// examination record even when several are inspected on the same visit.
+export type LooseGearYesNo = "yes" | "no" | "";
+
+export interface LooseGearItem {
+  itemSerialNo: string;
+  itemDescription: string;
+  swl: string; // Safe Working Load, as stated on the item
+  itemLocation: string;
+  manufacturer: string;
+  previousCertificateNo: string;
+  previousInspectionDate: string;
+  testDate: string;
+
+  ecDeclarationAvailable: LooseGearYesNo;
+  ceMarkVisible: LooseGearYesNo;
+
+  // The LOLER 1998 statutory questions, transcribed directly from the
+  // source form.
+  firstExaminationAfterInstall: LooseGearYesNo;
+  installedCorrectly: LooseGearYesNo; // only meaningful if firstExaminationAfterInstall is "yes"
+  examinedWithin6Months: LooseGearYesNo;
+  examinedWithin12Months: LooseGearYesNo;
+  inAccordanceWithScheme: LooseGearYesNo;
+  afterExceptionalCircumstances: LooseGearYesNo;
+
+  defectDescription: string; // "If none state NONE"
+  existingOrImminentDanger: LooseGearYesNo; // *reportable defect, per the statutory form's own note
+  couldBecomeDangerBy: string; // date, if a defect isn't yet but could become dangerous
+  repairParticulars: string;
+  testsCarriedOut: string;
+  observations: string;
+
+  safeToOperate: LooseGearYesNo;
+  reportedByName: string;
+  reportedByQualifications: string;
+  authenticatedByName: string;
+  employerNameAddress: string;
+  nextExaminationDue: string; // date
+}
+
+// certNo/vesselName/imoNo/dateOfServicing/location live on
+// InspectionCertificate itself (same convention as FFE's certClass/
+// placeOfService extras) — jobPoNo and colourCode are the only
+// loosegear-specific header fields the source forms add on top.
+export interface LooseGearData {
+  jobPoNo: string;
+  colourCode: string;
+  items: LooseGearItem[];
+}
+
 export interface EquipmentTypeConfig {
-  kind: "boat" | "crane" | "ffe" | "placeholder";
+  kind: "boat" | "crane" | "ffe" | "loosegear";
   typeName: string;
   label: string;
   statementIntro?: string;
