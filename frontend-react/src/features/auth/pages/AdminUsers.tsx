@@ -85,6 +85,13 @@ export default function AdminUsers() {
   }
 
   async function promote(u: User, role: UserRole) {
+    const ok = await confirmAction({
+      title: "Grant Administrator access?",
+      message: `${u.email} will get full access to every certificate, finance record, and user account in the system, including managing other admins.`,
+      confirmLabel: "Promote to Admin",
+      danger: true,
+    });
+    if (!ok) return;
     const updated = await updateUserRole(u.id, role);
     setUsers((prev) => prev.map((x) => (x.id === updated.id ? updated : x)));
   }
