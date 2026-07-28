@@ -183,63 +183,127 @@ export interface FFEData {
 }
 
 // Loose Gear & Lifting Equipment (type === "loosegear") — built from
-// HMZC's own LOLER 1998 "Report of Thorough Examination" templates
-// (Downloads/Report of Thorough Inspection*.docx): a single-item
-// statutory form (winch/crane-type lifting appliance) and a
-// "multiple items" register variant (shackles and other loose gear
-// inspected in batches). Requested directly: rather than pick one
-// shape, every item in the register carries its OWN full statutory
-// declaration (the LOLER yes/no questions, defect assessment, safe-to-
-// operate call, and sign-off) — not one shared declaration for the
-// whole batch — since each piece of lifting gear is its own legal
-// examination record even when several are inspected on the same visit.
+// three of HMZC's real LOLER 1998 "Report of Thorough Examination"
+// templates (Downloads/Report of Thorough Inspection*.docx), preserved
+// as three separate selectable sub-types rather than merged into one
+// shape — each is a genuinely different form with its own field set,
+// the same reason FFE offers ~20 distinct sub-types instead of forcing
+// every fire safety certificate through one layout (see ffeCertTypes.ts).
 export type LooseGearYesNo = "yes" | "no" | "";
 
-export interface LooseGearItem {
-  itemSerialNo: string;
-  itemDescription: string;
-  swl: string; // Safe Working Load, as stated on the item
-  itemLocation: string;
-  manufacturer: string;
-  previousCertificateNo: string;
-  previousInspectionDate: string;
-  testDate: string;
+export type LooseGearSubTypeId = "visual_certificate" | "standard_report" | "multiple_items";
 
-  ecDeclarationAvailable: LooseGearYesNo;
-  ceMarkVisible: LooseGearYesNo;
-
-  // The LOLER 1998 statutory questions, transcribed directly from the
-  // source form.
+// The LOLER 1998 statutory yes/no questions and defect/sign-off block —
+// word-for-word identical between the "Visual Certificate" and
+// "Standard Report" templates (only their header fields above this
+// block differ), so it's shared rather than duplicated twice.
+export interface LooseGearStatutoryAnswers {
   firstExaminationAfterInstall: LooseGearYesNo;
   installedCorrectly: LooseGearYesNo; // only meaningful if firstExaminationAfterInstall is "yes"
   examinedWithin6Months: LooseGearYesNo;
   examinedWithin12Months: LooseGearYesNo;
   inAccordanceWithScheme: LooseGearYesNo;
   afterExceptionalCircumstances: LooseGearYesNo;
-
   defectDescription: string; // "If none state NONE"
   existingOrImminentDanger: LooseGearYesNo; // *reportable defect, per the statutory form's own note
   couldBecomeDangerBy: string; // date, if a defect isn't yet but could become dangerous
   repairParticulars: string;
   testsCarriedOut: string;
   observations: string;
-
   safeToOperate: LooseGearYesNo;
-  reportedByName: string;
-  reportedByQualifications: string;
-  authenticatedByName: string;
-  employerNameAddress: string;
-  nextExaminationDue: string; // date
 }
 
-// certNo/vesselName/imoNo/dateOfServicing/location live on
-// InspectionCertificate itself (same convention as FFE's certClass/
-// placeOfService extras) — jobPoNo and colourCode are the only
-// loosegear-specific header fields the source forms add on top.
-export interface LooseGearData {
+// Template 1 — "Visual Certificate of Thorough Examination", HMZC's own
+// branded single-item form (Downloads/Report of Thorough Inspection.docx).
+export interface LooseGearVisualCertData {
+  clientOwner: string;
+  site: string;
+  siteLocation: string;
+  chargeCodeOrderNo: string;
+  poJobNo: string;
+  colorCode: string;
+  inspectionType: string;
+  standard: string; // e.g. "BS EN 14492, EN12385 LOLER 1998 S.I.2307"
+  itemSerialNo: string;
+  itemDescription: string;
+  swl: string;
+  itemLocation: string;
+  previousCertificateNo: string;
+  manufacturer: string;
+  previousInspectionDate: string;
+  testDate: string;
+  ecDeclarationAvailable: LooseGearYesNo;
+  ceMarkVisible: LooseGearYesNo;
+  statutory: LooseGearStatutoryAnswers;
+  reportedByNameAndQualifications: string;
+  authenticatedByName: string;
+  nextExaminationDue: string;
+  employerNameAddress: string;
+}
+
+// Template 2 — "Report of Thorough Examination", the plainer/generic
+// LOLER wording variant (Downloads/Report of Thorough Inspection -Unsafe.docx),
+// a different single-item header from the Visual Certificate above —
+// examination/report dates, the CLIENT's employer details, and the
+// premises address, rather than HMZC's own Client/Site/Job-No fields.
+export interface LooseGearStandardReportData {
+  dateOfExamination: string;
+  dateOfReport: string;
+  reportNumber: string;
+  clientEmployerNameAddress: string; // "employer for whom the thorough examination was made"
+  premisesAddress: string;
+  equipmentDescription: string;
+  swl: string;
+  dateOfManufacture: string;
+  dateOfLastExamination: string;
+  statutory: LooseGearStatutoryAnswers;
+  reportedByNameAndQualifications: string;
+  authenticatedByName: string;
+  nextExaminationDue: string;
+  authenticatingEmployerNameAddress: string; // "employer OF the person making/authenticating this report" — the inspection company, distinct from clientEmployerNameAddress above
+}
+
+// Template 3 — "Report of Thorough Examination (Multiple Items)", the
+// register variant for a batch of loose gear (shackles etc.) inspected
+// on the same visit (Downloads/Report of Thorough Inspection (multiple
+// items)*.docx). One abbreviated row per item, not a full statutory
+// declaration each — that per-item depth is what templates 1 and 2 are
+// for; this is deliberately the register's own, lighter shape.
+export interface LooseGearRegisterRow {
+  serialNo: string;
+  description: string;
+  swl: string;
+  manufacturer: string;
+  result: string; // e.g. "Satisfactory" / "Unsatisfactory"
+  certNoTestDate: string;
+  itemLocation: string;
+  typeOfInspection: string;
+  nextInspectionDate: string;
+  safeToUse: LooseGearYesNo;
+}
+
+// The source form's own legend: Installation (A) / 6 Monthly (B) /
+// 12 Monthly (C) / Written Scheme (D) / Exceptional Circumstance (E) —
+// one code for the whole register, not per row, matching how it's laid
+// out as a single key/legend table in the source document.
+export type LooseGearReasonForInspection = "" | "installation" | "6monthly" | "12monthly" | "written_scheme" | "exceptional";
+
+export interface LooseGearMultipleItemsData {
   jobPoNo: string;
+  inspectedBy: string;
   colourCode: string;
-  items: LooseGearItem[];
+  reasonForInspection: LooseGearReasonForInspection;
+  rows: LooseGearRegisterRow[];
+}
+
+// vesselName/imoNo/certNo/dateOfServicing/location live on
+// InspectionCertificate itself (same convention FFE already uses) —
+// only the sub-type actually selected has its data object populated.
+export interface LooseGearData {
+  subType: LooseGearSubTypeId;
+  visualCert?: LooseGearVisualCertData;
+  standardReport?: LooseGearStandardReportData;
+  multipleItems?: LooseGearMultipleItemsData;
 }
 
 export interface EquipmentTypeConfig {

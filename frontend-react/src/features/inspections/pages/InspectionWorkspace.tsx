@@ -264,19 +264,25 @@ export default function InspectionWorkspace() {
     }
 
     if (cfg.kind === "loosegear") {
-      const items = current.looseGear?.items || [];
-      if (items.length === 0) {
-        problems.push("At least one item is required in the register");
+      const lg = current.looseGear;
+      if (lg?.subType === "visual_certificate" && lg.visualCert) {
+        if (!lg.visualCert.itemDescription.trim()) problems.push("Item description is required");
+        if (!lg.visualCert.statutory.safeToOperate) problems.push('"Safe to operate" must be answered');
+      } else if (lg?.subType === "standard_report" && lg.standardReport) {
+        if (!lg.standardReport.equipmentDescription.trim()) problems.push("Equipment description is required");
+        if (!lg.standardReport.statutory.safeToOperate) problems.push('"Safe to operate" must be answered');
+      } else if (lg?.subType === "multiple_items" && lg.multipleItems) {
+        if (lg.multipleItems.rows.length === 0) problems.push("At least one item is required in the register");
+        lg.multipleItems.rows.forEach((row, i) => {
+          if (!row.description.trim()) problems.push(`Row ${i + 1}: description is required`);
+          if (!row.safeToUse) problems.push(`Row ${i + 1}: "Safe to use" must be answered`);
+        });
       }
-      items.forEach((item, i) => {
-        if (!item.itemDescription.trim()) problems.push(`Item ${i + 1}: description is required`);
-        if (!item.safeToOperate) problems.push(`Item ${i + 1}: "Safe to operate" must be answered`);
-      });
       if (!current.engineerName.trim()) {
-        problems.push("Technician name is required");
+        problems.push("Inspector name is required");
       }
       if (!current.engineerSig) {
-        problems.push("Technician signature is required");
+        problems.push("Inspector signature is required");
       }
       return problems;
     }

@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { EquipmentTypeConfig, InspectionCertificate, ChecklistStatus, EquipResult, FFEData, LooseGearData, LooseGearItem, LooseGearYesNo } from "../types/inspection.types";
+import { EquipmentTypeConfig, InspectionCertificate, ChecklistStatus, EquipResult, FFEData, LooseGearData, LooseGearMultipleItemsData, LooseGearStandardReportData, LooseGearStatutoryAnswers, LooseGearVisualCertData, LooseGearYesNo } from "../types/inspection.types";
 import { getFFEConfig } from "../data/ffeCertTypes";
 import { HMZC_LOGO_DATA_URI } from "../assets/logo";
 import CertificateQR, { buildCertQrPayload } from "./CertificateQR";
@@ -327,12 +327,156 @@ function yesNoLabel(v: LooseGearYesNo) {
   return { yes: "YES", no: "NO", "": "—" }[v] || v;
 }
 
-// Every item in the register prints its own full statutory declaration
-// (see LooseGearItem's own comment) — natural page flow, same as the
-// rest of this file: no forced page-break between items, browser
-// pagination decides where a long register actually needs to spill
-// onto another physical page.
+// Three genuinely different source templates, each printed as its own
+// distinct layout — no shared "LooseGearCertificatePage" wrapper,
+// matching how the form side (LooseGearForm.tsx) keeps them separate
+// rather than forcing one restyled shape onto all three.
 function LooseGearCertificatePage({ cert, looseGear }: { cert: InspectionCertificate; looseGear: LooseGearData }) {
+  if (looseGear.subType === "visual_certificate" && looseGear.visualCert) {
+    return <VisualCertPage cert={cert} data={looseGear.visualCert} />;
+  }
+  if (looseGear.subType === "standard_report" && looseGear.standardReport) {
+    return <StandardReportPage cert={cert} data={looseGear.standardReport} />;
+  }
+  if (looseGear.subType === "multiple_items" && looseGear.multipleItems) {
+    return <MultipleItemsPage cert={cert} data={looseGear.multipleItems} />;
+  }
+  return null;
+}
+
+function StatutoryAnswersRows({ data }: { data: LooseGearStatutoryAnswers }) {
+  return (
+    <>
+      <table className="insp-id-table">
+        <tbody>
+          <tr>
+            <td className="insp-label-cell">First Exam After Install</td><td>{yesNoLabel(data.firstExaminationAfterInstall)}</td>
+            <td className="insp-label-cell">Installed Correctly</td><td>{yesNoLabel(data.installedCorrectly)}</td>
+          </tr>
+          <tr>
+            <td className="insp-label-cell">Within 6 Months</td><td>{yesNoLabel(data.examinedWithin6Months)}</td>
+            <td className="insp-label-cell">Within 12 Months</td><td>{yesNoLabel(data.examinedWithin12Months)}</td>
+          </tr>
+          <tr>
+            <td className="insp-label-cell">Per Examination Scheme</td><td>{yesNoLabel(data.inAccordanceWithScheme)}</td>
+            <td className="insp-label-cell">After Exceptional Circumstances</td><td>{yesNoLabel(data.afterExceptionalCircumstances)}</td>
+          </tr>
+        </tbody>
+      </table>
+      <div className="insp-remarks-box">Defect: {data.defectDescription || "NONE"}</div>
+      <table className="insp-id-table">
+        <tbody>
+          <tr>
+            <td className="insp-label-cell">Existing/Imminent Danger</td><td>{yesNoLabel(data.existingOrImminentDanger)}</td>
+            <td className="insp-label-cell">Could Become Danger By</td><td>{fmtDate(data.couldBecomeDangerBy)}</td>
+          </tr>
+        </tbody>
+      </table>
+      {data.repairParticulars && <div className="insp-remarks-box">Repair/Renewal Required: {data.repairParticulars}</div>}
+      {data.testsCarriedOut && <div className="insp-remarks-box">Tests Carried Out: {data.testsCarriedOut}</div>}
+      {data.observations && <div className="insp-remarks-box">Observations: {data.observations}</div>}
+      <table className="insp-id-table">
+        <tbody>
+          <tr>
+            <td className="insp-label-cell">Safe to Operate</td>
+            <td><span className={`insp-pill ${data.safeToOperate === "yes" ? "good" : data.safeToOperate === "no" ? "repair" : ""}`}>{yesNoLabel(data.safeToOperate)}</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </>
+  );
+}
+
+function VisualCertPage({ cert, data }: { cert: InspectionCertificate; data: LooseGearVisualCertData }) {
+  return (
+    <div className="insp-cert-page" style={watermarkStyle}>
+      <Letterhead cert={cert} />
+      <div className="insp-cert-title-row">
+        <h2>Visual Certificate of Thorough Examination</h2>
+        <span className="insp-badge">LOOSE GEAR &amp; LIFTING EQUIPMENT</span>
+      </div>
+      <table className="insp-id-table">
+        <tbody>
+          <tr>
+            <td className="insp-label-cell">Client/Owner</td><td>{data.clientOwner || "—"}</td>
+            <td className="insp-label-cell">Certificate No</td><td>{cert.certNo}</td>
+          </tr>
+          <tr>
+            <td className="insp-label-cell">Site</td><td>{data.site || "—"}</td>
+            <td className="insp-label-cell">Charge Code/Order No.</td><td>{data.chargeCodeOrderNo || "—"}</td>
+          </tr>
+          <tr>
+            <td className="insp-label-cell">Site Location</td><td>{data.siteLocation || "—"}</td>
+            <td className="insp-label-cell">Issue Date</td><td>{fmtDate(cert.dateOfServicing)}</td>
+          </tr>
+          <tr>
+            <td className="insp-label-cell">PO/Job No.</td><td>{data.poJobNo || "—"}</td>
+            <td className="insp-label-cell">Color Code</td><td>{data.colorCode || "—"}</td>
+          </tr>
+          <tr>
+            <td className="insp-label-cell">Inspection Type</td><td>{data.inspectionType || "—"}</td>
+            <td className="insp-label-cell">Standard</td><td>{data.standard || "—"}</td>
+          </tr>
+          <tr>
+            <td className="insp-label-cell">Vessel</td><td colSpan={3}>{cert.vesselName || "—"}</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div style={{ fontWeight: 700, fontSize: 11.5, color: "var(--insp-navy)", margin: "10px 0 4px" }}>Details of Examination</div>
+      <table className="insp-id-table">
+        <tbody>
+          <tr>
+            <td className="insp-label-cell">Item Serial No.</td><td>{data.itemSerialNo || "—"}</td>
+            <td className="insp-label-cell">Item Description</td><td>{data.itemDescription || "—"}</td>
+          </tr>
+          <tr>
+            <td className="insp-label-cell">SWL</td><td>{data.swl || "—"}</td>
+            <td className="insp-label-cell">Item Location</td><td>{data.itemLocation || "—"}</td>
+          </tr>
+          <tr>
+            <td className="insp-label-cell">Previous Cert No.</td><td>{data.previousCertificateNo || "—"}</td>
+            <td className="insp-label-cell">Manufacturer</td><td>{data.manufacturer || "—"}</td>
+          </tr>
+          <tr>
+            <td className="insp-label-cell">Previous Inspection</td><td>{fmtDate(data.previousInspectionDate)}</td>
+            <td className="insp-label-cell">Test Date</td><td>{fmtDate(data.testDate)}</td>
+          </tr>
+          <tr>
+            <td className="insp-label-cell">EC Declaration Available</td><td>{yesNoLabel(data.ecDeclarationAvailable)}</td>
+            <td className="insp-label-cell">CE Mark Visible</td><td>{yesNoLabel(data.ceMarkVisible)}</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div style={{ fontWeight: 700, fontSize: 11.5, color: "var(--insp-navy)", margin: "10px 0 4px" }}>LOLER 1998 Statutory Declaration</div>
+      <StatutoryAnswersRows data={data.statutory} />
+      <table className="insp-id-table">
+        <tbody>
+          <tr>
+            <td className="insp-label-cell">Reported By</td><td colSpan={3}>{data.reportedByNameAndQualifications || "—"}</td>
+          </tr>
+          <tr>
+            <td className="insp-label-cell">Authenticated By</td><td>{data.authenticatedByName || "—"}</td>
+            <td className="insp-label-cell">Next Exam Due</td><td>{fmtDate(data.nextExaminationDue)}</td>
+          </tr>
+          <tr>
+            <td className="insp-label-cell">Employer</td><td colSpan={3}>{data.employerNameAddress || "—"}</td>
+          </tr>
+        </tbody>
+      </table>
+
+      {cert.issuedBy && (
+        <div style={{ fontSize: 9, color: "var(--insp-muted)", marginTop: 8 }}>
+          Issued by {cert.issuedBy}{cert.issuedAt ? ` — ${new Date(cert.issuedAt).toLocaleString()}` : ""}
+        </div>
+      )}
+      <SignatureFooter cert={cert} masterLabel="Master" techLabel="Inspector" />
+    </div>
+  );
+}
+
+function StandardReportPage({ cert, data }: { cert: InspectionCertificate; data: LooseGearStandardReportData }) {
   return (
     <div className="insp-cert-page" style={watermarkStyle}>
       <Letterhead cert={cert} />
@@ -340,114 +484,140 @@ function LooseGearCertificatePage({ cert, looseGear }: { cert: InspectionCertifi
         <h2>Report of Thorough Examination</h2>
         <span className="insp-badge">LOOSE GEAR &amp; LIFTING EQUIPMENT</span>
       </div>
-
+      <div style={{ fontSize: 10, color: "var(--insp-muted)", marginBottom: 6 }}>
+        Lifting &amp; Rigging colour code is based on ACEPA (Association of Companies of Oil Exploration and Production in Angola).
+      </div>
       <table className="insp-id-table">
         <tbody>
           <tr>
-            <td className="insp-label-cell">Vessel</td><td>{cert.vesselName || "—"}</td>
             <td className="insp-label-cell">Certificate No</td><td>{cert.certNo}</td>
+            <td className="insp-label-cell">Vessel</td><td>{cert.vesselName || "—"}</td>
           </tr>
           <tr>
-            <td className="insp-label-cell">IMO No</td><td>{cert.imoNo || "—"}</td>
-            <td className="insp-label-cell">Date of Report</td><td>{fmtDate(cert.dateOfServicing)}</td>
+            <td className="insp-label-cell">Date of Examination</td><td>{fmtDate(data.dateOfExamination)}</td>
+            <td className="insp-label-cell">Date of Report</td><td>{fmtDate(data.dateOfReport)}</td>
           </tr>
           <tr>
-            <td className="insp-label-cell">Job/PO No.</td><td>{looseGear.jobPoNo || "—"}</td>
-            <td className="insp-label-cell">Location/Port</td><td>{cert.location || "—"}</td>
+            <td className="insp-label-cell">Report Number</td><td colSpan={3}>{data.reportNumber || "—"}</td>
           </tr>
           <tr>
-            <td className="insp-label-cell">Colour Code</td><td colSpan={3}>{looseGear.colourCode || "—"}</td>
+            <td className="insp-label-cell">Employer (for whom exam made)</td><td colSpan={3}>{data.clientEmployerNameAddress || "—"}</td>
+          </tr>
+          <tr>
+            <td className="insp-label-cell">Premises Address</td><td colSpan={3}>{data.premisesAddress || "—"}</td>
+          </tr>
+          <tr>
+            <td className="insp-label-cell">Equipment Description</td><td colSpan={3}>{data.equipmentDescription || "—"}</td>
+          </tr>
+          <tr>
+            <td className="insp-label-cell">SWL</td><td>{data.swl || "—"}</td>
+            <td className="insp-label-cell">Date of Manufacture</td><td>{fmtDate(data.dateOfManufacture)}</td>
+          </tr>
+          <tr>
+            <td className="insp-label-cell">Date of Last Examination</td><td colSpan={3}>{fmtDate(data.dateOfLastExamination)}</td>
           </tr>
         </tbody>
       </table>
 
-      {looseGear.items.length === 0 ? (
-        <div style={{ color: "var(--insp-muted)", fontSize: 11.5, marginTop: 10 }}>No items recorded.</div>
-      ) : (
-        looseGear.items.map((item, i) => <LooseGearItemPage key={i} index={i} item={item} />)
-      )}
+      <div style={{ fontWeight: 700, fontSize: 11.5, color: "var(--insp-navy)", margin: "10px 0 4px" }}>LOLER 1998 Statutory Declaration</div>
+      <StatutoryAnswersRows data={data.statutory} />
+      <table className="insp-id-table">
+        <tbody>
+          <tr>
+            <td className="insp-label-cell">Reported By</td><td colSpan={3}>{data.reportedByNameAndQualifications || "—"}</td>
+          </tr>
+          <tr>
+            <td className="insp-label-cell">Authenticated By</td><td>{data.authenticatedByName || "—"}</td>
+            <td className="insp-label-cell">Next Exam Due</td><td>{fmtDate(data.nextExaminationDue)}</td>
+          </tr>
+          <tr>
+            <td className="insp-label-cell">Employer (authenticating)</td><td colSpan={3}>{data.authenticatingEmployerNameAddress || "—"}</td>
+          </tr>
+        </tbody>
+      </table>
 
       {cert.issuedBy && (
         <div style={{ fontSize: 9, color: "var(--insp-muted)", marginTop: 8 }}>
           Issued by {cert.issuedBy}{cert.issuedAt ? ` — ${new Date(cert.issuedAt).toLocaleString()}` : ""}
         </div>
       )}
-
-      <SignatureFooter cert={cert} masterLabel="Master" techLabel="Technician" />
+      <SignatureFooter cert={cert} masterLabel="Master" techLabel="Inspector" />
     </div>
   );
 }
 
-function LooseGearItemPage({ index, item }: { index: number; item: LooseGearItem }) {
+const REASON_PRINT_LABELS: Record<string, string> = {
+  installation: "Installation (A)",
+  "6monthly": "6 Monthly (B)",
+  "12monthly": "12 Monthly (C)",
+  written_scheme: "Written Scheme (D)",
+  exceptional: "Exceptional Circumstance (E)",
+  "": "—",
+};
+
+function MultipleItemsPage({ cert, data }: { cert: InspectionCertificate; data: LooseGearMultipleItemsData }) {
   return (
-    <div style={{ marginTop: 14, breakInside: "avoid" }}>
-      <div style={{ fontWeight: 700, fontSize: 11.5, color: "var(--insp-navy)", margin: "10px 0 4px" }}>
-        Item {index + 1} — Statutory Declaration
+    <div className="insp-cert-page" style={watermarkStyle}>
+      <Letterhead cert={cert} />
+      <div className="insp-cert-title-row">
+        <h2>Report of Thorough Examination (Multiple Items)</h2>
+        <span className="insp-badge">LOOSE GEAR &amp; LIFTING EQUIPMENT</span>
       </div>
       <table className="insp-id-table">
         <tbody>
           <tr>
-            <td className="insp-label-cell">Serial No.</td><td>{item.itemSerialNo || "—"}</td>
-            <td className="insp-label-cell">Description</td><td>{item.itemDescription || "—"}</td>
+            <td className="insp-label-cell">Job/PO No.</td><td>{data.jobPoNo || "—"}</td>
+            <td className="insp-label-cell">Inspected By</td><td>{data.inspectedBy || "—"}</td>
           </tr>
           <tr>
-            <td className="insp-label-cell">SWL</td><td>{item.swl || "—"}</td>
-            <td className="insp-label-cell">Location</td><td>{item.itemLocation || "—"}</td>
+            <td className="insp-label-cell">Vessel Name</td><td>{cert.vesselName || "—"}</td>
+            <td className="insp-label-cell">Colour Code</td><td>{data.colourCode || "—"}</td>
           </tr>
           <tr>
-            <td className="insp-label-cell">Manufacturer</td><td>{item.manufacturer || "—"}</td>
-            <td className="insp-label-cell">Previous Cert No.</td><td>{item.previousCertificateNo || "—"}</td>
+            <td className="insp-label-cell">Location/Port</td><td>{cert.location || "—"}</td>
+            <td className="insp-label-cell">Date of Report</td><td>{fmtDate(cert.dateOfServicing)}</td>
           </tr>
           <tr>
-            <td className="insp-label-cell">Previous Inspection</td><td>{fmtDate(item.previousInspectionDate)}</td>
-            <td className="insp-label-cell">Test Date</td><td>{fmtDate(item.testDate)}</td>
-          </tr>
-          <tr>
-            <td className="insp-label-cell">EC Declaration Available</td><td>{yesNoLabel(item.ecDeclarationAvailable)}</td>
-            <td className="insp-label-cell">CE Mark Visible</td><td>{yesNoLabel(item.ceMarkVisible)}</td>
-          </tr>
-          <tr>
-            <td className="insp-label-cell">First Exam After Install</td><td>{yesNoLabel(item.firstExaminationAfterInstall)}</td>
-            <td className="insp-label-cell">Installed Correctly</td><td>{yesNoLabel(item.installedCorrectly)}</td>
-          </tr>
-          <tr>
-            <td className="insp-label-cell">Within 6 Months</td><td>{yesNoLabel(item.examinedWithin6Months)}</td>
-            <td className="insp-label-cell">Within 12 Months</td><td>{yesNoLabel(item.examinedWithin12Months)}</td>
-          </tr>
-          <tr>
-            <td className="insp-label-cell">Per Examination Scheme</td><td>{yesNoLabel(item.inAccordanceWithScheme)}</td>
-            <td className="insp-label-cell">After Exceptional Circumstances</td><td>{yesNoLabel(item.afterExceptionalCircumstances)}</td>
+            <td className="insp-label-cell">Reason for Inspection</td><td colSpan={3}>{REASON_PRINT_LABELS[data.reasonForInspection] || "—"}</td>
           </tr>
         </tbody>
       </table>
-      <div className="insp-remarks-box">Defect: {item.defectDescription || "NONE"}</div>
-      <table className="insp-id-table">
+
+      <table className="insp-print-chk">
+        <thead>
+          <tr>
+            <th>Serial No.</th><th>Description</th><th>SWL</th><th>Manufacturer</th><th>Result</th>
+            <th>Cert No./Test Date</th><th>Location</th><th>Type of Inspection</th><th>Next Inspection</th><th>Safe to Use</th>
+          </tr>
+        </thead>
         <tbody>
-          <tr>
-            <td className="insp-label-cell">Existing/Imminent Danger</td><td>{yesNoLabel(item.existingOrImminentDanger)}</td>
-            <td className="insp-label-cell">Could Become Danger By</td><td>{fmtDate(item.couldBecomeDangerBy)}</td>
-          </tr>
+          {data.rows.length === 0 ? (
+            <tr><td colSpan={10} style={{ color: "var(--insp-muted)" }}>No items recorded.</td></tr>
+          ) : (
+            data.rows.map((row, i) => (
+              <tr key={i}>
+                <td>{row.serialNo || "—"}</td>
+                <td>{row.description || "—"}</td>
+                <td>{row.swl || "—"}</td>
+                <td>{row.manufacturer || "—"}</td>
+                <td>{row.result || "—"}</td>
+                <td>{row.certNoTestDate || "—"}</td>
+                <td>{row.itemLocation || "—"}</td>
+                <td>{row.typeOfInspection || "—"}</td>
+                <td>{fmtDate(row.nextInspectionDate)}</td>
+                <td><span className={`insp-pill ${row.safeToUse === "yes" ? "good" : row.safeToUse === "no" ? "repair" : ""}`}>{yesNoLabel(row.safeToUse)}</span></td>
+              </tr>
+            ))
+          )}
         </tbody>
       </table>
-      {item.repairParticulars && <div className="insp-remarks-box">Repair/Renewal Required: {item.repairParticulars}</div>}
-      {item.testsCarriedOut && <div className="insp-remarks-box">Tests Carried Out: {item.testsCarriedOut}</div>}
-      {item.observations && <div className="insp-remarks-box">Observations: {item.observations}</div>}
-      <table className="insp-id-table">
-        <tbody>
-          <tr>
-            <td className="insp-label-cell">Safe to Operate</td>
-            <td><span className={`insp-pill ${item.safeToOperate === "yes" ? "good" : item.safeToOperate === "no" ? "repair" : ""}`}>{yesNoLabel(item.safeToOperate)}</span></td>
-            <td className="insp-label-cell">Next Exam Due</td><td>{fmtDate(item.nextExaminationDue)}</td>
-          </tr>
-          <tr>
-            <td className="insp-label-cell">Reported By</td><td>{item.reportedByName || "—"}{item.reportedByQualifications ? ` (${item.reportedByQualifications})` : ""}</td>
-            <td className="insp-label-cell">Authenticated By</td><td>{item.authenticatedByName || "—"}</td>
-          </tr>
-          <tr>
-            <td className="insp-label-cell">Employer</td><td colSpan={3}>{item.employerNameAddress || "—"}</td>
-          </tr>
-        </tbody>
-      </table>
+
+      {cert.issuedBy && (
+        <div style={{ fontSize: 9, color: "var(--insp-muted)", marginTop: 8 }}>
+          Issued by {cert.issuedBy}{cert.issuedAt ? ` — ${new Date(cert.issuedAt).toLocaleString()}` : ""}
+        </div>
+      )}
+      <SignatureFooter cert={cert} masterLabel="Master" techLabel="Inspector" />
     </div>
   );
 }

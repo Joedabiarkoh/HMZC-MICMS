@@ -7,7 +7,11 @@ import {
   FFEChecklistResult,
   InspectionCertificate,
   LooseGearData,
-  LooseGearItem,
+  LooseGearMultipleItemsData,
+  LooseGearRegisterRow,
+  LooseGearStandardReportData,
+  LooseGearStatutoryAnswers,
+  LooseGearVisualCertData,
 } from "../types/inspection.types";
 
 export function makeChecklist(sections: ChecklistSectionDef[] = []): ChecklistSection[] {
@@ -121,25 +125,14 @@ export function freshFFEState(subTypeId: string) {
   };
 }
 
-export function freshLooseGearState(): LooseGearData {
-  return { jobPoNo: "", colourCode: "", items: [] };
-}
+export const LOOSE_GEAR_SUB_TYPES: { id: LooseGearData["subType"]; label: string }[] = [
+  { id: "visual_certificate", label: "Visual Certificate of Thorough Examination" },
+  { id: "standard_report", label: "Report of Thorough Examination" },
+  { id: "multiple_items", label: "Report of Thorough Examination (Multiple Items)" },
+];
 
-// One blank statutory declaration block — see LooseGearItem's own
-// comment for why every item gets its own full set of these fields
-// rather than one shared declaration for the whole register.
-export function freshLooseGearItem(): LooseGearItem {
+function freshLooseGearStatutoryAnswers(): LooseGearStatutoryAnswers {
   return {
-    itemSerialNo: "",
-    itemDescription: "",
-    swl: "",
-    itemLocation: "",
-    manufacturer: "",
-    previousCertificateNo: "",
-    previousInspectionDate: "",
-    testDate: "",
-    ecDeclarationAvailable: "",
-    ceMarkVisible: "",
     firstExaminationAfterInstall: "",
     installedCorrectly: "",
     examinedWithin6Months: "",
@@ -153,10 +146,85 @@ export function freshLooseGearItem(): LooseGearItem {
     testsCarriedOut: "",
     observations: "",
     safeToOperate: "",
-    reportedByName: "",
-    reportedByQualifications: "",
-    authenticatedByName: "",
-    employerNameAddress: "",
-    nextExaminationDue: "",
   };
+}
+
+export function freshLooseGearVisualCertData(): LooseGearVisualCertData {
+  return {
+    clientOwner: "",
+    site: "",
+    siteLocation: "",
+    chargeCodeOrderNo: "",
+    poJobNo: "",
+    colorCode: "",
+    inspectionType: "",
+    standard: "",
+    itemSerialNo: "",
+    itemDescription: "",
+    swl: "",
+    itemLocation: "",
+    previousCertificateNo: "",
+    manufacturer: "",
+    previousInspectionDate: "",
+    testDate: "",
+    ecDeclarationAvailable: "",
+    ceMarkVisible: "",
+    statutory: freshLooseGearStatutoryAnswers(),
+    reportedByNameAndQualifications: "",
+    authenticatedByName: "",
+    nextExaminationDue: "",
+    employerNameAddress: "",
+  };
+}
+
+export function freshLooseGearStandardReportData(): LooseGearStandardReportData {
+  return {
+    dateOfExamination: "",
+    dateOfReport: "",
+    reportNumber: "",
+    clientEmployerNameAddress: "",
+    premisesAddress: "",
+    equipmentDescription: "",
+    swl: "",
+    dateOfManufacture: "",
+    dateOfLastExamination: "",
+    statutory: freshLooseGearStatutoryAnswers(),
+    reportedByNameAndQualifications: "",
+    authenticatedByName: "",
+    nextExaminationDue: "",
+    authenticatingEmployerNameAddress: "",
+  };
+}
+
+export function freshLooseGearRegisterRow(): LooseGearRegisterRow {
+  return {
+    serialNo: "",
+    description: "",
+    swl: "",
+    manufacturer: "",
+    result: "",
+    certNoTestDate: "",
+    itemLocation: "",
+    typeOfInspection: "",
+    nextInspectionDate: "",
+    safeToUse: "",
+  };
+}
+
+export function freshLooseGearMultipleItemsData(): LooseGearMultipleItemsData {
+  return { jobPoNo: "", inspectedBy: "", colourCode: "", reasonForInspection: "", rows: [] };
+}
+
+// Rebuilds the loosegear-specific state for a given sub-type — called
+// both when a brand-new certificate starts and when the sub-type
+// selector changes on an existing draft (switching from, say, the
+// single-item "Visual Certificate" to the "Multiple Items" register
+// needs a completely different data shape, not the old sub-type's
+// leftover fields — same reasoning as freshFFEState above).
+export function freshLooseGearState(subTypeId: LooseGearData["subType"] = "visual_certificate"): LooseGearData {
+  const base: LooseGearData = { subType: subTypeId };
+  if (subTypeId === "visual_certificate") base.visualCert = freshLooseGearVisualCertData();
+  else if (subTypeId === "standard_report") base.standardReport = freshLooseGearStandardReportData();
+  else if (subTypeId === "multiple_items") base.multipleItems = freshLooseGearMultipleItemsData();
+  return base;
 }
