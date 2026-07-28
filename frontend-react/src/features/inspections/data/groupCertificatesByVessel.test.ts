@@ -116,4 +116,35 @@ describe("groupCertificatesByVessel", () => {
   it("returns an empty array for an empty certificate set", () => {
     expect(groupCertificatesByVessel({}, "")).toEqual([]);
   });
+
+  it("sub-groups a vessel's certificates by the year of date_of_servicing, newest year first", () => {
+    const certs = {
+      y2024: cert({ certNo: "y2024", vesselName: "MV Long Server", imoNo: "1", dateOfServicing: "2024-03-01" }),
+      y2026a: cert({ certNo: "y2026a", vesselName: "MV Long Server", imoNo: "1", dateOfServicing: "2026-01-01" }),
+      y2026b: cert({ certNo: "y2026b", vesselName: "MV Long Server", imoNo: "1", dateOfServicing: "2026-06-01" }),
+      y2025: cert({ certNo: "y2025", vesselName: "MV Long Server", imoNo: "1", dateOfServicing: "2025-05-01" }),
+    };
+
+    const groups = groupCertificatesByVessel(certs, "");
+
+    expect(groups).toHaveLength(1);
+    const byYear = groups[0].certsByYear;
+    expect(byYear.map((g) => g.year)).toEqual(["2026", "2025", "2024"]);
+    expect(byYear[0].certs.map((c) => c.certNo).sort()).toEqual(["y2026a", "y2026b"]);
+    expect(byYear[1].certs).toHaveLength(1);
+    expect(byYear[2].certs).toHaveLength(1);
+  });
+
+  it("falls into an 'Unknown' year group, sorted last, when date_of_servicing is missing", () => {
+    const certs = {
+      dated: cert({ certNo: "dated", vesselName: "MV Test", imoNo: "1", dateOfServicing: "2026-01-01" }),
+      undated: cert({ certNo: "undated", vesselName: "MV Test", imoNo: "1", dateOfServicing: "" }),
+    };
+
+    const groups = groupCertificatesByVessel(certs, "");
+
+    const byYear = groups[0].certsByYear;
+    expect(byYear.map((g) => g.year)).toEqual(["2026", "Unknown"]);
+    expect(byYear[1].certs[0].certNo).toBe("undated");
+  });
 });

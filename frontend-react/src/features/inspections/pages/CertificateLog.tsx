@@ -140,49 +140,62 @@ export default function CertificateLog() {
                   {isOpen && (
                     <tr>
                       <td colSpan={6} style={{ padding: 0, background: "#F8F9FA" }}>
-                        <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                          <thead>
-                            <tr style={{ fontSize: 11, color: "var(--insp-muted)" }}>
-                              <th style={{ padding: "6px 12px", textAlign: "left" }}>Cert No.</th>
-                              <th style={{ padding: "6px 12px", textAlign: "left" }}>Type</th>
-                              <th style={{ padding: "6px 12px", textAlign: "left" }}>Status</th>
-                              <th style={{ padding: "6px 12px", textAlign: "left" }}>Issued By</th>
-                              <th style={{ padding: "6px 12px", textAlign: "left" }}>Issued At</th>
-                              <th style={{ padding: "6px 12px", textAlign: "left" }}>Actions</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {group.certs.map((c) => (
-                              <tr key={c.certNo} style={{ borderTop: "1px solid #E4E8EB" }}>
-                                <td style={{ padding: "6px 12px" }}>{c.certNo}</td>
-                                <td style={{ padding: "6px 12px" }}><span className="insp-badge" style={{ background: "#455A73" }}>{INSPECTION_TYPES[c.type]?.typeName || c.type}</span></td>
-                                <td style={{ padding: "6px 12px" }}>{(c.status || "draft").toUpperCase()}</td>
-                                <td style={{ padding: "6px 12px" }}>{c.issuedBy || c.savedBy || "—"}{!c.issuedBy && c.savedBy ? " (not yet synced)" : ""}</td>
-                                <td style={{ padding: "6px 12px" }}>{c.issuedAt ? new Date(c.issuedAt).toLocaleString() : c.savedAt ? new Date(c.savedAt).toLocaleString() : "—"}</td>
-                                <td style={{ padding: "6px 12px" }}>
-                                  <button className="insp-btn insp-btn-outline" style={{ marginRight: 6 }} onClick={() => handleOpen(c.certNo, c.type)}>Open</button>
-                                  {hasPermission(user, PERM.CERT_DELETE) && (
-                                    <button
-                                      className="insp-btn"
-                                      style={{ background: "#B3382C", color: "#fff" }}
-                                      onClick={async () => {
-                                        const ok = await confirmAction({
-                                          title: "Delete certificate?",
-                                          message: `Certificate ${c.certNo} will be permanently deleted. This cannot be undone.`,
-                                          confirmLabel: "Delete",
-                                          danger: true,
-                                        });
-                                        if (ok) deleteCertificate(c.certNo);
-                                      }}
-                                    >
-                                      Delete
-                                    </button>
-                                  )}
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
+                        {/* Sub-grouped by the year the servicing happened, newest
+                            first — a vessel with several years of history under
+                            it stops being one long flat list to scroll through
+                            (requested directly, since that's exactly what
+                            happens as a long-serviced vessel accumulates more
+                            certificates over time). */}
+                        {group.certsByYear.map((yearGroup) => (
+                          <div key={yearGroup.year}>
+                            <div style={{ padding: "8px 12px 4px", fontSize: 11, fontWeight: 700, color: "var(--insp-navy)", textTransform: "uppercase", letterSpacing: ".04em" }}>
+                              {yearGroup.year === "Unknown" ? "No Service Date Recorded" : yearGroup.year} ({yearGroup.certs.length})
+                            </div>
+                            <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                              <thead>
+                                <tr style={{ fontSize: 11, color: "var(--insp-muted)" }}>
+                                  <th style={{ padding: "6px 12px", textAlign: "left" }}>Cert No.</th>
+                                  <th style={{ padding: "6px 12px", textAlign: "left" }}>Type</th>
+                                  <th style={{ padding: "6px 12px", textAlign: "left" }}>Status</th>
+                                  <th style={{ padding: "6px 12px", textAlign: "left" }}>Issued By</th>
+                                  <th style={{ padding: "6px 12px", textAlign: "left" }}>Issued At</th>
+                                  <th style={{ padding: "6px 12px", textAlign: "left" }}>Actions</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {yearGroup.certs.map((c) => (
+                                  <tr key={c.certNo} style={{ borderTop: "1px solid #E4E8EB" }}>
+                                    <td style={{ padding: "6px 12px" }}>{c.certNo}</td>
+                                    <td style={{ padding: "6px 12px" }}><span className="insp-badge" style={{ background: "#455A73" }}>{INSPECTION_TYPES[c.type]?.typeName || c.type}</span></td>
+                                    <td style={{ padding: "6px 12px" }}>{(c.status || "draft").toUpperCase()}</td>
+                                    <td style={{ padding: "6px 12px" }}>{c.issuedBy || c.savedBy || "—"}{!c.issuedBy && c.savedBy ? " (not yet synced)" : ""}</td>
+                                    <td style={{ padding: "6px 12px" }}>{c.issuedAt ? new Date(c.issuedAt).toLocaleString() : c.savedAt ? new Date(c.savedAt).toLocaleString() : "—"}</td>
+                                    <td style={{ padding: "6px 12px" }}>
+                                      <button className="insp-btn insp-btn-outline" style={{ marginRight: 6 }} onClick={() => handleOpen(c.certNo, c.type)}>Open</button>
+                                      {hasPermission(user, PERM.CERT_DELETE) && (
+                                        <button
+                                          className="insp-btn"
+                                          style={{ background: "#B3382C", color: "#fff" }}
+                                          onClick={async () => {
+                                            const ok = await confirmAction({
+                                              title: "Delete certificate?",
+                                              message: `Certificate ${c.certNo} will be permanently deleted. This cannot be undone.`,
+                                              confirmLabel: "Delete",
+                                              danger: true,
+                                            });
+                                            if (ok) deleteCertificate(c.certNo);
+                                          }}
+                                        >
+                                          Delete
+                                        </button>
+                                      )}
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        ))}
                       </td>
                     </tr>
                   )}
