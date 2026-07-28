@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { useAuth } from "../../../context/AuthContext";
 import { deleteMySignature, saveMySignature } from "../../auth/services/auth.api";
 
@@ -30,14 +30,26 @@ interface Props {
  */
 export default function SignatureCanvas({ label, value, onChange, allowSavedDefault }: Props) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  // Holds the listener-teardown for whichever <canvas> node is currently
+  // attached — needed because the canvas is conditionally rendered (it's
+  // swapped out for an <img> once signed, see the JSX below), so a new,
+  // blank DOM node is created every time the value goes back to "" (Clear
+  // or Re-sign). A one-time useEffect(..., []) here would only ever wire
+  // up listeners on the very first canvas node and silently do nothing on
+  // every node after that — exactly the "Re-sign draws nothing" bug this
+  // callback ref fixes, by re-attaching on every mount instead of once.
+  const cleanupRef = useRef<(() => void) | null>(null);
   const drawing = useRef(false);
   const [hasDrawn, setHasDrawn] = useState(false);
   const [savingDefault, setSavingDefault] = useState(false);
   const { user, updateUser } = useAuth();
 
-  useEffect(() => {
-    const canvas = canvasRef.current;
+  const attachCanvas = useCallback((canvas: HTMLCanvasElement | null) => {
+    cleanupRef.current?.();
+    cleanupRef.current = null;
+    canvasRef.current = canvas;
     if (!canvas) return;
+
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
     ctx.lineWidth = 2.2;
@@ -76,7 +88,7 @@ export default function SignatureCanvas({ label, value, onChange, allowSavedDefa
     canvas.addEventListener("touchstart", start, { passive: false });
     canvas.addEventListener("touchmove", move, { passive: false });
     canvas.addEventListener("touchend", end);
-    return () => {
+    cleanupRef.current = () => {
       canvas.removeEventListener("mousedown", start);
       canvas.removeEventListener("mousemove", move);
       window.removeEventListener("mouseup", end);
@@ -94,6 +106,11 @@ export default function SignatureCanvas({ label, value, onChange, allowSavedDefa
     onChange("");
   }
 
+  function resign() {
+    setHasDrawn(false);
+    onChange("");
+  }
+
   function save() {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -106,6 +123,12 @@ export default function SignatureCanvas({ label, value, onChange, allowSavedDefa
     try {
       const updated = await saveMySignature(value);
       updateUser(updated);
+      // Without this, `value` stays the raw drawing while
+      // user.saved_signature_url becomes the server URL it was just
+      // uploaded to — isUsingSavedDefault below would never see them as
+      // equal, so "Save as my default signature" would keep showing
+      // (and re-uploading the same image) even though it's already saved.
+      if (updated.saved_signature_url) onChange(updated.saved_signature_url);
     } finally {
       setSavingDefault(false);
     }
@@ -131,7 +154,7 @@ export default function SignatureCanvas({ label, value, onChange, allowSavedDefa
         <div>
           <img src={value} alt={label} style={{ height: 44, border: "1px solid #C9D1D8", borderRadius: 5, background: "#fff", padding: 2 }} />
           <div className="insp-btn-row" style={{ padding: 0, marginTop: 4 }}>
-            <button type="button" className="insp-btn insp-btn-outline" onClick={() => onChange("")}>Re-sign</button>
+            <button type="button" className="insp-btn insp-btn-outline" onClick={resign}>Re-sign</button>
             {allowSavedDefault && !isUsingSavedDefault && (
               <button type="button" className="insp-btn insp-btn-outline" onClick={saveAsDefault} disabled={savingDefault}>
                 {savingDefault ? "Saving…" : "Save as my default signature"}
@@ -147,7 +170,7 @@ export default function SignatureCanvas({ label, value, onChange, allowSavedDefa
       ) : (
         <>
           <canvas
-            ref={canvasRef}
+            ref={attachCanvas}
             width={360}
             height={110}
             style={{ border: "1px solid #C9D1D8", borderRadius: 6, width: "100%", background: "#FAFBFC", touchAction: "none" }}
