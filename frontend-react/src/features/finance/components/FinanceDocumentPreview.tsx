@@ -1,5 +1,7 @@
+import { useEffect, useState } from "react";
 import { HMZC_LOGO_DATA_URI } from "../../inspections/assets/logo";
 import CertificateQR from "../../inspections/components/CertificateQR";
+import { getCompanyInfo } from "../../auth/services/auth.api";
 import { LineItem } from "../types/finance.types";
 import "../../inspections/inspections.css"; // reuses .insp-letterhead/.insp-print-chk/.insp-badge etc. rather than duplicating them in finance.css
 
@@ -29,6 +31,17 @@ const watermarkStyle = { ["--insp-watermark-url" as any]: `url(${HMZC_LOGO_DATA_
 export default function FinanceDocumentPreview({
   kind, docNo, customer, vesselName, imoNo, status, lineItems, subtotal, discountTotal, total, issuedBy, issuedAt,
 }: Props) {
+  // Self-fetched rather than threaded down as a prop from InvoiceForm.tsx/
+  // QuotationForm.tsx — this is a rarely-changing, company-wide constant
+  // (see Settings' Company Information section), not per-document state
+  // either of those forms otherwise owns. Any signed-in user can read it
+  // (see api/routes/settings.py's read_company_info) since Finance/Sales
+  // staff print these documents daily, not just admins.
+  const [peppolId, setPeppolId] = useState<string | null>(null);
+  useEffect(() => {
+    getCompanyInfo().then((info) => setPeppolId(info.peppol_id)).catch(() => {});
+  }, []);
+
   return (
     <div className="finance-doc-page" style={watermarkStyle}>
       <div className="insp-letterhead">
@@ -39,6 +52,7 @@ export default function FinanceDocumentPreview({
             Cabinda HQ: Urbanização 4 De Abril, Cabinda, Angola<br />
             Luanda, Benfica Rua Bento Raimundo.<br />
             admin@hmzchealthinmarine.com&nbsp;|&nbsp;+244 972 320 300
+            {peppolId && <><br />PEPPOL ID: {peppolId}</>}
           </div>
           <CertificateQR payload={`HMZC ${kind}\nNo: ${docNo}\nCustomer: ${customer || "—"}\nTotal: $${total.toFixed(2)}`} size={54} />
         </div>

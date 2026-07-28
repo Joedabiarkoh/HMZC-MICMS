@@ -3,12 +3,17 @@ from typing import List, Optional
 from fastapi import APIRouter, Depends, Request
 from sqlalchemy.orm import Session
 
-from app.api.deps import get_current_admin_user
+from app.api.deps import get_current_admin_user, get_current_user
 from app.core.audit import record_audit
 from app.core.database import get_database
 from app.models.notification_settings import get_notification_settings
 from app.models.user import User
-from app.schemas.settings import ExpiryReminderSettingsResponse, ExpiryReminderSettingsUpdate
+from app.schemas.settings import (
+    CompanyInfoResponse,
+    CompanyInfoUpdate,
+    ExpiryReminderSettingsResponse,
+    ExpiryReminderSettingsUpdate,
+)
 
 # Admin-only, same as Users/Audit Log (get_current_admin_user, not a
 # permission string) — this is a system-wide setting for the whole
@@ -62,3 +67,39 @@ def update_expiry_reminder_emails(
         detail=f"emails -> {row.expiry_reminder_emails or '(none)'}",
     )
     return _response(row)
+
+
+# ============================================================
+# Company info — HMZC's own PEPPOL ID, printed on invoices/quotations.
+# Read is any signed-in user (Finance/Sales staff print these documents
+# daily, not just admins); write stays admin-only, same as every other
+# setting in this file.
+# ============================================================
+
+@router.get("/company-info", response_model=CompanyInfoResponse)
+def read_company_info(
+    db: Session = Depends(get_database),
+    _user: User = Depends(get_current_user),
+):
+    row = get_notification_settings(db)
+    return CompanyInfoResponse(peppol_id=row.peppol_id)
+
+
+@router.put("/company-info", response_model=CompanyInfoResponse)
+def update_company_info(
+    payload: CompanyInfoUpdate,
+    request: Request,
+    db: Session = Depends(get_database),
+    admin: User = Depends(get_current_admin_user),
+):
+    row = get_notification_settings(db)
+    row.peppol_id = (payload.peppol_id or "").strip() or None
+    row.updated_by_id = admin.id
+    db.commit()
+    db.refresh(row)
+    record_audit(
+        db, request, "settings.company_info_changed", user_id=admin.id,
+        resource_type="notification_settings", resource_id="1",
+        detail=f"peppol_id -> {row.peppol_id or '(none)'}",
+    )
+    return CompanyInfoResponse(peppol_id=row.peppol_id)

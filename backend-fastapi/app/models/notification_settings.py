@@ -18,6 +18,11 @@ class NotificationSettings(BaseModel):
 
     id = Column(Integer, primary_key=True)
     expiry_reminder_emails = Column(String, nullable=True)
+    # HMZC's own PEPPOL participant ID — company-wide, printed on
+    # invoices/quotations (see api/routes/settings.py's company-info
+    # endpoints). Display/record-keeping only, no PEPPOL network
+    # transmission integration.
+    peppol_id = Column(String, nullable=True)
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
     updated_by_id = Column(Integer, ForeignKey("users.id"), nullable=True)
     updated_by = relationship("User")

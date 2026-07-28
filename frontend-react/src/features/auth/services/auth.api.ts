@@ -1,5 +1,5 @@
 import api from "../../../api/axios";
-import { AdminCreateUserPayload, AuditLogEntry, ExpiryReminderSettings, LoginPayload, PasswordChangePayload, PasswordResetResult, PermissionUpdatePayload, RegisterPayload, User } from "../types/auth.types";
+import { AdminCreateUserPayload, AuditLogEntry, CompanyInfo, ExpiryReminderSettings, LoginPayload, PasswordChangePayload, PasswordResetResult, PermissionUpdatePayload, RegisterPayload, User } from "../types/auth.types";
 
 // Calls the backend routes added alongside this frontend module:
 // backend-fastapi/app/api/routes/auth.py (register/login/me/users), the
@@ -132,6 +132,23 @@ export async function getExpiryReminderSettings(): Promise<ExpiryReminderSetting
  */
 export async function updateExpiryReminderSettings(emails: string[]): Promise<ExpiryReminderSettings> {
   const response = await api.put("/settings/expiry-reminder-emails", { emails });
+  return response.data;
+}
+
+/**
+ * Any signed-in user can read this — Finance/Sales staff print
+ * invoices/quotations daily and need HMZC's PEPPOL ID on them, not just
+ * admins (unlike expiry-reminder-emails above, which stays admin-only
+ * end to end).
+ */
+export async function getCompanyInfo(): Promise<CompanyInfo> {
+  const response = await api.get("/settings/company-info");
+  return response.data;
+}
+
+/** Admin-only write, same pattern as every other setting in this file. */
+export async function updateCompanyInfo(peppolId: string): Promise<CompanyInfo> {
+  const response = await api.put("/settings/company-info", { peppol_id: peppolId });
   return response.data;
 }
 

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import "../auth.css";
-import { getExpiryReminderSettings, updateExpiryReminderSettings } from "../services/auth.api";
-import { ExpiryReminderSettings } from "../types/auth.types";
+import { getCompanyInfo, getExpiryReminderSettings, updateCompanyInfo, updateExpiryReminderSettings } from "../services/auth.api";
+import { CompanyInfo, ExpiryReminderSettings } from "../types/auth.types";
 
 /**
  * Certificate expiry reminders (backend-fastapi's core/expiry_reminders.py)
@@ -15,6 +15,12 @@ import { ExpiryReminderSettings } from "../types/auth.types";
  * env var still works as a one-time fallback (see
  * api/routes/settings.py) for a deployment that set it and has never
  * saved a change here.
+ *
+ * Grew a second section (Company Information) once HMZC's PEPPOL ID
+ * needed an admin-editable home too — kept on this same admin-only
+ * page rather than a new one, since both are "settings only an admin
+ * changes, rarely." The page title/nav label changed from "Notification
+ * Settings" to "Settings" to reflect that it's no longer notification-only.
  */
 export default function NotificationSettings() {
   const [settings, setSettings] = useState<ExpiryReminderSettings | null>(null);
@@ -24,6 +30,13 @@ export default function NotificationSettings() {
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState("");
   const [saved, setSaved] = useState(false);
+
+  const [companyInfo, setCompanyInfo] = useState<CompanyInfo | null>(null);
+  const [peppolId, setPeppolId] = useState("");
+  const [companyLoading, setCompanyLoading] = useState(true);
+  const [companySaving, setCompanySaving] = useState(false);
+  const [companyErr, setCompanyErr] = useState("");
+  const [companySaved, setCompanySaved] = useState(false);
 
   function load() {
     setLoading(true);
@@ -36,6 +49,34 @@ export default function NotificationSettings() {
       .finally(() => setLoading(false));
   }
   useEffect(load, []);
+
+  function loadCompanyInfo() {
+    setCompanyLoading(true);
+    getCompanyInfo()
+      .then((data) => {
+        setCompanyInfo(data);
+        setPeppolId(data.peppol_id || "");
+      })
+      .catch((e) => setCompanyErr(e?.response?.data?.detail || "Could not load company information."))
+      .finally(() => setCompanyLoading(false));
+  }
+  useEffect(loadCompanyInfo, []);
+
+  async function saveCompanyInfo() {
+    setCompanySaving(true);
+    setCompanyErr("");
+    setCompanySaved(false);
+    try {
+      const updated = await updateCompanyInfo(peppolId.trim());
+      setCompanyInfo(updated);
+      setPeppolId(updated.peppol_id || "");
+      setCompanySaved(true);
+    } catch (e: any) {
+      setCompanyErr(e?.response?.data?.detail || "Could not save company information.");
+    } finally {
+      setCompanySaving(false);
+    }
+  }
 
   function addEmail(e: React.FormEvent) {
     e.preventDefault();
@@ -73,8 +114,10 @@ export default function NotificationSettings() {
 
   return (
     <div className="users-page">
-      <h1>Notification Settings</h1>
-      <p style={{ fontSize: 11.5, color: "#6B7480", marginTop: -8, marginBottom: 18 }}>
+      <h1>Settings</h1>
+
+      <h2 style={{ fontSize: 14, color: "#1F3B5C", marginTop: 20, marginBottom: 4 }}>Certificate Expiry Reminders</h2>
+      <p style={{ fontSize: 11.5, color: "#6B7480", marginTop: 0, marginBottom: 18 }}>
         Recipients for the certificate expiry reminder email — sent when a finalized certificate is
         approaching its one-year expiry. Update this whenever the person responsible for renewals
         changes role or leaves; no server access needed, unlike editing EXPIRY_REMINDER_EMAILS used to be.
@@ -135,6 +178,37 @@ export default function NotificationSettings() {
             {saved && <span style={{ fontSize: 12, color: "#4C7A3A", fontWeight: 600 }}>Saved.</span>}
           </div>
         </>
+      )}
+
+      <h2 style={{ fontSize: 14, color: "#1F3B5C", marginTop: 28, marginBottom: 4 }}>Company Information</h2>
+      <p style={{ fontSize: 11.5, color: "#6B7480", marginTop: 0, marginBottom: 18 }}>
+        HMZC's own PEPPOL (Pan-European Public Procurement OnLine) participant ID — printed on every
+        invoice and quotation so a customer's own accounts system can look HMZC up on the network.
+        Display only: this doesn't transmit e-invoices through PEPPOL itself.
+      </p>
+
+      {companyLoading && <p>Loading...</p>}
+      {companyErr && <div className="auth-error">{companyErr}</div>}
+
+      {!companyLoading && (
+        <div style={{ background: "#F4F6F7", border: "1px solid #DCE1E5", borderRadius: 8, padding: 16, marginBottom: 14 }}>
+          <label htmlFor="peppol-id" style={{ display: "block", fontSize: 11, color: "#6B7480", marginBottom: 6, fontWeight: 600 }}>
+            PEPPOL ID
+          </label>
+          <input
+            id="peppol-id"
+            value={peppolId}
+            onChange={(e) => setPeppolId(e.target.value)}
+            placeholder="e.g. 0192:987654321"
+            style={{ width: "100%", padding: "7px 9px", border: "1px solid #C9D1D8", borderRadius: 5, fontSize: 13, marginBottom: 12 }}
+          />
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <button className="auth-btn" style={{ width: "auto", padding: "8px 18px" }} onClick={saveCompanyInfo} disabled={companySaving}>
+              {companySaving ? "Saving..." : "Save Changes"}
+            </button>
+            {companySaved && <span style={{ fontSize: 12, color: "#4C7A3A", fontWeight: 600 }}>Saved.</span>}
+          </div>
+        </div>
       )}
     </div>
   );

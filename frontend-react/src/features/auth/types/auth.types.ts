@@ -123,3 +123,11 @@ export interface ExpiryReminderSettings {
   updated_at: string | null;
   updated_by: User | null;
 }
+
+// Matches backend-fastapi's CompanyInfoResponse — HMZC's own PEPPOL ID,
+// printed on invoices/quotations (see FinanceDocumentPreview.tsx).
+// Readable by any signed-in user (Finance/Sales staff print these
+// documents daily), writable by admins only — see api/routes/settings.py.
+export interface CompanyInfo {
+  peppol_id: string | null;
+}
