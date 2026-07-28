@@ -142,12 +142,13 @@ def test_certificate_view_permission_required(client):
     assert response.status_code == 403
 
 
-def test_finalized_certificate_can_only_be_edited_by_its_creator(client):
+def test_finalized_certificate_editable_only_by_creator_or_admin(client):
     """
-    Requested directly: once finalized, only whoever originally issued a
-    certificate can edit it further — everyone else with
-    certificates.edit gets rejected, even an admin. cert_no itself never
-    changes either way (this is an upsert keyed on cert_no throughout).
+    Requested directly, then revised: once finalized, only whoever
+    originally issued a certificate — or an administrator — can edit it
+    further. Everyone else with certificates.edit still gets rejected.
+    cert_no itself never changes either way (this is an upsert keyed on
+    cert_no throughout).
     """
     bootstrap_token = _register_and_login(client, email="bootstrap@hmzc-test.com")
     creator_token = _admin_create_and_login(client, bootstrap_token, "creator@hmzc-test.com", "inspector")
@@ -157,23 +158,36 @@ def test_finalized_certificate_can_only_be_edited_by_its_creator(client):
     assert created.status_code == 200, created.text
     assert created.json()["status"] == "final"
 
-    # Uses the bootstrap admin's own rights to create this second admin
-    # account — creator_token (an inspector) has no rights to create
-    # other accounts itself.
-    other_token = _admin_create_and_login(client, bootstrap_token, "other-admin@hmzc-test.com", "admin")
+    # A genuinely different, non-admin account with certificates.edit —
+    # still rejected, since they're neither the creator nor an admin.
+    other_inspector_token = _admin_create_and_login(client, bootstrap_token, "other-inspector@hmzc-test.com", "inspector")
     blocked_attempt = _sample_certificate(version=1)
     blocked_attempt["status"] = "final"
-    rejected = client.post("/api/certificates", json=blocked_attempt, headers={"Authorization": f"Bearer {other_token}"})
+    rejected = client.post("/api/certificates", json=blocked_attempt, headers={"Authorization": f"Bearer {other_inspector_token}"})
     assert rejected.status_code == 403, rejected.text
     assert "only" in rejected.json()["detail"].lower()
 
-    # The original creator, on the other hand, can still edit their own
-    # finalized certificate — this is a real edit-after-finalize allowance,
-    # not a full lock.
-    own_edit = _sample_certificate(version=1)
+    # An admin who is NOT the original creator — now allowed, matching
+    # Finance's own _can_edit rule (an admin must be able to fix any
+    # record, not just their own).
+    other_admin_token = _admin_create_and_login(client, bootstrap_token, "other-admin@hmzc-test.com", "admin")
+    admin_edit = _sample_certificate(version=1)
+    admin_edit["status"] = "final"
+    admin_edit["remarks"] = "corrected by admin after issue"
+    allowed_for_admin = client.post("/api/certificates", json=admin_edit, headers={"Authorization": f"Bearer {other_admin_token}"})
+    assert allowed_for_admin.status_code == 200, allowed_for_admin.text
+    assert allowed_for_admin.json()["version"] == 2
+    # issued_by must stay the original creator even after an admin's edit
+    # — see test_issued_by_does_not_change_on_later_edit above.
+    assert allowed_for_admin.json()["issued_by"]["email"] == "creator@hmzc-test.com"
+
+    # The original creator can also still edit their own finalized
+    # certificate — this is a real edit-after-finalize allowance, not a
+    # full lock.
+    own_edit = _sample_certificate(version=2)
     own_edit["status"] = "final"
-    own_edit["remarks"] = "corrected after issue"
-    allowed = client.post("/api/certificates", json=own_edit, headers={"Authorization": f"Bearer {creator_token}"})
-    assert allowed.status_code == 200, allowed.text
-    assert allowed.json()["cert_no"] == final_cert["cert_no"]  # cert_no never changes
-    assert allowed.json()["version"] == 2
+    own_edit["remarks"] = "corrected again by original creator"
+    allowed_for_creator = client.post("/api/certificates", json=own_edit, headers={"Authorization": f"Bearer {creator_token}"})
+    assert allowed_for_creator.status_code == 200, allowed_for_creator.text
+    assert allowed_for_creator.json()["cert_no"] == final_cert["cert_no"]  # cert_no never changes
+    assert allowed_for_creator.json()["version"] == 3
