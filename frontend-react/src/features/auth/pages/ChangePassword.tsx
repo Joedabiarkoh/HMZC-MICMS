@@ -51,16 +51,16 @@ export default function ChangePassword() {
         )}
         {(error || localError) && <div className="auth-error">{localError || error}</div>}
         <div className="auth-field">
-          <label>{forced ? "Temporary Password" : "Current Password"}</label>
-          <input type="password" required value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} />
+          <label htmlFor="change-pw-current">{forced ? "Temporary Password" : "Current Password"}</label>
+          <input id="change-pw-current" type="password" required value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} />
         </div>
         <div className="auth-field">
-          <label>New Password</label>
-          <input type="password" required minLength={8} value={newPassword} onChange={(e) => setNewPassword(e.target.value)} />
+          <label htmlFor="change-pw-new">New Password</label>
+          <input id="change-pw-new" type="password" required minLength={8} value={newPassword} onChange={(e) => setNewPassword(e.target.value)} />
         </div>
         <div className="auth-field">
-          <label>Confirm New Password</label>
-          <input type="password" required minLength={8} value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} />
+          <label htmlFor="change-pw-confirm">Confirm New Password</label>
+          <input id="change-pw-confirm" type="password" required minLength={8} value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} />
         </div>
         <button className="auth-btn" type="submit" disabled={submitting}>{submitting ? "Saving..." : "Set Password"}</button>
       </form>

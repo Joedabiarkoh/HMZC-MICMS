@@ -147,10 +147,10 @@ export default function InvoiceForm() {
       <div className="finance-form-layout">
         <div className="finance-panel">
           <div className="finance-row2">
-            <div className="finance-field"><label>Invoice No.</label><input value={docNo} readOnly /></div>
+            <div className="finance-field"><label htmlFor="invoice-no">Invoice No.</label><input id="invoice-no" value={docNo} readOnly /></div>
             <div className="finance-field">
-              <label>Status</label>
-              <select value={status} onChange={(e) => setStatus(e.target.value)} disabled={!canEdit}>
+              <label htmlFor="invoice-status">Status</label>
+              <select id="invoice-status" value={status} onChange={(e) => setStatus(e.target.value)} disabled={!canEdit}>
                 <option value="draft">Draft</option>
                 <option value="issued">Issued</option>
                 <option value="paid">Paid</option>
@@ -158,10 +158,10 @@ export default function InvoiceForm() {
               </select>
             </div>
           </div>
-          <div className="finance-field"><label>Customer</label><input value={customer} onChange={(e) => setCustomer(e.target.value)} disabled={!canEdit} /></div>
+          <div className="finance-field"><label htmlFor="invoice-customer">Customer</label><input id="invoice-customer" value={customer} onChange={(e) => setCustomer(e.target.value)} disabled={!canEdit} /></div>
           <div className="finance-row2">
-            <div className="finance-field"><label>Vessel</label><input value={vesselName} onChange={(e) => setVesselName(e.target.value)} disabled={!canEdit} /></div>
-            <div className="finance-field"><label>IMO No.</label><input value={imoNo} onChange={(e) => setImoNo(e.target.value)} disabled={!canEdit} /></div>
+            <div className="finance-field"><label htmlFor="invoice-vessel">Vessel</label><input id="invoice-vessel" value={vesselName} onChange={(e) => setVesselName(e.target.value)} disabled={!canEdit} /></div>
+            <div className="finance-field"><label htmlFor="invoice-imo">IMO No.</label><input id="invoice-imo" value={imoNo} onChange={(e) => setImoNo(e.target.value)} disabled={!canEdit} /></div>
           </div>
 
           {canEdit && (

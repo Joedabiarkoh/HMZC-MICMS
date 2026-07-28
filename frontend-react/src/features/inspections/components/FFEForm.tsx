@@ -75,8 +75,8 @@ export default function FFEForm({ current, updateField, openCertificate }: Props
       <fieldset className="insp-fieldset">
         <legend className="insp-legend">Certificate Type</legend>
         <div className="insp-field">
-          <label>FFE Equipment / System</label>
-          <select value={ffe.subType} onChange={(e) => changeSubType(e.target.value)}>
+          <label htmlFor="ffe-subtype">FFE Equipment / System</label>
+          <select id="ffe-subtype" value={ffe.subType} onChange={(e) => changeSubType(e.target.value)}>
             {FFE_CERT_TYPES.map((t) => (
               <option key={t.id} value={t.id}>{t.label}</option>
             ))}
@@ -91,16 +91,16 @@ export default function FFEForm({ current, updateField, openCertificate }: Props
       <fieldset className="insp-fieldset">
         <legend className="insp-legend">Certificate</legend>
         <div className="insp-row2">
-          <div className="insp-field"><label>Vessel</label><input value={current.vesselName} onChange={(e) => updateField("vesselName", e.target.value)} /></div>
-          <div className="insp-field"><label>Certificate No</label><input value={current.certNo} readOnly /></div>
+          <div className="insp-field"><label htmlFor="ffe-vessel">Vessel</label><input id="ffe-vessel" value={current.vesselName} onChange={(e) => updateField("vesselName", e.target.value)} /></div>
+          <div className="insp-field"><label htmlFor="ffe-cert-no">Certificate No</label><input id="ffe-cert-no" value={current.certNo} readOnly /></div>
         </div>
         <div className="insp-row2">
-          <div className="insp-field"><label>IMO No</label><input value={current.imoNo} onChange={(e) => updateField("imoNo", e.target.value)} /></div>
-          <div className="insp-field"><label>Date</label><input type="date" value={current.dateOfServicing} onChange={(e) => updateField("dateOfServicing", e.target.value)} /></div>
+          <div className="insp-field"><label htmlFor="ffe-imo">IMO No</label><input id="ffe-imo" value={current.imoNo} onChange={(e) => updateField("imoNo", e.target.value)} /></div>
+          <div className="insp-field"><label htmlFor="ffe-date">Date</label><input id="ffe-date" type="date" value={current.dateOfServicing} onChange={(e) => updateField("dateOfServicing", e.target.value)} /></div>
         </div>
         <div className="insp-row2">
-          <div className="insp-field"><label>Class/Flag</label><input value={ffe.certClass} onChange={(e) => updateFFE({ certClass: e.target.value })} /></div>
-          <div className="insp-field"><label>Place of Service</label><input value={ffe.placeOfService} onChange={(e) => updateFFE({ placeOfService: e.target.value })} /></div>
+          <div className="insp-field"><label htmlFor="ffe-class">Class/Flag</label><input id="ffe-class" value={ffe.certClass} onChange={(e) => updateFFE({ certClass: e.target.value })} /></div>
+          <div className="insp-field"><label htmlFor="ffe-place">Place of Service</label><input id="ffe-place" value={ffe.placeOfService} onChange={(e) => updateFFE({ placeOfService: e.target.value })} /></div>
         </div>
       </fieldset>
 
@@ -243,8 +243,8 @@ export default function FFEForm({ current, updateField, openCertificate }: Props
       <fieldset className="insp-fieldset">
         <legend className="insp-legend">Signatures</legend>
         <div className="insp-row2">
-          <div className="insp-field"><label>Master Name (optional)</label><input value={current.captainName} onChange={(e) => updateField("captainName", e.target.value)} /></div>
-          <div className="insp-field"><label>Technician Name</label><input value={current.engineerName} onChange={(e) => updateField("engineerName", e.target.value)} /></div>
+          <div className="insp-field"><label htmlFor="ffe-master-name">Master Name (optional)</label><input id="ffe-master-name" value={current.captainName} onChange={(e) => updateField("captainName", e.target.value)} /></div>
+          <div className="insp-field"><label htmlFor="ffe-technician-name">Technician Name</label><input id="ffe-technician-name" value={current.engineerName} onChange={(e) => updateField("engineerName", e.target.value)} /></div>
         </div>
         <div className="insp-row2">
           <SignatureCanvas label="Master Signature" value={current.captainSig} onChange={(v) => updateField("captainSig", v)} />

@@ -85,8 +85,8 @@ export default function VesselSearch() {
       <div style={{ padding: "0 20px" }}>
         <form onSubmit={handleSubmit} style={{ background: "#F4F6F7", border: "1px solid #DCE1E5", borderRadius: 8, padding: 16, marginBottom: 16, display: "flex", gap: 10, alignItems: "flex-end", flexWrap: "wrap" }}>
           <div className="insp-field" style={{ flex: "1 1 280px", margin: 0 }}>
-            <label>Vessel Name or IMO No.</label>
-            <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="e.g. Ocean Star or 9811000" />
+            <label htmlFor="vessel-search-query">Vessel Name or IMO No.</label>
+            <input id="vessel-search-query" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="e.g. Ocean Star or 9811000" />
           </div>
           <button className="insp-btn insp-btn-primary" type="submit" style={{ width: "auto", padding: "9px 20px" }} disabled={loading}>
             {loading ? "Searching..." : "Search"}

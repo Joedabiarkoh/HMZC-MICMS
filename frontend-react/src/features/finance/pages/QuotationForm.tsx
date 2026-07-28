@@ -132,10 +132,10 @@ export default function QuotationForm() {
       <div className="finance-form-layout">
         <div className="finance-panel">
           <div className="finance-row2">
-            <div className="finance-field"><label>Quotation No.</label><input value={docNo} readOnly /></div>
+            <div className="finance-field"><label htmlFor="quotation-no">Quotation No.</label><input id="quotation-no" value={docNo} readOnly /></div>
             <div className="finance-field">
-              <label>Status</label>
-              <select value={status} onChange={(e) => setStatus(e.target.value)} disabled={!canEdit}>
+              <label htmlFor="quotation-status">Status</label>
+              <select id="quotation-status" value={status} onChange={(e) => setStatus(e.target.value)} disabled={!canEdit}>
                 <option value="draft">Draft</option>
                 <option value="sent">Sent</option>
                 <option value="accepted">Accepted</option>
@@ -143,10 +143,10 @@ export default function QuotationForm() {
               </select>
             </div>
           </div>
-          <div className="finance-field"><label>Customer</label><input value={customer} onChange={(e) => setCustomer(e.target.value)} disabled={!canEdit} /></div>
+          <div className="finance-field"><label htmlFor="quotation-customer">Customer</label><input id="quotation-customer" value={customer} onChange={(e) => setCustomer(e.target.value)} disabled={!canEdit} /></div>
           <div className="finance-row2">
-            <div className="finance-field"><label>Vessel</label><input value={vesselName} onChange={(e) => setVesselName(e.target.value)} disabled={!canEdit} /></div>
-            <div className="finance-field"><label>IMO No.</label><input value={imoNo} onChange={(e) => setImoNo(e.target.value)} disabled={!canEdit} /></div>
+            <div className="finance-field"><label htmlFor="quotation-vessel">Vessel</label><input id="quotation-vessel" value={vesselName} onChange={(e) => setVesselName(e.target.value)} disabled={!canEdit} /></div>
+            <div className="finance-field"><label htmlFor="quotation-imo">IMO No.</label><input id="quotation-imo" value={imoNo} onChange={(e) => setImoNo(e.target.value)} disabled={!canEdit} /></div>
           </div>
 
           {canEdit && (

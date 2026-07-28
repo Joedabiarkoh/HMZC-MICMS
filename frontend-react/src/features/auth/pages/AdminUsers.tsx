@@ -260,16 +260,16 @@ export default function AdminUsers() {
             password the moment they sign in with it.
           </p>
           <div className="auth-field">
-            <label>Full Name</label>
-            <input required value={newFullName} onChange={(e) => setNewFullName(e.target.value)} placeholder="e.g. Joseph Dabi-Arkoh" />
+            <label htmlFor="create-user-fullname">Full Name</label>
+            <input id="create-user-fullname" required value={newFullName} onChange={(e) => setNewFullName(e.target.value)} placeholder="e.g. Joseph Dabi-Arkoh" />
           </div>
           <div className="auth-field">
-            <label>Email</label>
-            <input type="email" required value={newEmail} onChange={(e) => setNewEmail(e.target.value)} placeholder="them@hmzcshipping.com" />
+            <label htmlFor="create-user-email">Email</label>
+            <input id="create-user-email" type="email" required value={newEmail} onChange={(e) => setNewEmail(e.target.value)} placeholder="them@hmzcshipping.com" />
           </div>
           <div className="auth-field">
-            <label>Role / Department</label>
-            <select value={newRole} onChange={(e) => setNewRole(e.target.value as UserRole)}>
+            <label htmlFor="create-user-role">Role / Department</label>
+            <select id="create-user-role" value={newRole} onChange={(e) => setNewRole(e.target.value as UserRole)}>
               <option value="inspector">{ROLE_LABELS.inspector}</option>
               <option value="sales">{ROLE_LABELS.sales}</option>
               <option value="administration">{ROLE_LABELS.administration}</option>

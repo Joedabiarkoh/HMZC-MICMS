@@ -50,12 +50,12 @@ export default function SignIn() {
         )}
         {error && <div className="auth-error">{error}</div>}
         <div className="auth-field">
-          <label>Email</label>
-          <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@hmzcshipping.com" />
+          <label htmlFor="signin-email">Email</label>
+          <input id="signin-email" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@hmzcshipping.com" />
         </div>
         <div className="auth-field">
-          <label>Password</label>
-          <input type="password" required value={password} onChange={(e) => setPassword(e.target.value)} />
+          <label htmlFor="signin-password">Password</label>
+          <input id="signin-password" type="password" required value={password} onChange={(e) => setPassword(e.target.value)} />
         </div>
         <button className="auth-btn" type="submit" disabled={submitting}>{submitting ? "Signing in..." : "Sign In"}</button>
         <div className="auth-switch">

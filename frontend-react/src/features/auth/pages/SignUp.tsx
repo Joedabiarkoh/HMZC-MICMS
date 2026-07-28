@@ -74,16 +74,16 @@ export default function SignUp() {
         </p>
         {error && <div className="auth-error">{error}</div>}
         <div className="auth-field">
-          <label>Full Name</label>
-          <input required value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="e.g. Joseph Dabi-Arkoh" />
+          <label htmlFor="signup-fullname">Full Name</label>
+          <input id="signup-fullname" required value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="e.g. Joseph Dabi-Arkoh" />
         </div>
         <div className="auth-field">
-          <label>Email</label>
-          <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@hmzcshipping.com" />
+          <label htmlFor="signup-email">Email</label>
+          <input id="signup-email" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@hmzcshipping.com" />
         </div>
         <div className="auth-field">
-          <label>Password</label>
-          <input type="password" required minLength={8} value={password} onChange={(e) => setPassword(e.target.value)} />
+          <label htmlFor="signup-password">Password</label>
+          <input id="signup-password" type="password" required minLength={8} value={password} onChange={(e) => setPassword(e.target.value)} />
         </div>
         <button className="auth-btn" type="submit" disabled={submitting}>{submitting ? "Creating account..." : "Create Founding Admin Account"}</button>
         <div className="auth-switch">

@@ -609,31 +609,31 @@ function StatementForm({ type, current, updateField, updateNested, toggleAutoRem
       <fieldset className="insp-fieldset">
         <legend className="insp-legend">Certificate</legend>
         <div className="insp-row2">
-          <div className="insp-field"><label>Certificate No.</label><input value={current.certNo} readOnly /></div>
-          <div className="insp-field"><label>Date of Servicing</label><input type="date" value={current.dateOfServicing} onChange={(e) => updateField("dateOfServicing", e.target.value)} /></div>
+          <div className="insp-field"><label htmlFor="stmt-cert-no">Certificate No.</label><input id="stmt-cert-no" value={current.certNo} readOnly /></div>
+          <div className="insp-field"><label htmlFor="stmt-date-of-servicing">Date of Servicing</label><input id="stmt-date-of-servicing" type="date" value={current.dateOfServicing} onChange={(e) => updateField("dateOfServicing", e.target.value)} /></div>
         </div>
         <div className="insp-row2">
           <div className="insp-field">
-            <label>Kind of Servicing</label>
-            <select value={current.kindOfServicing} onChange={(e) => updateField("kindOfServicing", e.target.value)}>
+            <label htmlFor="stmt-kind-of-servicing">Kind of Servicing</label>
+            <select id="stmt-kind-of-servicing" value={current.kindOfServicing} onChange={(e) => updateField("kindOfServicing", e.target.value)}>
               <option>Annual</option>
               <option>5-Yearly</option>
               <option>Post-Repair</option>
             </select>
           </div>
-          <div className="insp-field"><label>Last Date of Servicing</label><input type="date" value={current.lastServicing} onChange={(e) => updateField("lastServicing", e.target.value)} /></div>
+          <div className="insp-field"><label htmlFor="stmt-last-servicing">Last Date of Servicing</label><input id="stmt-last-servicing" type="date" value={current.lastServicing} onChange={(e) => updateField("lastServicing", e.target.value)} /></div>
         </div>
-        <div className="insp-field"><label>Port of Servicing</label><input value={current.portServicing} onChange={(e) => updateField("portServicing", e.target.value)} placeholder="e.g. Cabinda, Angola" /></div>
+        <div className="insp-field"><label htmlFor="stmt-port-of-servicing">Port of Servicing</label><input id="stmt-port-of-servicing" value={current.portServicing} onChange={(e) => updateField("portServicing", e.target.value)} placeholder="e.g. Cabinda, Angola" /></div>
       </fieldset>
 
       <fieldset className="insp-fieldset">
         <legend className="insp-legend">Vessel</legend>
-        <div className="insp-field"><label>Name of Ship</label><input value={current.vesselName} onChange={(e) => updateField("vesselName", e.target.value)} /></div>
+        <div className="insp-field"><label htmlFor="stmt-vessel-name">Name of Ship</label><input id="stmt-vessel-name" value={current.vesselName} onChange={(e) => updateField("vesselName", e.target.value)} /></div>
         <div className="insp-row2">
-          <div className="insp-field"><label>IMO No.</label><input value={current.imoNo} onChange={(e) => updateField("imoNo", e.target.value)} /></div>
+          <div className="insp-field"><label htmlFor="stmt-imo-no">IMO No.</label><input id="stmt-imo-no" value={current.imoNo} onChange={(e) => updateField("imoNo", e.target.value)} /></div>
           <div className="insp-field">
-            <label>{isBoat ? "Location on Board" : "Crane Location"}</label>
-            <input list="sideOpts" value={current.location} onChange={(e) => updateField("location", e.target.value)} />
+            <label htmlFor="stmt-location">{isBoat ? "Location on Board" : "Crane Location"}</label>
+            <input id="stmt-location" list="sideOpts" value={current.location} onChange={(e) => updateField("location", e.target.value)} />
             <datalist id="sideOpts">{(cfg.sideOptions || []).map((o: string) => <option key={o} value={o} />)}</datalist>
           </div>
         </div>
@@ -679,24 +679,24 @@ function StatementForm({ type, current, updateField, updateNested, toggleAutoRem
           <fieldset className="insp-fieldset">
             <legend className="insp-legend">Crane</legend>
             <div className="insp-row2">
-              <div className="insp-field"><label>Type</label><input value={current.crane?.typeName || ""} onChange={(e) => updateNested("crane", "typeName", e.target.value)} /></div>
-              <div className="insp-field"><label>Serial No.</label><input value={current.crane?.serial || ""} onChange={(e) => updateNested("crane", "serial", e.target.value)} /></div>
+              <div className="insp-field"><label htmlFor="crane-type">Type</label><input id="crane-type" value={current.crane?.typeName || ""} onChange={(e) => updateNested("crane", "typeName", e.target.value)} /></div>
+              <div className="insp-field"><label htmlFor="crane-serial">Serial No.</label><input id="crane-serial" value={current.crane?.serial || ""} onChange={(e) => updateNested("crane", "serial", e.target.value)} /></div>
             </div>
             <div className="insp-row2">
-              <div className="insp-field"><label>SWL</label><input value={current.crane?.swl || ""} onChange={(e) => updateNested("crane", "swl", e.target.value)} placeholder="e.g. 2.T" /></div>
-              <div className="insp-field"><label>Date of Manufacture</label><input value={current.crane?.mfgDate || ""} onChange={(e) => updateNested("crane", "mfgDate", e.target.value)} placeholder="MM/YYYY" /></div>
+              <div className="insp-field"><label htmlFor="crane-swl">SWL</label><input id="crane-swl" value={current.crane?.swl || ""} onChange={(e) => updateNested("crane", "swl", e.target.value)} placeholder="e.g. 2.T" /></div>
+              <div className="insp-field"><label htmlFor="crane-mfg-date">Date of Manufacture</label><input id="crane-mfg-date" value={current.crane?.mfgDate || ""} onChange={(e) => updateNested("crane", "mfgDate", e.target.value)} placeholder="MM/YYYY" /></div>
             </div>
-            <div className="insp-field"><label>Manufacturer</label><input value={current.crane?.manufacturer || ""} onChange={(e) => updateNested("crane", "manufacturer", e.target.value)} /></div>
+            <div className="insp-field"><label htmlFor="crane-manufacturer">Manufacturer</label><input id="crane-manufacturer" value={current.crane?.manufacturer || ""} onChange={(e) => updateNested("crane", "manufacturer", e.target.value)} /></div>
           </fieldset>
           <fieldset className="insp-fieldset">
             <legend className="insp-legend">Wire Rope</legend>
             <div className="insp-row2">
-              <div className="insp-field"><label>Type</label><input value={current.wireRope?.typeName || ""} onChange={(e) => updateNested("wireRope", "typeName", e.target.value)} /></div>
-              <div className="insp-field"><label>Diameter</label><input value={current.wireRope?.diameter || ""} onChange={(e) => updateNested("wireRope", "diameter", e.target.value)} /></div>
+              <div className="insp-field"><label htmlFor="wirerope-type">Type</label><input id="wirerope-type" value={current.wireRope?.typeName || ""} onChange={(e) => updateNested("wireRope", "typeName", e.target.value)} /></div>
+              <div className="insp-field"><label htmlFor="wirerope-diameter">Diameter</label><input id="wirerope-diameter" value={current.wireRope?.diameter || ""} onChange={(e) => updateNested("wireRope", "diameter", e.target.value)} /></div>
             </div>
             <div className="insp-row2">
-              <div className="insp-field"><label>Length</label><input value={current.wireRope?.length || ""} onChange={(e) => updateNested("wireRope", "length", e.target.value)} /></div>
-              <div className="insp-field"><label>Certificate No.</label><input value={current.wireRope?.certNo || ""} onChange={(e) => updateNested("wireRope", "certNo", e.target.value)} /></div>
+              <div className="insp-field"><label htmlFor="wirerope-length">Length</label><input id="wirerope-length" value={current.wireRope?.length || ""} onChange={(e) => updateNested("wireRope", "length", e.target.value)} /></div>
+              <div className="insp-field"><label htmlFor="wirerope-cert-no">Certificate No.</label><input id="wirerope-cert-no" value={current.wireRope?.certNo || ""} onChange={(e) => updateNested("wireRope", "certNo", e.target.value)} /></div>
             </div>
           </fieldset>
         </>
@@ -714,8 +714,8 @@ function StatementForm({ type, current, updateField, updateNested, toggleAutoRem
       <fieldset className="insp-fieldset">
         <legend className="insp-legend">Signatures</legend>
         <div className="insp-row2">
-          <div className="insp-field"><label>Captain Name (optional)</label><input value={current.captainName} onChange={(e) => updateField("captainName", e.target.value)} /></div>
-          <div className="insp-field"><label>Service Engineer Name</label><input value={current.engineerName} onChange={(e) => updateField("engineerName", e.target.value)} /></div>
+          <div className="insp-field"><label htmlFor="stmt-captain-name">Captain Name (optional)</label><input id="stmt-captain-name" value={current.captainName} onChange={(e) => updateField("captainName", e.target.value)} /></div>
+          <div className="insp-field"><label htmlFor="stmt-engineer-name">Service Engineer Name</label><input id="stmt-engineer-name" value={current.engineerName} onChange={(e) => updateField("engineerName", e.target.value)} /></div>
         </div>
         <div className="insp-row2">
           <SignatureCanvas label="Captain Signature" value={current.captainSig} onChange={(v: string) => updateSignature("captainSig", v)} />
@@ -731,19 +731,19 @@ function IdBlock({ title, prefix, obj, capacity, onChange, onCapacity, isBoat, c
     <fieldset className="insp-fieldset">
       <legend className="insp-legend">{title}</legend>
       <div className="insp-row2">
-        <div className="insp-field"><label>Type</label><input value={obj?.typeName || ""} onChange={(e) => onChange(prefix, "typeName", e.target.value)} /></div>
-        <div className="insp-field"><label>Serial No.</label><input value={obj?.serial || ""} onChange={(e) => onChange(prefix, "serial", e.target.value)} /></div>
+        <div className="insp-field"><label htmlFor={`${prefix}-type`}>Type</label><input id={`${prefix}-type`} value={obj?.typeName || ""} onChange={(e) => onChange(prefix, "typeName", e.target.value)} /></div>
+        <div className="insp-field"><label htmlFor={`${prefix}-serial`}>Serial No.</label><input id={`${prefix}-serial`} value={obj?.serial || ""} onChange={(e) => onChange(prefix, "serial", e.target.value)} /></div>
       </div>
       <div className="insp-row2">
-        <div className="insp-field"><label>Date of Manufacture</label><input value={obj?.mfgDate || ""} onChange={(e) => onChange(prefix, "mfgDate", e.target.value)} placeholder="MM/YYYY" /></div>
+        <div className="insp-field"><label htmlFor={`${prefix}-mfg-date`}>Date of Manufacture</label><input id={`${prefix}-mfg-date`} value={obj?.mfgDate || ""} onChange={(e) => onChange(prefix, "mfgDate", e.target.value)} placeholder="MM/YYYY" /></div>
         <div className="insp-field">
-          <label>{isBoat ? "Capacity" : "Manufacturer"}</label>
+          <label htmlFor={`${prefix}-capacity-or-manufacturer`}>{isBoat ? "Capacity" : "Manufacturer"}</label>
           {isBoat
-            ? <input value={capacity || ""} onChange={(e) => onCapacity(e.target.value)} placeholder="e.g. 88 Person" />
-            : <input value={obj?.manufacturer || ""} onChange={(e) => onChange(prefix, "manufacturer", e.target.value)} />}
+            ? <input id={`${prefix}-capacity-or-manufacturer`} value={capacity || ""} onChange={(e) => onCapacity(e.target.value)} placeholder="e.g. 88 Person" />
+            : <input id={`${prefix}-capacity-or-manufacturer`} value={obj?.manufacturer || ""} onChange={(e) => onChange(prefix, "manufacturer", e.target.value)} />}
         </div>
       </div>
-      {isBoat && <div className="insp-field"><label>Manufacturer</label><input value={obj?.manufacturer || ""} onChange={(e) => onChange(prefix, "manufacturer", e.target.value)} /></div>}
+      {isBoat && <div className="insp-field"><label htmlFor={`${prefix}-manufacturer`}>Manufacturer</label><input id={`${prefix}-manufacturer`} value={obj?.manufacturer || ""} onChange={(e) => onChange(prefix, "manufacturer", e.target.value)} /></div>}
       {children}
     </fieldset>
   );
@@ -806,19 +806,19 @@ function LoadTestForm({ current, updateNested }: any) {
     <fieldset className="insp-fieldset">
       <legend className="insp-legend">Load Test</legend>
       <div className="insp-row2">
-        <div className="insp-field"><label>Test Load Applied</label><input value={lt.testLoad || ""} onChange={(e) => updateNested("loadTest", "testLoad", e.target.value)} /></div>
-        <div className="insp-field"><label>% of SWL</label><input value={lt.swlPercent || ""} onChange={(e) => updateNested("loadTest", "swlPercent", e.target.value)} /></div>
+        <div className="insp-field"><label htmlFor="loadtest-load-applied">Test Load Applied</label><input id="loadtest-load-applied" value={lt.testLoad || ""} onChange={(e) => updateNested("loadTest", "testLoad", e.target.value)} /></div>
+        <div className="insp-field"><label htmlFor="loadtest-swl-percent">% of SWL</label><input id="loadtest-swl-percent" value={lt.swlPercent || ""} onChange={(e) => updateNested("loadTest", "swlPercent", e.target.value)} /></div>
       </div>
       <div className="insp-row2">
-        <div className="insp-field"><label>Result</label>
-          <select value={lt.result || "pass"} onChange={(e) => updateNested("loadTest", "result", e.target.value)}>
+        <div className="insp-field"><label htmlFor="loadtest-result">Result</label>
+          <select id="loadtest-result" value={lt.result || "pass"} onChange={(e) => updateNested("loadTest", "result", e.target.value)}>
             <option value="pass">Pass</option>
             <option value="fail">Fail</option>
           </select>
         </div>
-        <div className="insp-field"><label>Test Certificate No.</label><input value={lt.testCertNo || ""} onChange={(e) => updateNested("loadTest", "testCertNo", e.target.value)} /></div>
+        <div className="insp-field"><label htmlFor="loadtest-cert-no">Test Certificate No.</label><input id="loadtest-cert-no" value={lt.testCertNo || ""} onChange={(e) => updateNested("loadTest", "testCertNo", e.target.value)} /></div>
       </div>
-      <div className="insp-field"><label>Remarks</label><textarea rows={3} value={lt.remark || ""} onChange={(e) => updateNested("loadTest", "remark", e.target.value)} /></div>
+      <div className="insp-field"><label htmlFor="loadtest-remarks">Remarks</label><textarea id="loadtest-remarks" rows={3} value={lt.remark || ""} onChange={(e) => updateNested("loadTest", "remark", e.target.value)} /></div>
     </fieldset>
   );
 }

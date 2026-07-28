@@ -77,30 +77,30 @@ export default function ItemCatalog() {
         <form onSubmit={handleSubmit}>
           <div className="finance-row2">
             <div className="finance-field">
-              <label>Code</label>
-              <input value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value })} required disabled={!!editingId} placeholder="e.g. LB-SVC-ANNUAL" />
+              <label htmlFor="item-form-code">Code</label>
+              <input id="item-form-code" value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value })} required disabled={!!editingId} placeholder="e.g. LB-SVC-ANNUAL" />
             </div>
             <div className="finance-field">
-              <label>Category</label>
-              <input value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} placeholder="e.g. Lifeboat Servicing" />
+              <label htmlFor="item-form-category">Category</label>
+              <input id="item-form-category" value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} placeholder="e.g. Lifeboat Servicing" />
             </div>
           </div>
           <div className="finance-field">
-            <label>Name</label>
-            <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required placeholder="e.g. Annual Lifeboat Inspection & Service" />
+            <label htmlFor="item-form-name">Name</label>
+            <input id="item-form-name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required placeholder="e.g. Annual Lifeboat Inspection & Service" />
           </div>
           <div className="finance-field">
-            <label>Description</label>
-            <input value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
+            <label htmlFor="item-form-description">Description</label>
+            <input id="item-form-description" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
           </div>
           <div className="finance-row2">
             <div className="finance-field">
-              <label>Unit Price ($)</label>
-              <input type="number" min="0" step="0.01" value={form.unit_price} onChange={(e) => setForm({ ...form, unit_price: e.target.value })} required />
+              <label htmlFor="item-form-unit-price">Unit Price ($)</label>
+              <input id="item-form-unit-price" type="number" min="0" step="0.01" value={form.unit_price} onChange={(e) => setForm({ ...form, unit_price: e.target.value })} required />
             </div>
             <div className="finance-field">
-              <label>Unit</label>
-              <input value={form.unit} onChange={(e) => setForm({ ...form, unit: e.target.value })} placeholder="e.g. each, hour, set" />
+              <label htmlFor="item-form-unit">Unit</label>
+              <input id="item-form-unit" value={form.unit} onChange={(e) => setForm({ ...form, unit: e.target.value })} placeholder="e.g. each, hour, set" />
             </div>
           </div>
           <div style={{ display: "flex", gap: 8 }}>
