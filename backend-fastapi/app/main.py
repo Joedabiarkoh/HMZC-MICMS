@@ -6,11 +6,11 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 import app.models  # noqa: F401 — registers every model with Base for relationship resolution
-from app.api.routes import auth, backup as backup_routes, certificates, finance, health, photos, reports
+from app.api.routes import auth, backup as backup_routes, certificates, finance, health, photos, reports, settings as settings_routes
 from app.core.backup import is_backup_configured, run_backup
 from app.core.config import settings
 from app.core.database import SessionLocal
-from app.core.expiry_reminders import is_expiry_reminders_configured, send_expiry_reminders
+from app.core.expiry_reminders import send_expiry_reminders
 
 logger = logging.getLogger("hmzc.startup")
 
@@ -46,10 +46,16 @@ async def _expiry_reminder_loop() -> None:
     manually. Opens its own DB session per run (SessionLocal, not the
     request-scoped get_database dependency) since there's no request
     here to hang one off of.
+
+    Deliberately no "configured?" pre-check gating the whole loop off
+    at startup (there used to be one) — the recipient list is now an
+    admin-editable Settings row (see core/expiry_reminders.py,
+    api/routes/settings.py) that can be configured or changed at any
+    time without a restart, so a check made once here at boot would go
+    stale the moment an admin saves a Settings change. send_expiry_
+    reminders itself already checks per-run and returns a "skipped"
+    result (logged below) when nothing's configured yet.
     """
-    if not is_expiry_reminders_configured():
-        logger.warning("EXPIRY_REMINDER_EMAILS not configured — expiry reminder emails are OFF.")
-        return
     await asyncio.sleep(90)
     while True:
         db = SessionLocal()
@@ -131,6 +137,7 @@ app.include_router(finance.router, prefix="/api/finance")
 app.include_router(photos.router, prefix="/api/photos")
 app.include_router(backup_routes.router, prefix="/api/backup")
 app.include_router(reports.router, prefix="/api/reports")
+app.include_router(settings_routes.router, prefix="/api/settings")
 
 
 @app.get("/")

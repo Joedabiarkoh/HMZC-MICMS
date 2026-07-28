@@ -72,6 +72,7 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { to: "/admin/users", label: "Users", adminOnly: true },
       { to: "/admin/audit-log", label: "Audit Log", adminOnly: true },
+      { to: "/admin/settings", label: "Notification Settings", adminOnly: true },
     ],
   },
   {

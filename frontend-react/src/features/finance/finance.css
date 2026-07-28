@@ -114,6 +114,14 @@ table.line-items-table .remove-btn { background: none; border: none; color: var(
 .finance-totals-row { display: flex; justify-content: space-between; padding: 4px 0; }
 .finance-totals-row.grand { border-top: 2px solid var(--insp-navy); margin-top: 6px; padding-top: 8px; font-weight: 700; font-size: 15px; color: var(--insp-navy); }
 
+/* ---- Monthly revenue/cost bar chart (ProfitChart.tsx) ---- */
+.profit-chart { display: flex; flex-direction: column; gap: 10px; margin-bottom: 18px; }
+.profit-chart__row { display: grid; grid-template-columns: 50px 1fr; align-items: center; gap: 10px; }
+.profit-chart__label { font-size: 11px; color: var(--insp-muted); white-space: nowrap; }
+.profit-chart__bar { height: 10px; border-radius: 4px; min-width: 2px; transition: width .2s ease; }
+.profit-chart__bar--revenue { background: var(--insp-green); margin-bottom: 3px; }
+.profit-chart__bar--cost { background: var(--insp-steel); }
+
 /* ---- Document preview (invoice/quotation as issued — same treatment as certificates) ---- */
 .finance-doc-page {
   background: #fff; max-width: 800px; margin: 0 auto 24px; padding: 30px 42px 26px;

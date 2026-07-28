@@ -112,3 +112,14 @@ export interface AuditLogEntry {
   ip_address: string | null;
   created_at: string;
 }
+
+// Matches backend-fastapi's ExpiryReminderSettingsResponse (see
+// api/routes/settings.py) — the admin-editable recipient list for
+// certificate expiry reminder emails, stored in the database instead
+// of the server's EXPIRY_REMINDER_EMAILS env var so it can be changed
+// from Settings whenever the responsible person's role changes.
+export interface ExpiryReminderSettings {
+  emails: string[];
+  updated_at: string | null;
+  updated_by: User | null;
+}

@@ -3,6 +3,7 @@ from app.models.certificate import Certificate  # noqa: F401
 from app.models.finance_item import FinanceItem  # noqa: F401
 from app.models.finance_document import Quotation, Invoice  # noqa: F401
 from app.models.audit_log import AuditLog  # noqa: F401
+from app.models.notification_settings import NotificationSettings  # noqa: F401
 
 # Empty before this — meant Base.metadata.create_all(bind=engine) in
 # main.py only picked up whichever models happened to already be

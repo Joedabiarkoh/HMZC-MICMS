@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from app.core.config import settings
 from app.core.email import send_expiry_reminder_email
 from app.models.certificate import Certificate
+from app.models.notification_settings import get_notification_settings
 
 logger = logging.getLogger("hmzc.expiry_reminders")
 
@@ -21,8 +22,24 @@ logger = logging.getLogger("hmzc.expiry_reminders")
 VALIDITY_DAYS = 365
 
 
-def is_expiry_reminders_configured() -> bool:
-    return bool(settings.expiry_reminder_emails_list)
+def configured_reminder_emails(db: Session) -> list[str]:
+    """
+    The DB-backed setting an administrator edits from Settings (see
+    api/routes/settings.py, models/notification_settings.py) takes
+    priority — it's what lets the recipient change from inside the app
+    whenever the responsible person's role changes, without needing
+    server access. Settings.EXPIRY_REMINDER_EMAILS (core/config.py) is
+    only consulted as a fallback, for a deployment that set the env var
+    and has never touched the in-app setting.
+    """
+    row_emails = get_notification_settings(db).expiry_reminder_emails
+    if row_emails:
+        return [email.strip() for email in row_emails.split(",") if email.strip()]
+    return settings.expiry_reminder_emails_list
+
+
+def is_expiry_reminders_configured(db: Session) -> bool:
+    return bool(configured_reminder_emails(db))
 
 
 def parse_date_of_servicing(value: Optional[str]) -> Optional[date]:
@@ -103,8 +120,9 @@ def send_expiry_reminders(db: Session) -> dict[str, Any]:
     reminded — so a transient SMTP failure means it's simply retried on
     the next run instead of silently never reminding anyone.
     """
-    if not is_expiry_reminders_configured():
-        return {"skipped": True, "reason": "EXPIRY_REMINDER_EMAILS not configured"}
+    recipient_emails = configured_reminder_emails(db)
+    if not recipient_emails:
+        return {"skipped": True, "reason": "No expiry reminder recipients configured (see Settings)"}
 
     lead_days = settings.EXPIRY_REMINDER_LEAD_DAYS
     today = date.today()
@@ -129,7 +147,7 @@ def send_expiry_reminders(db: Session) -> dict[str, Any]:
         for cert, expiry in candidates
     ]
 
-    sent = send_expiry_reminder_email(settings.expiry_reminder_emails_list, payload)
+    sent = send_expiry_reminder_email(recipient_emails, payload)
     if not sent:
         logger.warning("Expiry reminder email failed to send — will retry on the next scheduled run.")
         return {"skipped": False, "reminded": 0, "email_failed": True}

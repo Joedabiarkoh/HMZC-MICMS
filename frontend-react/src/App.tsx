@@ -19,6 +19,7 @@ import ChangePassword from "./features/auth/pages/ChangePassword";
 import MySignature from "./features/auth/pages/MySignature";
 import AdminUsers from "./features/auth/pages/AdminUsers";
 import AuditLog from "./features/auth/pages/AuditLog";
+import NotificationSettings from "./features/auth/pages/NotificationSettings";
 import { AuthProvider } from "./context/AuthContext";
 import RequireAuth from "./context/RequireAuth";
 import RequirePermission from "./context/RequirePermission";
@@ -77,6 +78,7 @@ export default function App() {
               <Route path="/account/signature" element={<MySignature />} />
               <Route path="/admin/users" element={<RequirePermission roles={["admin"]}><AdminUsers /></RequirePermission>} />
               <Route path="/admin/audit-log" element={<RequirePermission roles={["admin"]}><AuditLog /></RequirePermission>} />
+              <Route path="/admin/settings" element={<RequirePermission roles={["admin"]}><NotificationSettings /></RequirePermission>} />
 
               <Route path="/finance" element={<RequirePermission permission={PERM.FIN_VIEW}><FinanceDashboard /></RequirePermission>} />
               {/* Item Catalog gets its own, narrower permission — someone

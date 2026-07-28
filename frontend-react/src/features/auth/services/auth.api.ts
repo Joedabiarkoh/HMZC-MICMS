@@ -1,5 +1,5 @@
 import api from "../../../api/axios";
-import { AdminCreateUserPayload, AuditLogEntry, LoginPayload, PasswordChangePayload, PasswordResetResult, PermissionUpdatePayload, RegisterPayload, User } from "../types/auth.types";
+import { AdminCreateUserPayload, AuditLogEntry, ExpiryReminderSettings, LoginPayload, PasswordChangePayload, PasswordResetResult, PermissionUpdatePayload, RegisterPayload, User } from "../types/auth.types";
 
 // Calls the backend routes added alongside this frontend module:
 // backend-fastapi/app/api/routes/auth.py (register/login/me/users), the
@@ -111,6 +111,27 @@ export async function listAuditLog(limit = 200): Promise<AuditLogEntry[]> {
  */
 export async function updateUserPermissions(userId: number, payload: PermissionUpdatePayload): Promise<User> {
   const response = await api.patch(`/auth/users/${userId}/permissions`, payload);
+  return response.data;
+}
+
+/**
+ * Admin-only. Reads the certificate expiry reminder recipient list
+ * from the database-backed setting (backend-fastapi's
+ * api/routes/settings.py) — not the server's EXPIRY_REMINDER_EMAILS
+ * env var, which only applies if this setting has never been saved.
+ */
+export async function getExpiryReminderSettings(): Promise<ExpiryReminderSettings> {
+  const response = await api.get("/settings/expiry-reminder-emails");
+  return response.data;
+}
+
+/**
+ * Admin-only. Replaces the recipient list outright (not additive) —
+ * this is the mechanism for updating who gets notified whenever the
+ * person responsible for certificate renewals changes role or leaves.
+ */
+export async function updateExpiryReminderSettings(emails: string[]): Promise<ExpiryReminderSettings> {
+  const response = await api.put("/settings/expiry-reminder-emails", { emails });
   return response.data;
 }
 
