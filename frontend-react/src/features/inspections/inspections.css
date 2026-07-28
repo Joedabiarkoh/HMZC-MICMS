@@ -135,6 +135,16 @@
 .insp-chk-toggle button.sel-na { background: #8B93A0; border-color: #8B93A0; color: #fff; }
 .insp-chk-remark { width: 105px; flex-shrink: 0; padding: 3px 6px; border: 1px solid #DDE2E6; border-radius: 3px; font-size: 10.5px; }
 
+/* Loose Gear's LOLER statutory questions render as literal checkbox
+   pairs (YES [x] NO [ ]), matching the source form's own visual
+   convention, instead of a dropdown — see LooseGearForm.tsx's own note. */
+.insp-yesno-toggle { display: flex; gap: 8px; }
+.insp-yesno-toggle button {
+  border: 1px solid #C9D1D8; background: #fff; font-size: 12px; font-weight: 600;
+  padding: 5px 11px; border-radius: 4px; cursor: pointer; color: var(--insp-text);
+}
+.insp-yesno-toggle button.selected { background: var(--insp-navy); border-color: var(--insp-navy); color: #fff; }
+
 /* ---- certificate preview (print-like) ---- */
 .insp-cert-scroll { max-height: 80vh; overflow: auto; padding: 20px; background: #EAECEE; }
 .insp-cert-page {

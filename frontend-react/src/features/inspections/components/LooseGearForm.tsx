@@ -81,15 +81,35 @@ export default function LooseGearForm({ current, updateField, openCertificate }:
   );
 }
 
+// The source LOLER forms show every yes/no answer as a literal checkbox
+// pair ("YES [x] NO [ ]"), not a dropdown — requested directly, to keep
+// this looking like the actual statutory form rather than a generic app
+// field. Clicking the already-selected box clears it back to unanswered,
+// same as the print rendering's blank-box state for a genuinely
+// unanswered question (see yesNoCheckboxes in CertificatePreview.tsx).
 function YesNoField({ id, label, value, onChange }: { id: string; label: string; value: LooseGearYesNo; onChange: (v: LooseGearYesNo) => void }) {
   return (
     <div className="insp-field">
-      <label htmlFor={id}>{label}</label>
-      <select id={id} value={value} onChange={(e) => onChange(e.target.value as LooseGearYesNo)}>
-        <option value="">—</option>
-        <option value="yes">Yes</option>
-        <option value="no">No</option>
-      </select>
+      <span id={`${id}-label`} style={{ display: "block", fontSize: 11, color: "var(--insp-muted)", marginBottom: 3, fontWeight: 600 }}>{label}</span>
+      <div className="insp-yesno-toggle" role="group" aria-labelledby={`${id}-label`}>
+        <button
+          type="button"
+          id={id}
+          className={value === "yes" ? "selected" : ""}
+          aria-pressed={value === "yes"}
+          onClick={() => onChange(value === "yes" ? "" : "yes")}
+        >
+          <span aria-hidden="true">{value === "yes" ? "☒" : "☐"}</span> YES
+        </button>
+        <button
+          type="button"
+          className={value === "no" ? "selected" : ""}
+          aria-pressed={value === "no"}
+          onClick={() => onChange(value === "no" ? "" : "no")}
+        >
+          <span aria-hidden="true">{value === "no" ? "☒" : "☐"}</span> NO
+        </button>
+      </div>
     </div>
   );
 }

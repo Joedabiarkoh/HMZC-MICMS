@@ -327,6 +327,20 @@ function yesNoLabel(v: LooseGearYesNo) {
   return { yes: "YES", no: "NO", "": "—" }[v] || v;
 }
 
+// The source LOLER forms show every statutory answer as a literal
+// checkbox pair ("YES [x] NO [ ]"), not a plain word — matches the same
+// visual convention LooseGearForm.tsx's YesNoField uses on the editing
+// side, so the printed certificate reads like the actual form rather
+// than a generic app table.
+function yesNoCheckboxes(v: LooseGearYesNo) {
+  return (
+    <span style={{ whiteSpace: "nowrap" }}>
+      <span aria-hidden="true">{v === "yes" ? "☒" : "☐"}</span> YES&nbsp;&nbsp;
+      <span aria-hidden="true">{v === "no" ? "☒" : "☐"}</span> NO
+    </span>
+  );
+}
+
 // Three genuinely different source templates, each printed as its own
 // distinct layout — no shared "LooseGearCertificatePage" wrapper,
 // matching how the form side (LooseGearForm.tsx) keeps them separate
@@ -350,16 +364,16 @@ function StatutoryAnswersRows({ data }: { data: LooseGearStatutoryAnswers }) {
       <table className="insp-id-table">
         <tbody>
           <tr>
-            <td className="insp-label-cell">First Exam After Install</td><td>{yesNoLabel(data.firstExaminationAfterInstall)}</td>
-            <td className="insp-label-cell">Installed Correctly</td><td>{yesNoLabel(data.installedCorrectly)}</td>
+            <td className="insp-label-cell">First Exam After Install</td><td>{yesNoCheckboxes(data.firstExaminationAfterInstall)}</td>
+            <td className="insp-label-cell">Installed Correctly</td><td>{yesNoCheckboxes(data.installedCorrectly)}</td>
           </tr>
           <tr>
-            <td className="insp-label-cell">Within 6 Months</td><td>{yesNoLabel(data.examinedWithin6Months)}</td>
-            <td className="insp-label-cell">Within 12 Months</td><td>{yesNoLabel(data.examinedWithin12Months)}</td>
+            <td className="insp-label-cell">Within 6 Months</td><td>{yesNoCheckboxes(data.examinedWithin6Months)}</td>
+            <td className="insp-label-cell">Within 12 Months</td><td>{yesNoCheckboxes(data.examinedWithin12Months)}</td>
           </tr>
           <tr>
-            <td className="insp-label-cell">Per Examination Scheme</td><td>{yesNoLabel(data.inAccordanceWithScheme)}</td>
-            <td className="insp-label-cell">After Exceptional Circumstances</td><td>{yesNoLabel(data.afterExceptionalCircumstances)}</td>
+            <td className="insp-label-cell">Per Examination Scheme</td><td>{yesNoCheckboxes(data.inAccordanceWithScheme)}</td>
+            <td className="insp-label-cell">After Exceptional Circumstances</td><td>{yesNoCheckboxes(data.afterExceptionalCircumstances)}</td>
           </tr>
         </tbody>
       </table>
@@ -367,7 +381,7 @@ function StatutoryAnswersRows({ data }: { data: LooseGearStatutoryAnswers }) {
       <table className="insp-id-table">
         <tbody>
           <tr>
-            <td className="insp-label-cell">Existing/Imminent Danger</td><td>{yesNoLabel(data.existingOrImminentDanger)}</td>
+            <td className="insp-label-cell">Existing/Imminent Danger</td><td>{yesNoCheckboxes(data.existingOrImminentDanger)}</td>
             <td className="insp-label-cell">Could Become Danger By</td><td>{fmtDate(data.couldBecomeDangerBy)}</td>
           </tr>
         </tbody>
@@ -443,8 +457,8 @@ function VisualCertPage({ cert, data }: { cert: InspectionCertificate; data: Loo
             <td className="insp-label-cell">Test Date</td><td>{fmtDate(data.testDate)}</td>
           </tr>
           <tr>
-            <td className="insp-label-cell">EC Declaration Available</td><td>{yesNoLabel(data.ecDeclarationAvailable)}</td>
-            <td className="insp-label-cell">CE Mark Visible</td><td>{yesNoLabel(data.ceMarkVisible)}</td>
+            <td className="insp-label-cell">EC Declaration Available</td><td>{yesNoCheckboxes(data.ecDeclarationAvailable)}</td>
+            <td className="insp-label-cell">CE Mark Visible</td><td>{yesNoCheckboxes(data.ceMarkVisible)}</td>
           </tr>
         </tbody>
       </table>
