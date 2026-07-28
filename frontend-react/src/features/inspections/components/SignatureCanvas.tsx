@@ -2,6 +2,12 @@ import { useCallback, useRef, useState } from "react";
 import { useAuth } from "../../../context/AuthContext";
 import { deleteMySignature, saveMySignature } from "../../auth/services/auth.api";
 
+// Signatures scan/photograph small — 3MB comfortably covers a real photo
+// of a signed page while still catching an accidental full-resolution
+// camera shot before it gets written to disk unresized (see
+// externalize_signature in the backend, which stores the bytes as-is).
+const MAX_UPLOAD_BYTES = 3 * 1024 * 1024;
+
 interface Props {
   label: string;
   value: string; // data URI, or "" if not yet signed
@@ -39,9 +45,11 @@ export default function SignatureCanvas({ label, value, onChange, allowSavedDefa
   // every node after that — exactly the "Re-sign draws nothing" bug this
   // callback ref fixes, by re-attaching on every mount instead of once.
   const cleanupRef = useRef<(() => void) | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
   const drawing = useRef(false);
   const [hasDrawn, setHasDrawn] = useState(false);
   const [savingDefault, setSavingDefault] = useState(false);
+  const [uploadError, setUploadError] = useState("");
   const { user, updateUser } = useAuth();
 
   const attachCanvas = useCallback((canvas: HTMLCanvasElement | null) => {
@@ -117,6 +125,31 @@ export default function SignatureCanvas({ label, value, onChange, allowSavedDefa
     onChange(canvas.toDataURL("image/png"));
   }
 
+  // Requested directly: not everyone has a touch/mouse-drawable screen
+  // handy — this is the alternative to drawing, for a signature that
+  // already exists as an image (a photo of a signed page, a scanned
+  // signature, etc.).
+  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = ""; // reset so choosing the same file again still fires a change event
+    if (!file) return;
+    setUploadError("");
+    if (!file.type.startsWith("image/")) {
+      setUploadError("Please choose an image file (PNG, JPG, etc.).");
+      return;
+    }
+    if (file.size > MAX_UPLOAD_BYTES) {
+      setUploadError("That image is too large — please choose one under 3MB.");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result === "string") onChange(reader.result);
+    };
+    reader.onerror = () => setUploadError("Couldn't read that file — please try again.");
+    reader.readAsDataURL(file);
+  }
+
   async function saveAsDefault() {
     if (!value) return;
     setSavingDefault(true);
@@ -178,12 +211,15 @@ export default function SignatureCanvas({ label, value, onChange, allowSavedDefa
           <div className="insp-btn-row" style={{ padding: 0, marginTop: 4 }}>
             <button type="button" className="insp-btn insp-btn-primary" onClick={save} disabled={!hasDrawn}>Save Signature</button>
             <button type="button" className="insp-btn insp-btn-outline" onClick={clear}>Clear</button>
+            <button type="button" className="insp-btn insp-btn-outline" onClick={() => fileInputRef.current?.click()}>Upload Image Instead</button>
             {allowSavedDefault && hasSavedDefault && (
               <button type="button" className="insp-btn insp-btn-outline" onClick={() => onChange(user!.saved_signature_url!)}>
                 Use my saved signature
               </button>
             )}
           </div>
+          <input ref={fileInputRef} type="file" accept="image/*" style={{ display: "none" }} onChange={handleFileChange} />
+          {uploadError && <p className="insp-help-note" style={{ color: "var(--insp-red)" }}>{uploadError}</p>}
         </>
       )}
     </div>
