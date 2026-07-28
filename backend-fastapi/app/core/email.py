@@ -94,6 +94,47 @@ def send_account_created_email(to_email: str, full_name: str, temporary_password
     return send_email(to_email, subject, text, html)
 
 
+def send_expiry_reminder_email(to_emails: list[str], certificates: list[dict]) -> bool:
+    """
+    One digest email per scheduled check (see core/expiry_reminders.py),
+    not one email per certificate — a technician renewing five
+    certificates for the same vessel visit shouldn't get five separate
+    emails. `certificates` is a list of plain dicts (cert_no,
+    equipment_type, vessel_name, expiry_date) built by the caller, kept
+    simple here rather than passing ORM objects into this module.
+    """
+    if not to_emails:
+        return False
+    subject = f"{len(certificates)} certificate(s) expiring soon — HMZC Certification Platform"
+    rows_text = "\n".join(
+        f"- {c['cert_no']} ({c['equipment_type']}) — {c['vessel_name'] or 'no vessel name'} — expires {c['expiry_date']}"
+        for c in certificates
+    )
+    rows_html = "".join(
+        f"<tr><td>{c['cert_no']}</td><td>{c['equipment_type']}</td>"
+        f"<td>{c['vessel_name'] or '—'}</td><td>{c['expiry_date']}</td></tr>"
+        for c in certificates
+    )
+    text = (
+        f"The following certificate(s) are approaching their one-year expiry:\n\n"
+        f"{rows_text}\n\n"
+        f"Sign in to the HMZC Certification Platform to review and schedule renewals."
+    )
+    html = (
+        f"<p>The following certificate(s) are approaching their one-year expiry:</p>"
+        f"<table border=\"1\" cellpadding=\"6\" style=\"border-collapse:collapse;font-size:13px;\">"
+        f"<tr><th>Certificate No.</th><th>Type</th><th>Vessel</th><th>Expires</th></tr>"
+        f"{rows_html}"
+        f"</table>"
+        f"<p>Sign in to the HMZC Certification Platform to review and schedule renewals.</p>"
+    )
+    sent_all = True
+    for to_email in to_emails:
+        if not send_email(to_email, subject, text, html):
+            sent_all = False
+    return sent_all
+
+
 def send_password_reset_email(to_email: str, full_name: str, temporary_password: str, login_url: str) -> bool:
     subject = "Your HMZC Certification Platform password was reset"
     text = (

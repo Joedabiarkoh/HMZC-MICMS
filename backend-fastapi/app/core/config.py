@@ -88,6 +88,18 @@ class Settings(BaseSettings):
     BACKUP_S3_SECRET_ACCESS_KEY: Optional[str] = None
     BACKUP_RETENTION_DAYS: int = 30
 
+    # Requested directly: certificates are valid one year from
+    # date_of_servicing; staff should hear about one before it lapses,
+    # not after a client calls asking why their certificate is expired.
+    # Comma-separated so more than one address can be configured without
+    # a schema change — see core/expiry_reminders.py for how it's split.
+    # No safe default recipient exists (an internal staff address is
+    # specific to this business, unlike SMTP settings which are just
+    # "unconfigured" until someone sets up a provider) — same
+    # optional-and-silently-skips pattern as BACKUP_S3_* above.
+    EXPIRY_REMINDER_EMAILS: Optional[str] = None
+    EXPIRY_REMINDER_LEAD_DAYS: int = 30
+
     class Config:
         env_file = ".env"
 
@@ -124,6 +136,12 @@ class Settings(BaseSettings):
     @property
     def cors_origins_list(self) -> List[str]:
         return [origin.strip() for origin in self.CORS_ORIGINS.split(",") if origin.strip()]
+
+    @property
+    def expiry_reminder_emails_list(self) -> List[str]:
+        if not self.EXPIRY_REMINDER_EMAILS:
+            return []
+        return [email.strip() for email in self.EXPIRY_REMINDER_EMAILS.split(",") if email.strip()]
 
 
 settings = Settings()

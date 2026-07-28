@@ -41,5 +41,16 @@ class Certificate(BaseModel):
     # silent overwrite. See save_certificate in api/routes/certificates.py.
     version = Column(Integer, nullable=False, default=1)
 
+    # Set once the expiry-reminder digest email (see
+    # core/expiry_reminders.py) has actually gone out for this
+    # certificate — null means "not yet reminded," which is also just
+    # true of every certificate that existed before this feature did.
+    # Deliberately separate from whatever the *dashboard's* "expiring
+    # soon" list shows (core/expiry_reminders.py's list_expiring
+    # ignores this field entirely) — a certificate should keep showing
+    # up on the in-app list right up until it's renewed, but the email
+    # should only ever go out once per certificate, not once per day.
+    expiry_reminder_sent_at = Column(DateTime(timezone=True), nullable=True)
+
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())

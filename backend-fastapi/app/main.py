@@ -6,13 +6,16 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 import app.models  # noqa: F401 — registers every model with Base for relationship resolution
-from app.api.routes import auth, backup as backup_routes, certificates, finance, health, photos
+from app.api.routes import auth, backup as backup_routes, certificates, finance, health, photos, reports
 from app.core.backup import is_backup_configured, run_backup
 from app.core.config import settings
+from app.core.database import SessionLocal
+from app.core.expiry_reminders import is_expiry_reminders_configured, send_expiry_reminders
 
 logger = logging.getLogger("hmzc.startup")
 
 BACKUP_INTERVAL_SECONDS = 24 * 60 * 60
+EXPIRY_REMINDER_CHECK_INTERVAL_SECONDS = 24 * 60 * 60
 
 
 async def _backup_loop() -> None:
@@ -36,11 +39,37 @@ async def _backup_loop() -> None:
         await asyncio.sleep(BACKUP_INTERVAL_SECONDS)
 
 
+async def _expiry_reminder_loop() -> None:
+    """
+    Same shape as _backup_loop above — runs in this same always-on
+    process, not relying on anyone remembering to check certificates
+    manually. Opens its own DB session per run (SessionLocal, not the
+    request-scoped get_database dependency) since there's no request
+    here to hang one off of.
+    """
+    if not is_expiry_reminders_configured():
+        logger.warning("EXPIRY_REMINDER_EMAILS not configured — expiry reminder emails are OFF.")
+        return
+    await asyncio.sleep(90)
+    while True:
+        db = SessionLocal()
+        try:
+            result = await asyncio.to_thread(send_expiry_reminders, db)
+            logger.info("Expiry reminder check finished: %s", result)
+        except Exception:
+            logger.exception("Expiry reminder check raised an unhandled exception")
+        finally:
+            db.close()
+        await asyncio.sleep(EXPIRY_REMINDER_CHECK_INTERVAL_SECONDS)
+
+
 @asynccontextmanager
 async def lifespan(_: FastAPI):
-    task = asyncio.create_task(_backup_loop())
+    backup_task = asyncio.create_task(_backup_loop())
+    expiry_task = asyncio.create_task(_expiry_reminder_loop())
     yield
-    task.cancel()
+    backup_task.cancel()
+    expiry_task.cancel()
 
 # Schema is created/updated by `alembic upgrade head` (see the
 # Dockerfile's CMD, which runs it before uvicorn on every single
@@ -101,6 +130,7 @@ app.include_router(certificates.router, prefix="/api/certificates")
 app.include_router(finance.router, prefix="/api/finance")
 app.include_router(photos.router, prefix="/api/photos")
 app.include_router(backup_routes.router, prefix="/api/backup")
+app.include_router(reports.router, prefix="/api/reports")
 
 
 @app.get("/")
