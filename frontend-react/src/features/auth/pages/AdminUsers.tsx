@@ -57,6 +57,12 @@ export default function AdminUsers() {
   const [newFullName, setNewFullName] = useState("");
   const [newRole, setNewRole] = useState<UserRole>("inspector");
   const [creating, setCreating] = useState(false);
+  // Requested directly ("Users table has no search/filter — fine at 20
+  // users, becomes a scroll-and-squint exercise at 200"): only scoped
+  // to Active Accounts below, since Inactive Accounts is a short
+  // approval queue, not a growing list someone needs to search.
+  const [query, setQuery] = useState("");
+  const [roleFilter, setRoleFilter] = useState<UserRole | "all">("all");
 
   function load() {
     listUsers()
@@ -168,6 +174,12 @@ export default function AdminUsers() {
 
   const pending = users.filter((u) => !u.is_active);
   const active = users.filter((u) => u.is_active);
+  const filteredActive = active.filter((u) => {
+    if (roleFilter !== "all" && u.role !== roleFilter) return false;
+    const q = query.trim().toLowerCase();
+    if (!q) return true;
+    return (u.full_name || "").toLowerCase().includes(q) || u.email.toLowerCase().includes(q);
+  });
 
   function renderRow(u: User) {
     const isEditing = editingId === u.id;
@@ -366,15 +378,40 @@ export default function AdminUsers() {
 
       {!loading && !err && (
         <>
-          <h2>Active Accounts ({active.length})</h2>
-          <table className="users-table">
-            <thead>
-              <tr><th>Name</th><th>Email</th><th>Role</th><th>Joined</th><th>Actions</th></tr>
-            </thead>
-            <tbody>
-              {active.map(renderRow)}
-            </tbody>
-          </table>
+          <h2>Active Accounts ({filteredActive.length} of {active.length})</h2>
+          <div style={{ display: "flex", gap: 8, marginBottom: 10, flexWrap: "wrap" }}>
+            <input
+              type="search"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search by name or email..."
+              aria-label="Search active accounts by name or email"
+              style={{ flex: "1 1 220px", padding: "7px 10px", border: "1px solid #C9D1D8", borderRadius: 6, fontSize: 12.5 }}
+            />
+            <select
+              value={roleFilter}
+              onChange={(e) => setRoleFilter(e.target.value as UserRole | "all")}
+              aria-label="Filter active accounts by role"
+              style={{ padding: "7px 10px", border: "1px solid #C9D1D8", borderRadius: 6, fontSize: 12.5 }}
+            >
+              <option value="all">All Roles</option>
+              {(Object.keys(ROLE_LABELS) as UserRole[]).map((r) => (
+                <option key={r} value={r}>{ROLE_LABELS[r]}</option>
+              ))}
+            </select>
+          </div>
+          {filteredActive.length === 0 ? (
+            <p style={{ fontSize: 12.5, color: "#6B7480" }}>No active accounts match this search/filter.</p>
+          ) : (
+            <table className="users-table">
+              <thead>
+                <tr><th>Name</th><th>Email</th><th>Role</th><th>Joined</th><th>Actions</th></tr>
+              </thead>
+              <tbody>
+                {filteredActive.map(renderRow)}
+              </tbody>
+            </table>
+          )}
         </>
       )}
     </div>

@@ -20,17 +20,12 @@ export async function getFinanceSummary(): Promise<DashboardSummary> {
   return response.data;
 }
 
-// getPayments() used to live here, calling a GET /finance/payments that
-// never existed server-side — removed now that Payments.tsx is real: it
-// reuses listInvoices()/saveInvoice() below instead, since Invoice
-// already carries the status field Payments needed and no new backend
-// endpoint was actually necessary.
-//
-// getFinancialReport() (called a GET /finance/reports/{type} that never
-// existed either) is left as-is — the real Reports & Analytics page
-// (features/reports/) has its own separate API module and doesn't use
-// this file at all; fixing that dead function is a separate task from
-// Expenses/Job Costing.
+// getPayments() and getFinancialReport() used to live here, calling
+// GET /finance/payments and GET /finance/reports/{type} — neither ever
+// existed server-side. Removed: Payments.tsx now reuses listInvoices()/
+// saveInvoice() below instead, and the real Reports & Analytics page
+// (features/reports/) has its own separate, working API module that
+// never called this one.
 
 // ============================================================
 // Expenses — backend-fastapi's /api/finance/expenses (see

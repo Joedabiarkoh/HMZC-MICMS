@@ -390,17 +390,21 @@ export default function InspectionWorkspace() {
           </div>
         )}
         <div className="insp-btn-row">
-          <button className="insp-btn insp-btn-outline" onClick={() => handleSave("draft")}>Save Draft</button>
-          <button
-            className="insp-btn insp-btn-primary"
-            onClick={() => handleSave("final")}
-            disabled={getFinalizeBlockers().length > 0}
-            title={getFinalizeBlockers().length > 0 ? `Not ready to finalize: ${getFinalizeBlockers().join("; ")}` : undefined}
-          >
-            Finalize &amp; Save
-          </button>
-          <button className="insp-btn insp-btn-outline" onClick={() => window.print()}>Print</button>
-          <button className="insp-btn insp-btn-outline" onClick={() => startNew(type)}>New Certificate</button>
+          <div className="insp-btn-group">
+            <button className="insp-btn insp-btn-outline" onClick={() => handleSave("draft")}>Save Draft</button>
+            <button
+              className="insp-btn insp-btn-primary"
+              onClick={() => handleSave("final")}
+              disabled={getFinalizeBlockers().length > 0}
+              title={getFinalizeBlockers().length > 0 ? `Not ready to finalize: ${getFinalizeBlockers().join("; ")}` : undefined}
+            >
+              Finalize &amp; Save
+            </button>
+          </div>
+          <div className="insp-btn-group insp-btn-group--secondary">
+            <button className="insp-btn insp-btn-outline" onClick={() => window.print()}>Print</button>
+            <button className="insp-btn insp-btn-outline" onClick={() => startNew(type)}>New Certificate</button>
+          </div>
         </div>
       </div>
     );
@@ -556,17 +560,21 @@ export default function InspectionWorkspace() {
         </div>
       )}
       <div className="insp-btn-row">
-        <button className="insp-btn insp-btn-outline" onClick={() => handleSave("draft")}>Save Draft</button>
-        <button
-          className="insp-btn insp-btn-primary"
-          onClick={() => handleSave("final")}
-          disabled={getFinalizeBlockers().length > 0}
-          title={getFinalizeBlockers().length > 0 ? `Not ready to finalize: ${getFinalizeBlockers().join("; ")}` : undefined}
-        >
-          Finalize &amp; Save
-        </button>
-        <button className="insp-btn insp-btn-outline" onClick={() => window.print()}>Print</button>
-        <button className="insp-btn insp-btn-outline" onClick={() => startNew(type)}>New Certificate</button>
+        <div className="insp-btn-group">
+          <button className="insp-btn insp-btn-outline" onClick={() => handleSave("draft")}>Save Draft</button>
+          <button
+            className="insp-btn insp-btn-primary"
+            onClick={() => handleSave("final")}
+            disabled={getFinalizeBlockers().length > 0}
+            title={getFinalizeBlockers().length > 0 ? `Not ready to finalize: ${getFinalizeBlockers().join("; ")}` : undefined}
+          >
+            Finalize &amp; Save
+          </button>
+        </div>
+        <div className="insp-btn-group insp-btn-group--secondary">
+          <button className="insp-btn insp-btn-outline" onClick={() => window.print()}>Print</button>
+          <button className="insp-btn insp-btn-outline" onClick={() => startNew(type)}>New Certificate</button>
+        </div>
       </div>
     </div>
   );

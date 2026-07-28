@@ -200,7 +200,21 @@ table.insp-print-chk tr.insp-section-row td { background: #EEF1F3; font-weight: 
 }
 .insp-btn-primary { background: var(--insp-accent); color: #fff; }
 .insp-btn-outline { background: #fff; border-color: #C9D1D8; color: var(--insp-text); }
-.insp-btn-row { display: flex; gap: 8px; flex-wrap: wrap; padding: 0 20px 20px; }
+/* Requested directly (UX audit): Save/Finalize (the primary document
+   actions) and Print/New Certificate (secondary/utility actions) used
+   to be one flat row of look-alike buttons with no visual grouping —
+   split into two gap-separated clusters with a divider between them,
+   so the two kinds of action read as distinct at a glance. */
+.insp-btn-row { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; padding: 0 20px 20px; }
+.insp-btn-group { display: flex; gap: 8px; flex-wrap: wrap; }
+.insp-btn-group--secondary { padding-left: 12px; border-left: 1px solid var(--insp-line); }
+/* On a narrow phone screen the two groups usually wrap onto separate
+   lines anyway (see the audit's own note that this is a field tool
+   used one-handed on cracked Android screens) — the divider only makes
+   sense sitting between two groups on the same line. */
+@media (max-width: 480px) {
+  .insp-btn-group--secondary { padding-left: 0; border-left: none; }
+}
 
 /* ---- print ---- */
 /* No @media print existed anywhere before this — printing (or "Save as
