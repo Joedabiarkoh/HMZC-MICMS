@@ -156,3 +156,47 @@ class InvoiceResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+# ---- Expenses ----
+# vessel_name is optional on purpose — see models/expense.py's own
+# comment: most expenses aren't about any one job, only fill it in when
+# a cost should count toward Job Costing below.
+
+class ExpenseCreate(BaseModel):
+    category: str
+    amount: float
+    expense_date: str
+    note: Optional[str] = None
+    vessel_name: Optional[str] = None
+
+
+class ExpenseResponse(BaseModel):
+    id: int
+    category: str
+    amount: float
+    expense_date: str
+    note: Optional[str] = None
+    vessel_name: Optional[str] = None
+    logged_by: Optional[UserResponse] = None
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+# ---- Job Costing ----
+# One row per distinct vessel_name that appears in either a paid
+# invoice or a vessel-tagged expense — revenue and cost are summed
+# independently (there's no shared foreign key between Invoice and
+# Expense, just the matching vessel_name string, the same loose-match
+# convention Finance already uses elsewhere) and profit is simply
+# revenue - cost. Deliberately company-wide-all-time per vessel, not
+# scoped to one particular visit/date — see api/routes/finance.py's
+# job_costing() for why a tighter per-visit match isn't attempted.
+
+class JobCostingRow(BaseModel):
+    vessel_name: str
+    revenue: float
+    cost: float
+    profit: float

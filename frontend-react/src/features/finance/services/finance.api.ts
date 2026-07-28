@@ -1,5 +1,5 @@
 import api from "../../../api/axios";
-import { FinanceItem, InvoiceDoc, QuotationDoc, LineItem, DashboardSummary } from "../types/finance.types";
+import { ExpenseDoc, FinanceItem, InvoiceDoc, JobCostingRow, QuotationDoc, LineItem, DashboardSummary } from "../types/finance.types";
 
 // Matches CertificateConflictError in inspection.api.ts — same reasoning:
 // a 409 here means someone else saved a newer edit in between (see
@@ -20,32 +20,55 @@ export async function getFinanceSummary(): Promise<DashboardSummary> {
   return response.data;
 }
 
-// The chat only wrote 3 endpoints (dashboard/quotation/invoice) but the
-// pages below (Payments, Expenses, JobCosting, Reports) need data sources
-// too. Same REST pattern is extended here so every page actually has a
-// real (if backend-pending) call instead of hardcoded data forever.
-export async function getPayments() {
-  const response = await api.get("/finance/payments");
+// getPayments() used to live here, calling a GET /finance/payments that
+// never existed server-side — removed now that Payments.tsx is real: it
+// reuses listInvoices()/saveInvoice() below instead, since Invoice
+// already carries the status field Payments needed and no new backend
+// endpoint was actually necessary.
+//
+// getFinancialReport() (called a GET /finance/reports/{type} that never
+// existed either) is left as-is — the real Reports & Analytics page
+// (features/reports/) has its own separate API module and doesn't use
+// this file at all; fixing that dead function is a separate task from
+// Expenses/Job Costing.
+
+// ============================================================
+// Expenses — backend-fastapi's /api/finance/expenses (see
+// api/routes/finance.py). A simple company-wide ledger; vessel_name is
+// optional (see ExpenseDoc's own comment) and only needed if this
+// expense should count toward Job Costing below.
+// ============================================================
+
+export async function listExpenses(): Promise<ExpenseDoc[]> {
+  const response = await api.get<ExpenseDoc[]>("/finance/expenses");
   return response.data;
 }
 
-export async function getExpenses() {
-  const response = await api.get("/finance/expenses");
+export interface ExpenseCreatePayload {
+  category: string;
+  amount: number;
+  expense_date: string;
+  note?: string | null;
+  vessel_name?: string | null;
+}
+
+export async function createExpense(payload: ExpenseCreatePayload): Promise<ExpenseDoc> {
+  const response = await api.post<ExpenseDoc>("/finance/expenses", payload);
   return response.data;
 }
 
-export async function createExpense(data: any) {
-  const response = await api.post("/finance/expense", data);
-  return response.data;
+export async function deleteExpense(expenseId: number): Promise<void> {
+  await api.delete(`/finance/expenses/${expenseId}`);
 }
 
-export async function getJobCosting(job: string) {
-  const response = await api.get(`/finance/job-costing/${job}`);
-  return response.data;
-}
+// ============================================================
+// Job Costing — profit per vessel, computed server-side from paid
+// invoices and vessel-tagged expenses (see JobCostingRow's own comment
+// on why this is loose, all-time matching by vessel name).
+// ============================================================
 
-export async function getFinancialReport(type: string) {
-  const response = await api.get(`/finance/reports/${type}`);
+export async function getJobCosting(): Promise<JobCostingRow[]> {
+  const response = await api.get<JobCostingRow[]>("/finance/job-costing");
   return response.data;
 }
 

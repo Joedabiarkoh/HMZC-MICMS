@@ -18,22 +18,27 @@ export interface Quotation {
   status: string;
 }
 
-// Not in the original chat's type file, but needed by the Expenses and
-// JobCosting pages below, which reference this shape.
-export interface Expense {
+// Matches backend-fastapi's ExpenseResponse/JobCostingRow (see
+// api/routes/finance.py) — replaced the original chat's Expense/JobCost
+// stub shapes, which referenced a "job" field/endpoint that was never
+// actually built. vessel_name is optional: most expenses aren't tied to
+// one specific vessel/job, only the ones that should count toward Job
+// Costing need it filled in (see models/expense.py's own comment).
+export interface ExpenseDoc {
   id: number;
-  job: string;
   category: string;
   amount: number;
+  expense_date: string;
+  note: string | null;
+  vessel_name: string | null;
+  logged_by: FinanceUser | null;
+  created_at: string;
 }
 
-export interface JobCost {
-  job: string;
+export interface JobCostingRow {
+  vessel_name: string;
   revenue: number;
-  labour: number;
-  parts: number;
-  travel: number;
-  total_cost: number;
+  cost: number;
   profit: number;
 }
 

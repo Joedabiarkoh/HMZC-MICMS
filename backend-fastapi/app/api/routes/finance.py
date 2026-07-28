@@ -7,16 +7,20 @@ from sqlalchemy.orm import Session, joinedload
 from app.api.deps import require_permission
 from app.core.database import get_database
 from app.core.permissions import FIN_CATALOG_MANAGE, FIN_DELETE, FIN_EDIT, FIN_VIEW
+from app.models.expense import Expense
 from app.models.finance_document import Invoice, Quotation
 from app.models.finance_item import FinanceItem
 from app.models.user import User
 from app.schemas.finance import (
     DashboardSummary,
+    ExpenseCreate,
+    ExpenseResponse,
     FinanceItemCreate,
     FinanceItemResponse,
     FinanceItemUpdate,
     InvoiceCreate,
     InvoiceResponse,
+    JobCostingRow,
     MonthlyRevenuePoint,
     QuotationCreate,
     QuotationResponse,
@@ -284,3 +288,86 @@ def delete_invoice(invoice_no: str, db: Session = Depends(get_database), _user: 
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Invoice not found")
     db.delete(inv)
     db.commit()
+
+
+# ============================================================
+# Expenses — a simple company-wide ledger (see models/expense.py).
+# No version/optimistic-concurrency check like quotations/invoices:
+# expenses are simple log entries, not collaboratively-edited documents
+# someone else might be mid-edit on when a second save comes in.
+# ============================================================
+
+@router.get("/expenses", response_model=List[ExpenseResponse])
+def list_expenses(db: Session = Depends(get_database), _user: User = Depends(require_permission(FIN_VIEW))):
+    return (
+        db.query(Expense)
+        .options(joinedload(Expense.logged_by))
+        .order_by(Expense.expense_date.desc(), Expense.created_at.desc())
+        .all()
+    )
+
+
+@router.post("/expenses", response_model=ExpenseResponse, status_code=status.HTTP_201_CREATED)
+def create_expense(
+    expense_in: ExpenseCreate,
+    db: Session = Depends(get_database),
+    current_user: User = Depends(require_permission(FIN_EDIT)),
+):
+    expense = Expense(
+        category=expense_in.category,
+        amount=expense_in.amount,
+        expense_date=expense_in.expense_date,
+        note=expense_in.note,
+        vessel_name=expense_in.vessel_name,
+        logged_by_id=current_user.id,
+    )
+    db.add(expense)
+    db.commit()
+    db.refresh(expense)
+    return expense
+
+
+@router.delete("/expenses/{expense_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_expense(expense_id: int, db: Session = Depends(get_database), _user: User = Depends(require_permission(FIN_DELETE))):
+    expense = db.query(Expense).filter(Expense.id == expense_id).first()
+    if not expense:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Expense not found")
+    db.delete(expense)
+    db.commit()
+
+
+# ============================================================
+# Job Costing — profit per vessel, matched by vessel_name string
+# (see JobCostingRow's own comment on why this is loose, company-wide,
+# all-time matching rather than a tight per-visit join). Revenue is
+# paid-invoice totals only, the same definition Dashboard's own
+# `revenue` figure already uses, so the two stay consistent with each
+# other rather than defining "revenue" two different ways in one app.
+# ============================================================
+
+@router.get("/job-costing", response_model=List[JobCostingRow])
+def job_costing(db: Session = Depends(get_database), _user: User = Depends(require_permission(FIN_VIEW))):
+    invoices = db.query(Invoice).filter(Invoice.status == "paid").all()
+    expenses = db.query(Expense).filter(Expense.vessel_name.isnot(None), Expense.vessel_name != "").all()
+
+    revenue_by_vessel: dict[str, float] = {}
+    for inv in invoices:
+        if inv.vessel_name:
+            revenue_by_vessel[inv.vessel_name] = revenue_by_vessel.get(inv.vessel_name, 0) + inv.total
+
+    cost_by_vessel: dict[str, float] = {}
+    for exp in expenses:
+        cost_by_vessel[exp.vessel_name] = cost_by_vessel.get(exp.vessel_name, 0) + exp.amount
+
+    vessel_names = set(revenue_by_vessel) | set(cost_by_vessel)
+    rows = [
+        JobCostingRow(
+            vessel_name=name,
+            revenue=revenue_by_vessel.get(name, 0),
+            cost=cost_by_vessel.get(name, 0),
+            profit=revenue_by_vessel.get(name, 0) - cost_by_vessel.get(name, 0),
+        )
+        for name in vessel_names
+    ]
+    rows.sort(key=lambda r: r.profit)
+    return rows
