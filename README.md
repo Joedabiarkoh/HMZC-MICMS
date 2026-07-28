@@ -50,9 +50,9 @@ name) is stubbed with a comment pointing at what's missing.
   backend above; and a fully wired **Inspections / Certificates
   module**, now gated behind sign-in — Statement + checklist forms for
   conventional lifeboats, rescue boats (FRC), free-fall lifeboats (dry
-  cargo and tanker types) and deck cranes, with Firefighting Equipment
-  and Loose Gear & Lifting Equipment present as "coming soon" divisions
-  pending their check sheets. Ported from a standalone tool that
+  cargo and tanker types), deck cranes, Firefighting Equipment (~20
+  certificate sub-types), and Loose Gear & Lifting Equipment (three
+  LOLER 1998 "Report of Thorough Examination" templates). Ported from a standalone tool that
   predates this project, using the same color palette (now shared via
   `src/styles/theme.css` across every module, including Finance — see
   the "Finance had no CSS" finding in `docs/UX_AUDIT.md`), plus a
@@ -137,9 +137,12 @@ HMZC-MICMS/
    item wording, colour palette) was ported from a standalone tool
    that predates this project rather than invented, so it matches what
    HMZC's inspectors already use on paper. Firefighting Equipment and
-   Loose Gear & Lifting Equipment are wired in as selectable divisions
-   showing a "coming soon" placeholder, same pattern the standalone
-   tool used, ready for their checklists once supplied. No backend
+   Loose Gear & Lifting Equipment originally shipped as "coming soon"
+   placeholders, ready for their checklists once supplied — both have
+   since been built out for real: Firefighting Equipment as ~20 config-
+   driven certificate sub-types, and Loose Gear & Lifting Equipment as
+   three separate LOLER 1998 "Report of Thorough Examination" templates
+   (see `LooseGearForm.tsx`/`ffeCertTypes.ts`). No backend
    route exists for it yet (same as Finance's own endpoints beyond the
    3 the chat wrote) — `inspection.storage.ts` persists to
    localStorage in the meantime; `inspection.api.ts` has the REST
@@ -629,6 +632,11 @@ order given, everything that's actually fixable without a live server:
    stylesheet) — replaced with an honest "Coming Soon" state, the same
    pattern already used for Firefighting Equipment and Loose Gear.
    Unstyled and silently broken is worse than admitting the truth.
+   *Update: all four have since been built out for real* — Payments,
+   Expenses, and Job Costing are genuine endpoint-backed pages
+   (`features/finance/pages/`), and Reports is covered by the real
+   Reports & Analytics module (`features/reports/`). None of the four
+   are placeholders anymore.
 5. **Zero automated tests** — confirmed directly (`tests/` contained one
    empty `__init__.py`) before adding real ones. `tests/test_auth.py`
    and `tests/test_certificates.py` cover registration, the bootstrap-
@@ -718,6 +726,8 @@ of it had already been addressed since:
   Replaced with the same honest "coming soon" pattern already used for
   Firefighting Equipment and Loose Gear in Inspections
   (`FinanceComingSoon.tsx`), rather than left silently broken.
+  *Update: all four are now real, endpoint-backed pages* — `FinanceComingSoon.tsx`
+  no longer exists in the repo.
 
 **What was genuinely still missing, found by auditing rather than
 assuming the above list was complete**: the migrations were already out

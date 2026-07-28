@@ -285,10 +285,3 @@ table.insp-print-chk tr.insp-section-row td { background: #EEF1F3; font-weight: 
     break-after: auto;
   }
 }
-
-/* ---- coming soon ---- */
-.insp-coming-soon {
-  margin: 20px; padding: 24px; background: #fff; border: 1px dashed var(--insp-line); border-radius: 10px;
-}
-.insp-coming-soon h2 { color: var(--insp-navy); margin-top: 0; }
-.insp-coming-soon p { color: var(--insp-muted); font-size: 13px; line-height: 1.6; }

@@ -104,9 +104,9 @@ export default function App() {
               <Route path="/reports" element={<Reports />} />
 
               {/* Certificates module (architecture diagram name) — inspection
-                  checklists for lifeboats, rescue boats, free-fall lifeboats and
-                  deck cranes, with Firefighting Equipment and Loose Gear &
-                  Lifting Equipment as "coming soon" divisions.
+                  checklists for lifeboats, rescue boats, free-fall lifeboats,
+                  deck cranes, Firefighting Equipment, and Loose Gear &
+                  Lifting Equipment.
                   certificates.view (broader — Sales/Administration/Service
                   Coordination/Technical/admin/any grant) reaches the
                   workspace so an "Open" from the Certificate Log works for
