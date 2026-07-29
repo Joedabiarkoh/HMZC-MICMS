@@ -12,6 +12,7 @@ import VesselLookupPanel from "../components/VesselLookupPanel";
 import FFEForm from "../components/FFEForm";
 import LooseGearForm from "../components/LooseGearForm";
 import { getFFEConfig } from "../data/ffeCertTypes";
+import { checklistProgress } from "../data/inspectionHelpers";
 import { dirtyKey } from "../data/dirtyKey";
 import { useAuth } from "../../../context/AuthContext";
 import { hasPermission, PERM } from "../../auth/types/auth.types";
@@ -303,6 +304,24 @@ export default function InspectionWorkspace() {
         problems.push(`${sectionLabel}: ${have}/${required} photos uploaded`);
       }
     }
+
+    // Requested directly: every checklist item now needs an explicit
+    // Good/Part-Ex/Repair/N/A answer before finalizing, not just the
+    // exceptions to a default "Good" (see makeChecklist's own comment in
+    // inspectionHelpers.ts on the tradeoff this represents).
+    if (cfg.kind === "boat") {
+      const boatLeft = checklistProgress(current.boatChecklist, type);
+      const davitLeft = checklistProgress(current.davitChecklist, type, current.hydraulicFitted);
+      const remaining = (boatLeft.total - boatLeft.completed) + (davitLeft.total - davitLeft.completed);
+      if (remaining > 0) {
+        problems.push(`${remaining} checklist item(s) still need a status selected`);
+      }
+    } else if (cfg.kind === "crane") {
+      const chkLeft = checklistProgress(current.checklist, type);
+      if (chkLeft.total - chkLeft.completed > 0) {
+        problems.push(`${chkLeft.total - chkLeft.completed} checklist item(s) still need a status selected`);
+      }
+    }
     return problems;
   }
 
@@ -497,6 +516,24 @@ export default function InspectionWorkspace() {
         { key: "loadtest", label: "Load Test Record" },
       ];
 
+  // Per-subtab and overall checklist progress — see checklistProgress's
+  // own comment (inspectionHelpers.ts) for why this is only possible
+  // now that items start blank instead of defaulting to "Good". Keyed
+  // per SubTab so the badge below can look up "how many items in the
+  // section this button opens are still unanswered" without the button
+  // itself needing to know boat vs crane.
+  const progressBySubTab: Partial<Record<SubTab, ReturnType<typeof checklistProgress>>> = isBoat
+    ? {
+        boat: checklistProgress(current.boatChecklist, type),
+        davit: checklistProgress(current.davitChecklist, type, current.hydraulicFitted),
+      }
+    : { checklist: checklistProgress(current.checklist, type) };
+  const overallProgress = Object.values(progressBySubTab).reduce(
+    (acc, p) => ({ total: acc.total + (p?.total || 0), completed: acc.completed + (p?.completed || 0) }),
+    { total: 0, completed: 0 }
+  );
+  const overallPercent = overallProgress.total > 0 ? Math.round((overallProgress.completed / overallProgress.total) * 100) : 100;
+
   return (
     <div className="inspections-page" data-type={type}>
       <TopBar type={type} onTypeChange={handleTypeChange} />
@@ -509,20 +546,49 @@ export default function InspectionWorkspace() {
         </div>
       )}
 
+      {overallProgress.total > 0 && (
+        <div className="insp-progress" title={`${overallProgress.completed} of ${overallProgress.total} checklist items answered`}>
+          <div className="insp-progress-label">
+            Checklist Progress: {overallProgress.completed}/{overallProgress.total} items ({overallPercent}%)
+          </div>
+          <div className="insp-progress-track">
+            <div className="insp-progress-fill" style={{ width: `${overallPercent}%` }} />
+          </div>
+        </div>
+      )}
+
       <div className="insp-subtabs">
-        {subtabs.map((s) => (
-          <button
-            key={s.key}
-            className={`insp-subtab ${sub === s.key ? "active" : ""}`}
-            onClick={() => {
-              setSub(s.key);
-              setVisitedTabs((prev) => new Set(prev).add(s.key));
-            }}
-          >
-            {visitedTabs.has(s.key) && <span style={{ color: "var(--insp-green)", marginRight: 4 }}>✓</span>}
-            {s.label}
-          </button>
-        ))}
+        {subtabs.map((s) => {
+          const progress = progressBySubTab[s.key];
+          const remaining = progress ? progress.total - progress.completed : 0;
+          return (
+            <button
+              key={s.key}
+              className={`insp-subtab ${sub === s.key ? "active" : ""}`}
+              onClick={() => {
+                setSub(s.key);
+                setVisitedTabs((prev) => new Set(prev).add(s.key));
+              }}
+            >
+              {/* Sections with real checklist items get an honest
+                  "N left" badge instead of just a visited-checkmark —
+                  requested directly, the "notification when a section
+                  is left empty/unattended" this whole change is for.
+                  Statement/Equipment List keep the old visited-only
+                  checkmark since they aren't checklist sections. */}
+              {progress ? (
+                remaining > 0 ? (
+                  <span className="insp-subtab-badge" aria-label={`${remaining} items still need a status`}>{remaining}</span>
+                ) : (
+                  <span style={{ color: "var(--insp-green)", marginRight: 4 }} aria-label="All items answered">✓</span>
+                )
+              ) : (
+                visitedTabs.has(s.key) && <span style={{ color: "var(--insp-green)", marginRight: 4 }}>✓</span>
+              )}
+              {s.label}
+            </button>
+          );
+        })}
       </div>
 
       <div className="insp-layout">

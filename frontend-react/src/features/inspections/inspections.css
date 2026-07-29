@@ -64,6 +64,25 @@
 }
 
 /* ---- subtabs ---- */
+/* Requested directly: a real per-item checklist progress bar, possible
+   now that items start blank instead of defaulting to "Good" (see
+   makeChecklist's own comment in inspectionHelpers.ts). */
+.insp-progress { padding: 12px 20px 0; }
+.insp-progress-label { font-size: 11px; color: var(--insp-muted); margin-bottom: 4px; font-weight: 600; }
+.insp-progress-track { background: #E7ECF1; border-radius: 6px; height: 8px; overflow: hidden; }
+.insp-progress-fill { background: var(--insp-green); height: 100%; border-radius: 6px; min-width: 2px; transition: width .2s ease; }
+
+/* Replaces the plain visited-checkmark on checklist-bearing subtabs
+   (Boat/Davit/Inspection Checklist) with an honest "N items still
+   unanswered" count — the "notification when a section is left empty/
+   unattended" this whole change is for. */
+.insp-subtab-badge {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 16px; height: 16px; padding: 0 4px; margin-right: 5px;
+  background: var(--insp-red); color: #fff; border-radius: 10px;
+  font-size: 10px; font-weight: 700;
+}
+
 .insp-subtabs { display: flex; gap: 6px; flex-wrap: wrap; padding: 14px 20px 0; }
 .insp-subtab {
   background: #fff;
@@ -195,7 +214,12 @@ table.insp-print-chk tr.insp-section-row td { background: #EEF1F3; font-weight: 
   }
 }
 
-.insp-pill { display: inline-block; padding: 1px 7px; border-radius: 20px; font-size: 8.5px; font-weight: 700; color: #fff; }
+/* Base includes a neutral grey background — with items now starting
+   blank instead of defaulting to "Good" (see makeChecklist's own
+   comment), an unanswered item can genuinely reach print (e.g. a
+   printed draft) and needs to be visible, not invisible white-on-white
+   from having no status modifier class to supply one. */
+.insp-pill { display: inline-block; padding: 1px 7px; border-radius: 20px; font-size: 8.5px; font-weight: 700; color: #fff; background: #8B93A0; }
 .insp-pill.good, .insp-pill.ok { background: var(--insp-green); }
 .insp-pill.part, .insp-pill.expired { background: #B8860B; }
 .insp-pill.repair, .insp-pill.missing, .insp-pill.damaged { background: var(--insp-red); }
@@ -241,7 +265,7 @@ table.insp-print-chk tr.insp-section-row td { background: #EEF1F3; font-weight: 
    missing content or overflowing, while a short certificate happened
    to fit by accident. */
 @media print {
-  .insp-topbar, .insp-subtabs, .insp-btn-row, .insp-panel-header {
+  .insp-topbar, .insp-subtabs, .insp-progress, .insp-btn-row, .insp-panel-header {
     display: none !important;
   }
   /* .insp-layout always has exactly two .insp-panel children — the

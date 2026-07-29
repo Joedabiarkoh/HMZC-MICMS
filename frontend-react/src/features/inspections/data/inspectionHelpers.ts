@@ -14,15 +14,60 @@ import {
   LooseGearVisualCertData,
 } from "../types/inspection.types";
 
+// Requested directly: items used to default to "good" (matching the
+// paper checklists this replaced, which come pre-ticked the same way),
+// but that made it impossible to tell "a technician reviewed this and
+// it's genuinely fine" apart from "nobody has looked at it yet" — which
+// is exactly why there was previously no real per-item progress
+// tracking or "this section still has unattended items" warning, only
+// an honest "opened this tab at least once" indicator (see
+// InspectionWorkspace.tsx's visitedTabs). Blank by default now, and
+// every item must be explicitly set before a certificate can be
+// finalized (see checklistProgress below and its use in
+// getFinalizeBlockers) — the tradeoff being every one of a lifeboat's
+// 60+ checklist items now needs an explicit tap instead of only the
+// exceptions to "Good," a real cost weighed against the data-integrity
+// gain of provably-reviewed items.
 export function makeChecklist(sections: ChecklistSectionDef[] = []): ChecklistSection[] {
   return sections.map((sec) => ({
     code: sec.code,
     name: sec.name,
     conditional: !!sec.conditional,
     hydraulicGate: !!sec.hydraulicGate,
-    items: sec.items.map((label) => ({ label, status: "good" as const, remark: "" })),
-    special: (sec.special || []).map((sp) => ({ label: sp.label, presetRemark: sp.presetRemark, status: "good" as const, remark: "" })),
+    items: sec.items.map((label) => ({ label, status: "" as const, remark: "" })),
+    special: (sec.special || []).map((sp) => ({ label: sp.label, presetRemark: sp.presetRemark, status: "" as const, remark: "" })),
   }));
+}
+
+export interface ChecklistProgress {
+  total: number;
+  completed: number;
+}
+
+// A hydraulicGate section only applies to rescueboat certificates with
+// hydraulicFitted checked (see ChecklistGroup.tsx's own disabled state)
+// — excluded from progress/completion entirely when it doesn't apply,
+// same as it's already excluded from rendering.
+function checklistSectionIsActive(section: ChecklistSection, equipmentType: EquipmentTypeKey, hydraulicFitted?: boolean): boolean {
+  if (section.hydraulicGate && equipmentType === "rescueboat" && !hydraulicFitted) return false;
+  return true;
+}
+
+export function checklistProgress(
+  sections: ChecklistSection[] | undefined,
+  equipmentType: EquipmentTypeKey,
+  hydraulicFitted?: boolean
+): ChecklistProgress {
+  let total = 0;
+  let completed = 0;
+  for (const section of sections || []) {
+    if (!checklistSectionIsActive(section, equipmentType, hydraulicFitted)) continue;
+    for (const item of [...section.items, ...section.special]) {
+      total += 1;
+      if (item.status !== "") completed += 1;
+    }
+  }
+  return { total, completed };
 }
 
 // Was `existing: Record<string, InspectionCertificate>` — changed to
