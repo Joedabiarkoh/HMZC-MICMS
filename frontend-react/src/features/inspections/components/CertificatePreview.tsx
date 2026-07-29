@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { EquipmentTypeConfig, InspectionCertificate, ChecklistStatus, EquipResult, FFEData, LooseGearData, LooseGearMultipleItemsData, LooseGearStandardReportData, LooseGearStatutoryAnswers, LooseGearVisualCertData, LooseGearYesNo } from "../types/inspection.types";
 import { getFFEConfig } from "../data/ffeCertTypes";
 import { HMZC_LOGO_DATA_URI } from "../assets/logo";
+import { ABS_LOGO_DATA_URI, BUREAU_VERITAS_LOGO_DATA_URI, CRALOG_LOGO_DATA_URI, DNV_LOGO_DATA_URI } from "../assets/approvalLogos";
 import CertificateQR, { buildCertQrPayload } from "./CertificateQR";
 
 // Faint background watermark on every printed page, same treatment as the
@@ -115,6 +116,7 @@ export default function CertificatePreview({ cert, config }: Props) {
             )}
           </div>
         </div>
+        <ApprovalLogosRow />
       </div>
 
       {isBoat && cert.boatChecklist && (
@@ -665,9 +667,37 @@ function Letterhead({ cert }: { cert: InspectionCertificate }) {
 // every page type.
 function SignatureFooter({ cert, masterLabel, techLabel }: { cert: InspectionCertificate; masterLabel: string; techLabel: string }) {
   return (
-    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginTop: 18 }}>
-      <SignBox label={masterLabel} name={cert.captainName} sig={cert.captainSig} />
-      <SignBox label={techLabel} name={cert.engineerName} sig={cert.engineerSig} />
+    <>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginTop: 18 }}>
+        <SignBox label={masterLabel} name={cert.captainName} sig={cert.captainSig} />
+        <SignBox label={techLabel} name={cert.engineerName} sig={cert.engineerSig} />
+      </div>
+      <ApprovalLogosRow />
+    </>
+  );
+}
+
+// Requested directly: HMZC's classification society / approval body
+// logos (ABS, DNV, Bureau Veritas, CRALOG), printed in the footer of
+// every certificate — placed inside SignatureFooter so it appears
+// wherever a signature does, the same per-page repetition the
+// letterhead/watermark already use rather than a one-off addition to a
+// single page.
+function ApprovalLogosRow() {
+  const logos = [
+    { src: ABS_LOGO_DATA_URI, alt: "ABS" },
+    { src: DNV_LOGO_DATA_URI, alt: "DNV" },
+    { src: BUREAU_VERITAS_LOGO_DATA_URI, alt: "Bureau Veritas" },
+    { src: CRALOG_LOGO_DATA_URI, alt: "CRALOG" },
+  ];
+  return (
+    <div style={{ borderTop: "1px solid #E4E7E9", marginTop: 16, paddingTop: 8 }}>
+      <div style={{ fontSize: 8.5, color: "var(--insp-muted)", textTransform: "uppercase", letterSpacing: ".04em", marginBottom: 5 }}>Approvals</div>
+      <div style={{ display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
+        {logos.map((logo) => (
+          <img key={logo.alt} src={logo.src} alt={logo.alt} style={{ height: 24, objectFit: "contain" }} />
+        ))}
+      </div>
     </div>
   );
 }
