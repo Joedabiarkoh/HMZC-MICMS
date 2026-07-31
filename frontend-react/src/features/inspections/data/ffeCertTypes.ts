@@ -307,11 +307,19 @@ export const FFE_CERT_TYPES: FFESubTypeConfig[] = [
     validityYears: 1,
   },
   {
-    // itemColumns updated from "FIRE EXT CERTIFICATE" (Cert. Simples
-    // batch) — added Cartridge Exp. Date, Cartridge Weight, and Remarks
-    // (for cartridge-operated extinguisher types).
-    id: "fire_extinguisher",
-    label: "Fire Extinguisher",
+    // Requested directly: split the previous single "Fire Extinguisher"
+    // sub-type (which recorded portable and non-portable units in the
+    // same table, distinguished only by a note in Work Done) into two
+    // real, separate sub-types — and reformat the item columns to
+    // exactly Sl No / Serial No / Make / Type / Capacity / Last Hydro
+    // Test Date / Work Done. "Sl No" is the ItemTable's own auto-
+    // numbered "#" column (see FFEForm.tsx/CertificatePreview.tsx's
+    // FFEItemsTable), not a separate data field — the six columns below
+    // are what's actually entered per row. Cartridge Exp./Weight and a
+    // free-text Remarks column (present in the old combined sub-type)
+    // were dropped to match the exact format requested.
+    id: "portable_fire_extinguisher",
+    label: "Portable Fire Extinguisher",
     archetype: "items",
     workCodes: [
       "1 = Inspection", "2 = Service", "3 = Content Checked", "4 = Recharge", "5 = Painted",
@@ -322,12 +330,28 @@ export const FFE_CERT_TYPES: FFESubTypeConfig[] = [
     ],
     itemColumns: [
       { key: "serialNo", label: "Serial No" }, { key: "make", label: "Make" }, { key: "type", label: "Type" },
-      { key: "capacity", label: "Cap" }, { key: "lastHydroTestDate", label: "Last HT" },
-      { key: "cartridgeExp", label: "Cartridge Exp." }, { key: "cartridgeWt", label: "Cartridge WT" },
-      { key: "workDone", label: "Work Done" }, { key: "remarks", label: "Remarks" },
+      { key: "capacity", label: "Capacity" }, { key: "lastHydroTestDate", label: "Last Hydro Test Date" },
+      { key: "workDone", label: "Work Done" },
     ],
     validityYears: 1,
-    note: "Record portable and non-portable extinguishers as separate rows (add a row per unit, noting portable/non-portable in Work Done or a remark).",
+  },
+  {
+    id: "non_portable_fire_extinguisher",
+    label: "Non-Portable Fire Extinguisher",
+    archetype: "items",
+    workCodes: [
+      "1 = Inspection", "2 = Service", "3 = Content Checked", "4 = Recharge", "5 = Painted",
+      "6 = New Extinguisher", "7 = Hydro Test", "8 = Condemned",
+      "F = Foam", "W = Water", "CO2 = Carbon Dioxide", "WC = Wet Chemical", "DCP = Dry Chemical Powder",
+      "PK = Purple K", "A+B = Chemical Foam A+B", "AFFF = Aqueous Film Forming Foam", "FP = Flouro Protein",
+      "Cart = Cartridge Type", "PRE = Pressure Type", "WT = Weighing", "HT = Hydro Test",
+    ],
+    itemColumns: [
+      { key: "serialNo", label: "Serial No" }, { key: "make", label: "Make" }, { key: "type", label: "Type" },
+      { key: "capacity", label: "Capacity" }, { key: "lastHydroTestDate", label: "Last Hydro Test Date" },
+      { key: "workDone", label: "Work Done" },
+    ],
+    validityYears: 1,
   },
   {
     id: "foam_applicator",

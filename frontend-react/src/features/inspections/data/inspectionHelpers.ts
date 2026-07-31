@@ -176,11 +176,24 @@ export function freshFFEState(subTypeId: string) {
 
 // Rebuilds the Calibration-specific state for a given sub-type — same
 // reasoning as freshFFEState above, since a new sub-type has a
-// completely different technicalFields/items/items2 column set.
+// completely different technicalFields/items/items2 column set. Unlike
+// FFE, items2 (Test Data/Test Result/Calibration Results) starts
+// pre-loaded from the sub-type's defaultItems2 — the fixed test points
+// every real certificate for this instrument type actually used (see
+// calibrationCertTypes.ts) — rather than empty, so the technician edits
+// an already-correct template instead of re-typing it from scratch each
+// time. items (Unit(s) Under Test) stays empty since it's genuinely
+// specific to the instrument being calibrated, not a fixed template.
 export function freshCalibrationState(subTypeId: string): CalibrationData {
   const cfg = CALIBRATION_CERT_TYPES.find((t) => t.id === subTypeId) || CALIBRATION_CERT_TYPES[0];
   const technicalValues: Record<string, string> = {};
   for (const f of cfg.technicalFields || []) technicalValues[f.key] = "";
+
+  const items2 = (cfg.defaultItems2 || []).map((row) => {
+    const full: Record<string, string> = {};
+    for (const c of cfg.items2Columns) full[c.key] = row[c.key] || "";
+    return full;
+  });
 
   return {
     subType: cfg.id,
@@ -188,7 +201,7 @@ export function freshCalibrationState(subTypeId: string): CalibrationData {
     placeOfService: "",
     technicalValues,
     items: [] as Record<string, string>[],
-    items2: [] as Record<string, string>[],
+    items2,
     comments: "",
   };
 }

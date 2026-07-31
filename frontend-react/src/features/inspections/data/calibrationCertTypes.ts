@@ -47,6 +47,16 @@ export interface CalibrationSubTypeConfig {
   // columns vs. a pressure gauge's simple Pressure/Indication pair).
   items2Columns: CalibrationColumn[];
   items2Label: string;
+  // Requested directly: rather than starting the Test Data/Test Result
+  // table empty, pre-load the fixed structural test points every source
+  // certificate for this sub-type actually used (e.g. the multi-gas
+  // detector's O2/LEL/H2S/CO channels, the pressure calibrator's
+  // standard 5-point test ladder) — these columns don't vary between
+  // instruments of the same type, only the measured columns
+  // (indication/error/result) do, so only the fixed columns are
+  // pre-filled here and the rest are left blank for the technician to
+  // fill in. Fully editable afterwards, including adding/removing rows.
+  defaultItems2?: Record<string, string>[];
   note?: string;
   validityYears: 1 | 2;
 }
@@ -78,6 +88,12 @@ export const CALIBRATION_CERT_TYPES: CalibrationSubTypeConfig[] = [
       { key: "alarmLow", label: "Alarm Low" }, { key: "alarmHigh", label: "Alarm High" },
     ],
     items2Label: "Test Data",
+    defaultItems2: [
+      { range: "0-30% O2", testGas: "Oxygen (O2)" },
+      { range: "0-100% LEL", testGas: "LEL (Methane)" },
+      { range: "0-200 ppm", testGas: "H2S" },
+      { range: "0-1000 ppm", testGas: "CO" },
+    ],
     note: "Calibration based on BS EN 60079-29-2:2007 and BS EN 50241-1:1999 & manufacturer's procedures. Reference gas composition traceability: NIST traceable.",
     validityYears: 1,
   },
@@ -97,6 +113,9 @@ export const CALIBRATION_CERT_TYPES: CalibrationSubTypeConfig[] = [
       { key: "errorAsFound", label: "Error (As Found)" }, { key: "errorAsLeft", label: "Error (As Left)" },
     ],
     items2Label: "Test Result",
+    defaultItems2: [
+      { sensorNo: "01", testGas: "Methane (CH4 - LEL)" },
+    ],
     note: "Calibration based on BS EN 60079-29-2:2007 & manufacturer's procedures.",
     validityYears: 1,
   },
@@ -112,6 +131,11 @@ export const CALIBRATION_CERT_TYPES: CalibrationSubTypeConfig[] = [
       { key: "remarks", label: "Remarks" },
     ],
     items2Label: "Test Procedure",
+    defaultItems2: [
+      { procedure: "Alarm Test" },
+      { procedure: "Alarm Set Points" },
+      { procedure: "Data Recording" },
+    ],
     note: "System adjusted to zero in fresh water and tested per manufacturer's standard test procedure. Zero ppm re-confirmed after test with fresh water.",
     validityYears: 1,
   },
@@ -131,6 +155,13 @@ export const CALIBRATION_CERT_TYPES: CalibrationSubTypeConfig[] = [
       { key: "error", label: "Error" }, { key: "result", label: "Pass/Fail" },
     ],
     items2Label: "Calibration Results",
+    defaultItems2: [
+      { pressure: "0.00 BAR" },
+      { pressure: "100.00 BAR" },
+      { pressure: "400.00 BAR" },
+      { pressure: "500.00 BAR" },
+      { pressure: "650.00 BAR" },
+    ],
     note: "Hand-held pressure test pump pressure tested — instrument found to have no leak or drop in pressure.",
     validityYears: 1,
   },
@@ -148,6 +179,13 @@ export const CALIBRATION_CERT_TYPES: CalibrationSubTypeConfig[] = [
       { key: "deviation", label: "Deviation (°C)" },
     ],
     items2Label: "Calibration Results",
+    defaultItems2: [
+      { setValue: "25.0" },
+      { setValue: "100.0" },
+      { setValue: "300.0" },
+      { setValue: "450.0" },
+      { setValue: "550.0" },
+    ],
     validityYears: 1,
   },
   {
@@ -164,6 +202,12 @@ export const CALIBRATION_CERT_TYPES: CalibrationSubTypeConfig[] = [
       { key: "pressure", label: "Pressure" }, { key: "indication", label: "Indication" },
     ],
     items2Label: "Calibration Results",
+    defaultItems2: [
+      { pressure: "0.00 BAR" },
+      { pressure: "20.00 BAR" },
+      { pressure: "40.00 BAR" },
+      { pressure: "60.00 BAR" },
+    ],
     note: "Hand-held pressure test pump pressure tested — instrument found to have no leak or drop in pressure.",
     validityYears: 1,
   },
@@ -180,6 +224,10 @@ export const CALIBRATION_CERT_TYPES: CalibrationSubTypeConfig[] = [
       { key: "test", label: "Test" }, { key: "result", label: "Result" },
     ],
     items2Label: "Test Data",
+    defaultItems2: [
+      { test: "VECS Oxygen Test" },
+      { test: "Gas Detector Sensor" },
+    ],
     note: "Calibration based on BS EN 60079-29-2:2007. Instrument adjusted to indicate 20.9% O2 in fresh air, re-confirmed after test on purging with fresh air.",
     validityYears: 1,
   },
@@ -195,6 +243,13 @@ export const CALIBRATION_CERT_TYPES: CalibrationSubTypeConfig[] = [
       { key: "no", label: "No." }, { key: "test", label: "Test" }, { key: "result", label: "Result" },
     ],
     items2Label: "Test Result",
+    defaultItems2: [
+      { no: "1", test: "Data Log" },
+      { no: "2", test: "Date and Time" },
+      { no: "3", test: "Alarm Check" },
+      { no: "4", test: "Zero Calibration" },
+      { no: "5", test: "Simulation Test" },
+    ],
     validityYears: 1,
   },
 ];
