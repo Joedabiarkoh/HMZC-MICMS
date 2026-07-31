@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
-import { EquipmentTypeConfig, InspectionCertificate, ChecklistStatus, EquipResult, FFEData, LooseGearData, LooseGearMultipleItemsData, LooseGearStandardReportData, LooseGearStatutoryAnswers, LooseGearVisualCertData, LooseGearYesNo } from "../types/inspection.types";
+import { EquipmentTypeConfig, InspectionCertificate, ChecklistStatus, EquipResult, CalibrationData, FFEData, LooseGearData, LooseGearMultipleItemsData, LooseGearStandardReportData, LooseGearStatutoryAnswers, LooseGearVisualCertData, LooseGearYesNo } from "../types/inspection.types";
 import { getFFEConfig } from "../data/ffeCertTypes";
+import { getCalibrationConfig } from "../data/calibrationCertTypes";
 import { HMZC_LOGO_DATA_URI } from "../assets/logo";
 import { ABS_LOGO_DATA_URI, BUREAU_VERITAS_LOGO_DATA_URI, CRALOG_LOGO_DATA_URI, DNV_LOGO_DATA_URI } from "../assets/approvalLogos";
 import CertificateQR, { buildCertQrPayload } from "./CertificateQR";
@@ -38,6 +39,10 @@ export default function CertificatePreview({ cert, config }: Props) {
 
   if (config.kind === "loosegear" && cert.looseGear) {
     return <LooseGearCertificatePage cert={cert} looseGear={cert.looseGear} />;
+  }
+
+  if (config.kind === "calibration" && cert.calibration) {
+    return <CalibrationCertificatePage cert={cert} calibration={cert.calibration} />;
   }
 
   const isBoat = config.kind === "boat";
@@ -322,6 +327,70 @@ function FFEItemsTable({ title, columns, rows }: { title: string; columns: { key
         </tbody>
       </table>
     </>
+  );
+}
+
+// Mirrors FFECertificatePage's exact structure (same reasoning as
+// CalibrationForm.tsx mirroring FFEForm.tsx) — reuses FFEItemsTable
+// above directly since it's already generic, not FFE-specific.
+function CalibrationCertificatePage({ cert, calibration }: { cert: InspectionCertificate; calibration: CalibrationData }) {
+  const cfg = getCalibrationConfig(calibration.subType);
+
+  return (
+    <div className="insp-cert-page" style={watermarkStyle}>
+      <Letterhead cert={cert} />
+      <div className="insp-cert-title-row">
+        <h2>Calibration Certificate</h2>
+        <span className="insp-badge">{cfg.label.toUpperCase()}</span>
+      </div>
+
+      <table className="insp-id-table">
+        <tbody>
+          <tr>
+            <td className="insp-label-cell">Vessel</td><td>{cert.vesselName || "—"}</td>
+            <td className="insp-label-cell">Certificate No</td><td>{cert.certNo}</td>
+          </tr>
+          <tr>
+            <td className="insp-label-cell">IMO No</td><td>{cert.imoNo || "—"}</td>
+            <td className="insp-label-cell">Date</td><td>{fmtDate(cert.dateOfServicing)}</td>
+          </tr>
+          <tr>
+            <td className="insp-label-cell">Class/Flag</td><td>{calibration.certClass || "—"}</td>
+            <td className="insp-label-cell">Place of Service</td><td>{calibration.placeOfService || "—"}</td>
+          </tr>
+        </tbody>
+      </table>
+
+      {!!cfg.technicalFields.length && (
+        <>
+          <div style={{ fontWeight: 700, fontSize: 11.5, color: "var(--insp-navy)", margin: "10px 0 4px" }}>Calibration Reference</div>
+          <table className="insp-id-table">
+            <tbody>
+              {cfg.technicalFields.map((f) => (
+                <tr key={f.key}><td className="insp-label-cell">{f.label}</td><td colSpan={3}>{calibration.technicalValues[f.key] || "—"}</td></tr>
+              ))}
+            </tbody>
+          </table>
+        </>
+      )}
+
+      <FFEItemsTable title={cfg.itemTableLabel} columns={cfg.itemColumns} rows={calibration.items} />
+      <FFEItemsTable title={cfg.items2Label} columns={cfg.items2Columns} rows={calibration.items2} />
+
+      {cfg.note && <div style={{ fontSize: 10, color: "var(--insp-muted)", marginTop: 8 }}>{cfg.note}</div>}
+
+      <div className="insp-remarks-box">Comments: {calibration.comments || "None"}</div>
+      <div style={{ fontSize: 10, color: "var(--insp-muted)", marginTop: 8 }}>
+        This Certificate is valid for {cfg.validityYears === 2 ? "Two Years" : "One Year"} from the date of issue.
+        {cert.issuedBy && (
+          <div style={{ marginTop: 4 }}>
+            Issued by {cert.issuedBy}{cert.issuedAt ? ` — ${new Date(cert.issuedAt).toLocaleString()}` : ""}
+          </div>
+        )}
+      </div>
+
+      <SignatureFooter cert={cert} masterLabel="Master" techLabel="Checked/Approved By" />
+    </div>
   );
 }
 

@@ -14,7 +14,8 @@ export type EquipmentTypeKey =
   | "freefall_tanker"
   | "crane"
   | "firefighting"
-  | "loosegear";
+  | "loosegear"
+  | "calibration";
 
 export type ChecklistStatus = "good" | "part" | "repair" | "na" | "";
 
@@ -114,6 +115,9 @@ export interface InspectionCertificate {
   // Loose Gear & Lifting Equipment fields (type === "loosegear")
   looseGear?: LooseGearData;
 
+  // Calibration fields (type === "calibration")
+  calibration?: CalibrationData;
+
   remarks: string;
   remarksAuto: boolean;
   outstanding: Record<string, string>;
@@ -179,6 +183,24 @@ export interface FFEData {
   items: FFEItemRow[]; // the primary incrementable item/cylinder register
   items2: FFEItemRow[]; // second table — only MO2 Set uses this (set details + cylinder specs)
   checklist: FFEChecklistResult[];
+  comments: string;
+}
+
+// Calibration (type === "calibration") — built from 8 real HMZC/BTMS
+// calibration certificate templates (see calibrationCertTypes.ts's own
+// comment). Structurally identical to FFEData above (technical
+// reference fields + two incrementable registers + comments) since the
+// source templates share that same shape — kept as its own named type
+// rather than reusing FFEData directly, so "this is a calibration
+// certificate" stays self-documenting rather than looking like a
+// mislabeled firefighting one.
+export interface CalibrationData {
+  subType: string; // key into CALIBRATION_CERT_TYPES, see calibrationCertTypes.ts
+  certClass: string; // harmonized header's "Class" field
+  placeOfService: string; // harmonized header's "Place of Service" field
+  technicalValues: Record<string, string>; // keyed by CalibrationSubTypeConfig.technicalFields[].key
+  items: FFEItemRow[]; // "Unit(s) Under Test" register
+  items2: FFEItemRow[]; // the calibration results/readings register
   comments: string;
 }
 
@@ -307,7 +329,7 @@ export interface LooseGearData {
 }
 
 export interface EquipmentTypeConfig {
-  kind: "boat" | "crane" | "ffe" | "loosegear";
+  kind: "boat" | "crane" | "ffe" | "loosegear" | "calibration";
   typeName: string;
   label: string;
   statementIntro?: string;

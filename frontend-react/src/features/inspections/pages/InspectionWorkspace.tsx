@@ -11,7 +11,9 @@ import PhotoUpload from "../components/PhotoUpload";
 import VesselLookupPanel from "../components/VesselLookupPanel";
 import FFEForm from "../components/FFEForm";
 import LooseGearForm from "../components/LooseGearForm";
+import CalibrationForm from "../components/CalibrationForm";
 import { getFFEConfig } from "../data/ffeCertTypes";
+import { getCalibrationConfig } from "../data/calibrationCertTypes";
 import { checklistProgress } from "../data/inspectionHelpers";
 import { dirtyKey } from "../data/dirtyKey";
 import { useAuth } from "../../../context/AuthContext";
@@ -21,6 +23,7 @@ const TYPE_GROUPS: { label: string; keys: EquipmentTypeKey[] }[] = [
   { label: "Lifesaving Appliances", keys: ["lifeboat", "rescueboat", "freefall_dry", "freefall_tanker"] },
   { label: "Lifting Appliances", keys: ["crane", "loosegear"] },
   { label: "Fire Safety", keys: ["firefighting"] },
+  { label: "Calibration", keys: ["calibration"] },
 ];
 
 type SubTab = "statement" | "boat" | "davit" | "equip" | "checklist" | "loadtest";
@@ -288,6 +291,23 @@ export default function InspectionWorkspace() {
       return problems;
     }
 
+    if (cfg.kind === "calibration") {
+      const calCfg = getCalibrationConfig(current.calibration?.subType || "");
+      if (calCfg.itemColumns.length && (current.calibration?.items.length || 0) === 0) {
+        problems.push(`At least one row is required in ${calCfg.itemTableLabel}`);
+      }
+      if (calCfg.items2Columns.length && (current.calibration?.items2.length || 0) === 0) {
+        problems.push(`At least one row is required in ${calCfg.items2Label}`);
+      }
+      if (!current.engineerName.trim()) {
+        problems.push("Checked/Approved By name is required");
+      }
+      if (!current.engineerSig) {
+        problems.push("Checked/Approved By signature is required");
+      }
+      return problems;
+    }
+
     if (!current.engineerName.trim()) {
       problems.push("Service Engineer name is required");
     }
@@ -467,6 +487,61 @@ export default function InspectionWorkspace() {
             <div className="insp-panel-header">Loose Gear &amp; Lifting Equipment</div>
             <div className="insp-panel-body">
               <LooseGearForm current={current} updateField={updateField} openCertificate={openCertificate} />
+            </div>
+          </div>
+          <div className="insp-panel">
+            <div className="insp-panel-header">Certificate Preview</div>
+            <div className="insp-cert-scroll">
+              <CertificatePreview cert={current} config={cfg} />
+            </div>
+          </div>
+        </div>
+        {getFinalizeBlockers().length > 0 && (
+          <div style={{ margin: "0 20px 10px", background: "#FBF0E2", border: "1px solid #B4690E", borderRadius: 6, padding: "8px 12px", fontSize: 12, color: "#7A4A08" }}>
+            <strong>Not ready to finalize yet:</strong> {getFinalizeBlockers().join(" · ")}
+          </div>
+        )}
+        <div className="insp-btn-row">
+          <div className="insp-btn-group">
+            <button className="insp-btn insp-btn-outline" onClick={() => handleSave("draft")}>Save Draft</button>
+            <button
+              className="insp-btn insp-btn-primary"
+              onClick={() => handleSave("final")}
+              disabled={getFinalizeBlockers().length > 0}
+              title={getFinalizeBlockers().length > 0 ? `Not ready to finalize: ${getFinalizeBlockers().join("; ")}` : undefined}
+            >
+              Finalize &amp; Save
+            </button>
+          </div>
+          <div className="insp-btn-group insp-btn-group--secondary">
+            <button className="insp-btn insp-btn-outline" onClick={() => window.print()}>Print</button>
+            <button className="insp-btn insp-btn-outline" onClick={() => startNew(type)}>New Certificate</button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Calibration — same reasoning as the FFE/Loose Gear branches above:
+  // a config-driven register (see CalibrationForm.tsx) doesn't fit the
+  // boat/crane subtab structure at all, so it's rendered as its own branch.
+  if (cfg.kind === "calibration") {
+    return (
+      <div className="inspections-page" data-type={type}>
+        <TopBar type={type} onTypeChange={handleTypeChange} />
+        {syncError && (
+          <div style={{ margin: "10px 20px 0", background: "#FBF0E2", border: "1px solid #B4690E", color: "#7A4A08", borderRadius: 6, padding: "8px 12px", fontSize: 12, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+            <span>{syncError}</span>
+            {pendingSyncCount > 0 && (
+              <button className="insp-btn insp-btn-outline" style={{ padding: "3px 10px", fontSize: 11 }} onClick={retrySync}>Retry Now</button>
+            )}
+          </div>
+        )}
+        <div className="insp-layout">
+          <div className="insp-panel">
+            <div className="insp-panel-header">Calibration Certificate</div>
+            <div className="insp-panel-body">
+              <CalibrationForm current={current} updateField={updateField} openCertificate={openCertificate} />
             </div>
           </div>
           <div className="insp-panel">

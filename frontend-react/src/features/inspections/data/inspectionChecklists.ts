@@ -304,4 +304,11 @@ export const INSPECTION_TYPES: Record<EquipmentTypeKey, EquipmentTypeConfig> = {
   loosegear: {
     kind: "loosegear", typeName: "Loose Gear & Lifting Equipment", label: "Loose Gear & Lifting Equipment",
   },
+  // Built from 8 real HMZC/BTMS calibration certificate templates
+  // (gas detectors, gas sampling systems, pressure/temperature
+  // calibrators, VECS, ODME) — see calibrationCertTypes.ts's own
+  // comment for the source documents and archetype this reuses.
+  calibration: {
+    kind: "calibration", typeName: "Calibration", label: "Calibration",
+  },
 };

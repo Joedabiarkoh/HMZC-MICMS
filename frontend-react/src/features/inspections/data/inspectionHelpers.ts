@@ -1,6 +1,8 @@
 import { INSPECTION_TYPES } from "./inspectionChecklists";
 import { FFE_CERT_TYPES } from "./ffeCertTypes";
+import { CALIBRATION_CERT_TYPES } from "./calibrationCertTypes";
 import {
+  CalibrationData,
   ChecklistSection,
   ChecklistSectionDef,
   EquipmentTypeKey,
@@ -85,7 +87,7 @@ export function generateCertNo(type: EquipmentTypeKey, existingNumbers: Set<stri
   const ymd = `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, "0")}${String(d.getDate()).padStart(2, "0")}`;
   const tags: Record<EquipmentTypeKey, string> = {
     lifeboat: "LB", rescueboat: "RB", freefall_dry: "FFD", freefall_tanker: "FFT",
-    crane: "CR", firefighting: "FF", loosegear: "LG",
+    crane: "CR", firefighting: "FF", loosegear: "LG", calibration: "CAL",
   };
   const tag = tags[type];
   const count = Array.from(existingNumbers).filter((k) => k.includes(ymd) && k.includes(tag)).length + 1;
@@ -136,6 +138,8 @@ export function freshCertificate(type: EquipmentTypeKey, existingNumbers: Set<st
     base.loadTest = { testLoad: "", swlPercent: "", radius: "", duration: "", result: "pass", testCertNo: "", remark: "" };
   } else if (cfg.kind === "loosegear") {
     base.looseGear = freshLooseGearState();
+  } else if (cfg.kind === "calibration") {
+    base.calibration = freshCalibrationState(CALIBRATION_CERT_TYPES[0].id);
   }
 
   return base;
@@ -166,6 +170,25 @@ export function freshFFEState(subTypeId: string) {
     items: [] as Record<string, string>[],
     items2: [] as Record<string, string>[],
     checklist,
+    comments: "",
+  };
+}
+
+// Rebuilds the Calibration-specific state for a given sub-type — same
+// reasoning as freshFFEState above, since a new sub-type has a
+// completely different technicalFields/items/items2 column set.
+export function freshCalibrationState(subTypeId: string): CalibrationData {
+  const cfg = CALIBRATION_CERT_TYPES.find((t) => t.id === subTypeId) || CALIBRATION_CERT_TYPES[0];
+  const technicalValues: Record<string, string> = {};
+  for (const f of cfg.technicalFields || []) technicalValues[f.key] = "";
+
+  return {
+    subType: cfg.id,
+    certClass: "",
+    placeOfService: "",
+    technicalValues,
+    items: [] as Record<string, string>[],
+    items2: [] as Record<string, string>[],
     comments: "",
   };
 }
