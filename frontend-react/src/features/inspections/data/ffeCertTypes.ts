@@ -177,6 +177,32 @@ export const FFE_CERT_TYPES: FFESubTypeConfig[] = [
     validityYears: 1,
   },
   {
+    // Requested directly, from "CERT -INFLATABLE LIFE JACKET-with
+    // table.docx" — same header/work-code shape as the plain Life
+    // Jackets sub-type above (identical 6 work codes), but with one
+    // extra column (Cyl Cpty) the source template adds between
+    // Type/Model and Light Expiry Date, for the CO2 inflation cylinder
+    // a solid-foam life jacket doesn't have. Kept as its own sub-type
+    // rather than folding into "life_jackets" so that column stays
+    // meaningful (it would be a dead/always-blank field on a standard
+    // life jacket).
+    id: "inflatable_life_jacket",
+    label: "Inflatable Life Jacket",
+    archetype: "items",
+    workCodes: [
+      "1 = Inspected all parts for serviceability", "2 = Checked sealing tapes and stitches",
+      "3 = Checked lights & its expiry date", "4 = Checked reflective tape, whistle, webbing",
+      "5 = Rejected", "6 = New supply",
+    ],
+    itemColumns: [
+      { key: "serialNo", label: "Serial No" }, { key: "make", label: "Make" },
+      { key: "typeModel", label: "Type/Model" }, { key: "cylCapacity", label: "Cyl Cpty" },
+      { key: "lightExpiryDate", label: "Light Expiry Date" }, { key: "size", label: "Size" },
+      { key: "workDone", label: "Work Done" },
+    ],
+    validityYears: 1,
+  },
+  {
     id: "eebd",
     label: "EEBD Set (with Cylinder)",
     archetype: "items",
