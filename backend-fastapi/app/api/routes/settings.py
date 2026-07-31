@@ -70,19 +70,30 @@ def update_expiry_reminder_emails(
 
 
 # ============================================================
-# Company info — HMZC's own PEPPOL ID, printed on invoices/quotations.
+# Company info — HMZC's own PEPPOL ID and supplier bank account details,
+# printed on invoices (bank details) / invoices+quotations (PEPPOL ID).
 # Read is any signed-in user (Finance/Sales staff print these documents
 # daily, not just admins); write stays admin-only, same as every other
 # setting in this file.
 # ============================================================
+
+_COMPANY_INFO_FIELDS = [
+    "peppol_id", "bank_name", "bank_address", "bank_town", "bank_postcode",
+    "bank_country", "bank_beneficiary", "bank_account_number", "bank_sort_code",
+    "bank_swift_code", "bank_iban",
+]
+
+
+def _company_info_response(row) -> CompanyInfoResponse:
+    return CompanyInfoResponse(**{field: getattr(row, field) for field in _COMPANY_INFO_FIELDS})
+
 
 @router.get("/company-info", response_model=CompanyInfoResponse)
 def read_company_info(
     db: Session = Depends(get_database),
     _user: User = Depends(get_current_user),
 ):
-    row = get_notification_settings(db)
-    return CompanyInfoResponse(peppol_id=row.peppol_id)
+    return _company_info_response(get_notification_settings(db))
 
 
 @router.put("/company-info", response_model=CompanyInfoResponse)
@@ -93,13 +104,15 @@ def update_company_info(
     admin: User = Depends(get_current_admin_user),
 ):
     row = get_notification_settings(db)
-    row.peppol_id = (payload.peppol_id or "").strip() or None
+    for field in _COMPANY_INFO_FIELDS:
+        value = getattr(payload, field)
+        setattr(row, field, (value or "").strip() or None)
     row.updated_by_id = admin.id
     db.commit()
     db.refresh(row)
     record_audit(
         db, request, "settings.company_info_changed", user_id=admin.id,
         resource_type="notification_settings", resource_id="1",
-        detail=f"peppol_id -> {row.peppol_id or '(none)'}",
+        detail=f"peppol_id -> {row.peppol_id or '(none)'}, bank_account_number -> {row.bank_account_number or '(none)'}",
     )
-    return CompanyInfoResponse(peppol_id=row.peppol_id)
+    return _company_info_response(row)

@@ -124,10 +124,21 @@ export interface ExpiryReminderSettings {
   updated_by: User | null;
 }
 
-// Matches backend-fastapi's CompanyInfoResponse — HMZC's own PEPPOL ID,
-// printed on invoices/quotations (see FinanceDocumentPreview.tsx).
-// Readable by any signed-in user (Finance/Sales staff print these
-// documents daily), writable by admins only — see api/routes/settings.py.
+// Matches backend-fastapi's CompanyInfoResponse — HMZC's own PEPPOL ID
+// and supplier bank account details, printed on invoices/quotations
+// (see FinanceDocumentPreview.tsx). Readable by any signed-in user
+// (Finance/Sales staff print these documents daily), writable by
+// admins only — see api/routes/settings.py.
 export interface CompanyInfo {
   peppol_id: string | null;
+  bank_name: string | null;
+  bank_address: string | null;
+  bank_town: string | null;
+  bank_postcode: string | null;
+  bank_country: string | null;
+  bank_beneficiary: string | null;
+  bank_account_number: string | null;
+  bank_sort_code: string | null;
+  bank_swift_code: string | null;
+  bank_iban: string | null;
 }

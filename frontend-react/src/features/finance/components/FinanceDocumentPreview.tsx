@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { HMZC_LOGO_DATA_URI } from "../../inspections/assets/logo";
 import CertificateQR from "../../inspections/components/CertificateQR";
 import { getCompanyInfo } from "../../auth/services/auth.api";
+import { CompanyInfo } from "../../auth/types/auth.types";
 import { LineItem } from "../types/finance.types";
 import "../../inspections/inspections.css"; // reuses .insp-letterhead/.insp-print-chk/.insp-badge etc. rather than duplicating them in finance.css
 
@@ -37,10 +38,21 @@ export default function FinanceDocumentPreview({
   // either of those forms otherwise owns. Any signed-in user can read it
   // (see api/routes/settings.py's read_company_info) since Finance/Sales
   // staff print these documents daily, not just admins.
-  const [peppolId, setPeppolId] = useState<string | null>(null);
+  const [companyInfo, setCompanyInfo] = useState<CompanyInfo | null>(null);
   useEffect(() => {
-    getCompanyInfo().then((info) => setPeppolId(info.peppol_id)).catch(() => {});
+    getCompanyInfo().then(setCompanyInfo).catch(() => {});
   }, []);
+  const peppolId = companyInfo?.peppol_id || null;
+  // Requested directly, invoices only — a quotation isn't a payment
+  // demand yet, so printing bank details on one is premature. Shown
+  // only once at least one field has actually been filled in via
+  // Settings, so a freshly-deployed instance with nothing configured
+  // doesn't print an empty "Supplier Bank Account Details" block.
+  const hasBankDetails = kind === "INVOICE" && !!companyInfo && [
+    companyInfo.bank_name, companyInfo.bank_address, companyInfo.bank_town, companyInfo.bank_postcode,
+    companyInfo.bank_country, companyInfo.bank_beneficiary, companyInfo.bank_account_number,
+    companyInfo.bank_sort_code, companyInfo.bank_swift_code, companyInfo.bank_iban,
+  ].some(Boolean);
 
   return (
     <div className="finance-doc-page" style={watermarkStyle}>
@@ -97,6 +109,42 @@ export default function FinanceDocumentPreview({
         <div className="finance-totals-row"><span>Discount</span><span>-${discountTotal.toFixed(2)}</span></div>
         <div className="finance-totals-row grand"><span>Total</span><span>${total.toFixed(2)}</span></div>
       </div>
+
+      {hasBankDetails && companyInfo && (
+        <div style={{ marginTop: 20 }}>
+          <div style={{ fontSize: 11, fontWeight: 700, color: "var(--insp-navy)", textTransform: "uppercase", letterSpacing: ".03em", marginBottom: 4 }}>
+            Supplier Bank Account Details
+          </div>
+          <table className="insp-id-table">
+            <tbody>
+              <tr>
+                <td className="insp-label-cell">Bank Name</td><td>{companyInfo.bank_name || "—"}</td>
+                <td className="insp-label-cell">Beneficiary</td><td>{companyInfo.bank_beneficiary || "—"}</td>
+              </tr>
+              <tr>
+                <td className="insp-label-cell">Bank Address</td><td colSpan={3}>{companyInfo.bank_address || "—"}</td>
+              </tr>
+              <tr>
+                <td className="insp-label-cell">Town</td><td>{companyInfo.bank_town || "—"}</td>
+                <td className="insp-label-cell">Account Number</td><td>{companyInfo.bank_account_number || "—"}</td>
+              </tr>
+              <tr>
+                <td className="insp-label-cell">Postcode</td><td>{companyInfo.bank_postcode || "—"}</td>
+                <td className="insp-label-cell">Sort Number</td><td>{companyInfo.bank_sort_code || "—"}</td>
+              </tr>
+              <tr>
+                <td className="insp-label-cell">Country</td><td>{companyInfo.bank_country || "—"}</td>
+                <td className="insp-label-cell">Swift Number</td><td>{companyInfo.bank_swift_code || "—"}</td>
+              </tr>
+              {companyInfo.bank_iban && (
+                <tr>
+                  <td className="insp-label-cell">IBAN Code</td><td colSpan={3}>{companyInfo.bank_iban}</td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      )}
 
       <div style={{ marginTop: 24, borderTop: "1px solid #B9C0C6", paddingTop: 8, fontSize: 10, color: "var(--insp-muted)" }}>
         {issuedBy && <div>Issued by {issuedBy}{issuedAt ? ` — ${new Date(issuedAt).toLocaleString()}` : ""}</div>}

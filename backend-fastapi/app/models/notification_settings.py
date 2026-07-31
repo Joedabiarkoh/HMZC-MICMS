@@ -23,6 +23,21 @@ class NotificationSettings(BaseModel):
     # endpoints). Display/record-keeping only, no PEPPOL network
     # transmission integration.
     peppol_id = Column(String, nullable=True)
+    # Supplier bank account details — requested directly, printed on
+    # invoices only (not quotations, which aren't a payment demand yet)
+    # via FinanceDocumentPreview.tsx. Same company-wide, admin-editable
+    # pattern as peppol_id above — all nullable since not every field
+    # (e.g. IBAN, postcode) is always populated.
+    bank_name = Column(String, nullable=True)
+    bank_address = Column(String, nullable=True)
+    bank_town = Column(String, nullable=True)
+    bank_postcode = Column(String, nullable=True)
+    bank_country = Column(String, nullable=True)
+    bank_beneficiary = Column(String, nullable=True)
+    bank_account_number = Column(String, nullable=True)
+    bank_sort_code = Column(String, nullable=True)
+    bank_swift_code = Column(String, nullable=True)
+    bank_iban = Column(String, nullable=True)
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
     updated_by_id = Column(Integer, ForeignKey("users.id"), nullable=True)
     updated_by = relationship("User")

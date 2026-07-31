@@ -146,9 +146,11 @@ export async function getCompanyInfo(): Promise<CompanyInfo> {
   return response.data;
 }
 
+export type CompanyInfoUpdatePayload = Partial<CompanyInfo>;
+
 /** Admin-only write, same pattern as every other setting in this file. */
-export async function updateCompanyInfo(peppolId: string): Promise<CompanyInfo> {
-  const response = await api.put("/settings/company-info", { peppol_id: peppolId });
+export async function updateCompanyInfo(payload: CompanyInfoUpdatePayload): Promise<CompanyInfo> {
+  const response = await api.put("/settings/company-info", payload);
   return response.data;
 }
 
