@@ -132,3 +132,36 @@ table.line-items-table .remove-btn { background: none; border: none; color: var(
   background-repeat: no-repeat; background-position: center; background-size: 56%; opacity: .05; pointer-events: none; z-index: 0;
 }
 .finance-doc-page > * { position: relative; z-index: 1; }
+
+/* ---- print ----
+   theme.css's own comment claimed module-specific print rules "live in
+   inspections.css/finance.css next to what they target" — true for
+   certificates (inspections.css), never actually written here. Without
+   this, window.print() on an invoice/quotation printed the whole page:
+   the page title, the editable form panel (Invoice No/Status/Customer/
+   Vessel/IMO/Add Item), the Line Items editor (raw <input> cells), and
+   the Supporting Documents panel, all ABOVE the one thing that should
+   actually print — .finance-doc-page, the clean formatted document
+   FinanceDocumentPreview renders. Every one of those extra panels uses
+   .finance-panel, so hiding that one class (plus the title/subtitle/
+   error banner) is enough to isolate the printable document, same
+   approach inspections.css already uses for .insp-panel. */
+@media print {
+  .finance-page > h1,
+  .finance-page > .finance-subtitle,
+  .finance-panel,
+  .finance-btn-row {
+    display: none !important;
+  }
+  .finance-form-layout {
+    display: block !important;
+    padding: 0 !important;
+    gap: 0 !important;
+  }
+  .finance-doc-page {
+    max-width: none !important;
+    margin: 0 !important;
+    box-shadow: none !important;
+    border: none !important;
+  }
+}

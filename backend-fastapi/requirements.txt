@@ -13,4 +13,5 @@ python-multipart
 reportlab
 qrcode
 pillow
+pypdf
 boto3

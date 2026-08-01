@@ -226,3 +226,25 @@ export async function downloadAllInvoiceAttachments(invoiceNo: string): Promise<
     `${invoiceNo.replace(/\//g, "_")}_attachments.zip`
   );
 }
+
+// ============================================================
+// PDF — "serve all the invoice and the added documents as pdf all
+// together in one document." Server-rendered (reportlab), not the
+// browser's own print-to-PDF, so it can actually merge in every
+// uploaded supporting document (see core/invoice_pdf.py). Quotations
+// get the same document-only PDF (no attachments — quotations don't
+// have any) for parity with the invoice's plain "PDF" download.
+// ============================================================
+
+export async function downloadInvoicePdf(invoiceNo: string, withAttachments = true): Promise<void> {
+  const safeNo = invoiceNo.replace(/\//g, "_");
+  await downloadBlob(
+    `/finance/invoices/${encodeURIComponent(invoiceNo)}/pdf?with_attachments=${withAttachments}`,
+    `${safeNo}.pdf`
+  );
+}
+
+export async function downloadQuotationPdf(quotationNo: string): Promise<void> {
+  const safeNo = quotationNo.replace(/\//g, "_");
+  await downloadBlob(`/finance/quotations/${encodeURIComponent(quotationNo)}/pdf`, `${safeNo}.pdf`);
+}

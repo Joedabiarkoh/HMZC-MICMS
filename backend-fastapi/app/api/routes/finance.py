@@ -11,11 +11,13 @@ from app.api.deps import require_permission
 from app.core.config import settings
 from app.core.database import get_database
 from app.core.file_storage import delete_upload, read_upload, save_upload
+from app.core.invoice_pdf import build_document_pdf, merge_pdf_with_attachments
 from app.core.permissions import FIN_CATALOG_MANAGE, FIN_DELETE, FIN_EDIT, FIN_VIEW
 from app.models.expense import Expense
 from app.models.finance_attachment import InvoiceAttachment
 from app.models.finance_document import Invoice, Quotation
 from app.models.finance_item import FinanceItem
+from app.models.notification_settings import get_notification_settings
 from app.models.user import User
 from app.schemas.finance import (
     DashboardSummary,
@@ -248,6 +250,25 @@ def delete_quotation(quotation_no: str, db: Session = Depends(get_database), _us
     db.commit()
 
 
+@router.get("/quotations/{quotation_no:path}/pdf")
+def download_quotation_pdf(
+    quotation_no: str,
+    db: Session = Depends(get_database),
+    _user: User = Depends(require_permission(FIN_VIEW)),
+):
+    q = db.query(Quotation).options(joinedload(Quotation.issued_by)).filter(Quotation.quotation_no == quotation_no).first()
+    if not q:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Quotation not found")
+    company = get_notification_settings(db)
+    pdf_bytes = build_document_pdf(q, "QUOTATION", company)
+    safe_no = quotation_no.replace("/", "_")
+    return StreamingResponse(
+        io.BytesIO(pdf_bytes),
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{safe_no}.pdf"'},
+    )
+
+
 # ============================================================
 # Invoices
 # ============================================================
@@ -415,6 +436,50 @@ def download_all_invoice_attachments(
     )
 
 
+# Requested directly: "serve all the invoice and the added documents as
+# pdf all together in one document or print it" — builds the invoice
+# itself as a PDF (core/invoice_pdf.py), then merges every supporting
+# document onto the end of it (PDFs appended page-for-page, images
+# converted to a page, anything else gets a one-page notice instead —
+# see merge_pdf_with_attachments's own comment on why). `with_attachments`
+# defaults true since "all together" was the actual ask; set to false
+# for just the invoice itself with no merging.
+@router.get("/invoices/{invoice_no:path}/pdf")
+def download_invoice_pdf(
+    invoice_no: str,
+    with_attachments: bool = True,
+    db: Session = Depends(get_database),
+    _user: User = Depends(require_permission(FIN_VIEW)),
+):
+    invoice = (
+        db.query(Invoice)
+        .options(joinedload(Invoice.issued_by))
+        .filter(Invoice.invoice_no == invoice_no)
+        .first()
+    )
+    if not invoice:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Invoice not found")
+
+    company = get_notification_settings(db)
+    pdf_bytes = build_document_pdf(invoice, "INVOICE", company)
+
+    if with_attachments:
+        attachments = db.query(InvoiceAttachment).filter(InvoiceAttachment.invoice_id == invoice.id).all()
+        if attachments:
+            payloads = [
+                (read_upload(settings.ATTACHMENTS_DIR, a.stored_filename), a.content_type, a.original_filename)
+                for a in attachments
+            ]
+            pdf_bytes = merge_pdf_with_attachments(pdf_bytes, payloads)
+
+    safe_no = invoice_no.replace("/", "_")
+    return StreamingResponse(
+        io.BytesIO(pdf_bytes),
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{safe_no}.pdf"'},
+    )
+
+
 @router.delete("/invoices/{invoice_no:path}/attachments/{attachment_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_invoice_attachment(
     invoice_no: str,
@@ -448,6 +513,16 @@ def delete_invoice(invoice_no: str, db: Session = Depends(get_database), _user: 
     inv = db.query(Invoice).filter(Invoice.invoice_no == invoice_no).first()
     if not inv:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Invoice not found")
+    # Found while testing the new PDF feature: deleting an invoice that
+    # had attachments crashed with an uncaught ForeignKeyViolation (500)
+    # — invoice_attachments.invoice_id isn't ON DELETE CASCADE, and
+    # nothing removed the child rows/files first. Same cleanup-before-
+    # delete pattern delete_boarding_submission and certificate deletion
+    # already use elsewhere in this app.
+    attachments = db.query(InvoiceAttachment).filter(InvoiceAttachment.invoice_id == inv.id).all()
+    for a in attachments:
+        delete_upload(settings.ATTACHMENTS_DIR, a.stored_filename)
+        db.delete(a)
     db.delete(inv)
     db.commit()
 

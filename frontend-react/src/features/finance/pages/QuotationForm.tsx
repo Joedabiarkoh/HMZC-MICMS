@@ -5,7 +5,7 @@ import { useAuth } from "../../../context/AuthContext";
 import ItemPicker from "../components/ItemPicker";
 import LineItemsEditor, { newLineFromItem, computeTotals } from "../components/LineItemsEditor";
 import FinanceDocumentPreview from "../components/FinanceDocumentPreview";
-import { listQuotations, saveQuotation, deleteQuotation, DocumentConflictError } from "../services/finance.api";
+import { listQuotations, saveQuotation, deleteQuotation, downloadQuotationPdf, DocumentConflictError } from "../services/finance.api";
 import { queueQuotationSave } from "../../../offline/syncQueue";
 import { FinanceItem, LineItem, QuotationDoc } from "../types/finance.types";
 import { confirmAction } from "../../../components/ConfirmDialog";
@@ -127,7 +127,7 @@ export default function QuotationForm() {
     <div className="finance-page">
       <h1>{quotationNo ? `Quotation ${docNo}` : "New Quotation"}</h1>
       <p className="finance-subtitle">HMZC LTD — Marine Engineering Services</p>
-      {error && <div style={{ background: "#FBEEEC", border: "1px solid var(--insp-red)", color: "#7A241B", borderRadius: 6, padding: "8px 12px", fontSize: 12, marginBottom: 12 }}>{error}</div>}
+      {error && <div className="no-print" style={{ background: "#FBEEEC", border: "1px solid var(--insp-red)", color: "#7A241B", borderRadius: 6, padding: "8px 12px", fontSize: 12, marginBottom: 12 }}>{error}</div>}
 
       <div className="finance-form-layout">
         <div className="finance-panel">
@@ -172,6 +172,7 @@ export default function QuotationForm() {
             {canEdit && <button className="finance-btn finance-btn-outline" disabled={saving} onClick={() => handleSave("draft")}>Save Draft</button>}
             {canEdit && <button className="finance-btn finance-btn-primary" disabled={saving} onClick={() => handleSave("sent")}>Mark as Sent</button>}
             <button className="finance-btn finance-btn-outline" onClick={() => window.print()}>Print</button>
+            {quotationNo && <button className="finance-btn finance-btn-outline" onClick={() => downloadQuotationPdf(quotationNo)}>Download PDF</button>}
             {quotationNo && hasPermission(user, PERM.FIN_DELETE) && <button className="finance-btn finance-btn-danger" onClick={handleDelete}>Delete</button>}
           </div>
         </div>

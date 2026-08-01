@@ -6,7 +6,7 @@ import ItemPicker from "../components/ItemPicker";
 import LineItemsEditor, { newLineFromItem, computeTotals } from "../components/LineItemsEditor";
 import FinanceDocumentPreview from "../components/FinanceDocumentPreview";
 import InvoiceAttachments from "../components/InvoiceAttachments";
-import { listInvoices, saveInvoice, deleteInvoice, DocumentConflictError } from "../services/finance.api";
+import { listInvoices, saveInvoice, deleteInvoice, downloadInvoicePdf, DocumentConflictError } from "../services/finance.api";
 import { queueInvoiceSave } from "../../../offline/syncQueue";
 import { FinanceItem, LineItem, InvoiceDoc } from "../types/finance.types";
 import { confirmAction } from "../../../components/ConfirmDialog";
@@ -143,7 +143,7 @@ export default function InvoiceForm() {
     <div className="finance-page">
       <h1>{invoiceNo ? `Invoice ${docNo}` : "New Invoice"}</h1>
       <p className="finance-subtitle">HMZC LTD — Marine Engineering Services</p>
-      {error && <div style={{ background: "#FBEEEC", border: "1px solid var(--insp-red)", color: "#7A241B", borderRadius: 6, padding: "8px 12px", fontSize: 12, marginBottom: 12 }}>{error}</div>}
+      {error && <div className="no-print" style={{ background: "#FBEEEC", border: "1px solid var(--insp-red)", color: "#7A241B", borderRadius: 6, padding: "8px 12px", fontSize: 12, marginBottom: 12 }}>{error}</div>}
 
       <div className="finance-form-layout">
         <div className="finance-panel">
@@ -188,6 +188,13 @@ export default function InvoiceForm() {
             {canEdit && <button className="finance-btn finance-btn-outline" disabled={saving} onClick={() => handleSave("draft")}>Save Draft</button>}
             {canEdit && <button className="finance-btn finance-btn-primary" disabled={saving} onClick={() => handleSave("issued")}>Issue Invoice</button>}
             <button className="finance-btn finance-btn-outline" onClick={() => window.print()}>Print</button>
+            {/* Server-generated PDF that merges in every uploaded
+                supporting document (see InvoiceAttachments below) —
+                only available once the invoice is actually saved, same
+                gating as the Supporting Documents section itself. The
+                plain "Print" button above only ever prints this
+                invoice on its own (browser print, no attachments). */}
+            {invoiceNo && <button className="finance-btn finance-btn-outline" onClick={() => downloadInvoicePdf(invoiceNo)}>Download PDF (with Attachments)</button>}
             {invoiceNo && hasPermission(user, PERM.FIN_DELETE) && <button className="finance-btn finance-btn-danger" onClick={handleDelete}>Delete</button>}
           </div>
         </div>
