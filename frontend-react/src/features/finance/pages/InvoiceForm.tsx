@@ -6,7 +6,8 @@ import ItemPicker from "../components/ItemPicker";
 import LineItemsEditor, { newLineFromItem, computeTotals } from "../components/LineItemsEditor";
 import FinanceDocumentPreview from "../components/FinanceDocumentPreview";
 import InvoiceAttachments from "../components/InvoiceAttachments";
-import { listInvoices, saveInvoice, deleteInvoice, openInvoicePdf, DocumentConflictError } from "../services/finance.api";
+import StagedInvoiceAttachments, { StagedAttachment } from "../components/StagedInvoiceAttachments";
+import { listInvoices, saveInvoice, deleteInvoice, openInvoicePdf, uploadInvoiceAttachment, DocumentConflictError } from "../services/finance.api";
 import { queueInvoiceSave } from "../../../offline/syncQueue";
 import { FinanceItem, LineItem, InvoiceDoc } from "../types/finance.types";
 import { confirmAction } from "../../../components/ConfirmDialog";
@@ -38,6 +39,7 @@ export default function InvoiceForm() {
   const [imoNo, setImoNo] = useState("");
   const [status, setStatus] = useState("draft");
   const [lineItems, setLineItems] = useState<LineItem[]>([]);
+  const [stagedFiles, setStagedFiles] = useState<StagedAttachment[]>([]);
   const [version, setVersion] = useState<number | null>(null);
   const [issuedBy, setIssuedBy] = useState<string | null>(null);
   const [issuedAt, setIssuedAt] = useState<string | null>(null);
@@ -92,6 +94,25 @@ export default function InvoiceForm() {
       const saved = await saveInvoice(payload);
       setVersion(saved.version);
       setStatus(saved.status);
+      // Requested directly: documents loaded while creating the invoice
+      // (before it had a real invoice_id to attach to) get uploaded now,
+      // right after the invoice that owns them actually exists. Best
+      // effort per file — one failing upload doesn't lose the others or
+      // block the save the user actually asked for.
+      if (stagedFiles.length > 0) {
+        const failed: string[] = [];
+        for (const sf of stagedFiles) {
+          try {
+            await uploadInvoiceAttachment(saved.invoice_no, sf.file, sf.label);
+          } catch {
+            failed.push(sf.file.name);
+          }
+        }
+        setStagedFiles([]);
+        if (failed.length > 0) {
+          setError(`Invoice saved, but couldn't upload: ${failed.join(", ")}. Add them again from Supporting Documents below.`);
+        }
+      }
       if (!invoiceNo) navigate(`/finance/invoices/${encodeURIComponent(saved.invoice_no)}`, { replace: true });
     } catch (e: any) {
       if (e instanceof DocumentConflictError) {
@@ -224,17 +245,24 @@ export default function InvoiceForm() {
             issuedAt={issuedAt}
           />
 
-          {/* Only once the invoice has a real invoice_no it can be
-              attached to — an attachment needs a saved invoice_id
-              server-side, so this isn't shown on an unsaved "New
-              Invoice" draft. Gated on finance.edit specifically (not
-              this page's own `canEdit`, which is narrower — admin or
-              the original issuer only): the backend allows any
-              finance.edit user to attach supporting documents, since
-              adding a PO/delivery note is administrative, not a core
-              financial edit to the invoice itself. */}
-          {invoiceNo && (
+          {/* Requested directly: this section must not be invisible
+              while a new invoice is still being created — before the
+              first save there's no real invoice_id for an attachment to
+              belong to, so StagedInvoiceAttachments holds the files
+              locally instead of uploading them; handleSave() uploads
+              each one right after the invoice is created. Once saved,
+              this switches to the real InvoiceAttachments (list/
+              upload/delete/download-all against the actual invoice_id).
+              Gated on finance.edit specifically (not this page's own
+              `canEdit`, which is narrower — admin or the original
+              issuer only): the backend allows any finance.edit user to
+              attach supporting documents, since adding a PO/delivery
+              note is administrative, not a core financial edit to the
+              invoice itself. */}
+          {invoiceNo ? (
             <InvoiceAttachments invoiceNo={invoiceNo} canEdit={hasPermission(user, PERM.FIN_EDIT)} />
+          ) : (
+            hasPermission(user, PERM.FIN_EDIT) && <StagedInvoiceAttachments files={stagedFiles} onChange={setStagedFiles} />
           )}
         </div>
       </div>

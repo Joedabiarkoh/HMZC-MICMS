@@ -122,8 +122,22 @@ def build_document_pdf(doc, kind: str, company: Optional[NotificationSettings]) 
     )
     logo_cell = RLImage(str(LOGO_PATH), width=34 * mm, height=17 * mm) if LOGO_PATH.is_file() else Paragraph("HMZC", _STYLE_TITLE)
     qr_cell = _qr_image(f"HMZC {kind}\nNo: {doc_no}\nCustomer: {doc.customer or '—'}\nTotal: ${total:.2f}")
-    header = Table([[logo_cell, letterhead_text, qr_cell]], colWidths=[80, 300, 60])
-    header.setStyle(TableStyle([("VALIGN", (0, 0), (-1, -1), "TOP"), ("ALIGN", (2, 0), (2, 0), "RIGHT")]))
+    # Column widths were plain point values (80/300/60) while the logo
+    # image itself is sized in mm (34mm ≈ 96pt) — 96pt doesn't fit an
+    # 80pt-wide column, so the logo overflowed straight into the
+    # letterhead text column next to it, visually overlapping the
+    # company name/address. Widths now in mm too, sized to actually fit
+    # each cell's content with room to spare, and sum to the page's full
+    # content width (A4 170mm after this document's 20mm side margins)
+    # so nothing is left unaccounted for.
+    header = Table([[logo_cell, letterhead_text, qr_cell]], colWidths=[45 * mm, 100 * mm, 25 * mm])
+    header.setStyle(TableStyle([
+        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+        ("ALIGN", (2, 0), (2, 0), "RIGHT"),
+        ("LEFTPADDING", (0, 0), (0, 0), 0),
+        ("RIGHTPADDING", (0, 0), (0, 0), 8),
+        ("LEFTPADDING", (1, 0), (1, 0), 4),
+    ]))
     story.append(header)
     story.append(Spacer(1, 10))
 
