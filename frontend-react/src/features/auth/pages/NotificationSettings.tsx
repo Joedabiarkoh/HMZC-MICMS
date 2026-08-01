@@ -15,6 +15,7 @@ const BLANK_COMPANY_FORM = {
   bank_sort_code: "",
   bank_swift_code: "",
   bank_iban: "",
+  terms_conditions: "",
 };
 
 /**
@@ -80,6 +81,7 @@ export default function NotificationSettings() {
           bank_sort_code: data.bank_sort_code || "",
           bank_swift_code: data.bank_swift_code || "",
           bank_iban: data.bank_iban || "",
+          terms_conditions: data.terms_conditions || "",
         });
       })
       .catch((e) => setCompanyErr(e?.response?.data?.detail || "Could not load company information."))
@@ -110,6 +112,7 @@ export default function NotificationSettings() {
         bank_sort_code: updated.bank_sort_code || "",
         bank_swift_code: updated.bank_swift_code || "",
         bank_iban: updated.bank_iban || "",
+        terms_conditions: updated.terms_conditions || "",
       });
       setCompanySaved(true);
     } catch (e: any) {
@@ -266,6 +269,23 @@ export default function NotificationSettings() {
             {bankField("bank_swift_code", "Swift Number")}
           </div>
           {bankField("bank_iban", "IBAN Code")}
+
+          <div style={{ fontSize: 12, fontWeight: 700, color: "#1F3B5C", marginTop: 16, marginBottom: 8 }}>
+            Invoice Terms &amp; Conditions
+          </div>
+          <p style={{ fontSize: 11, color: "#6B7480", marginTop: 0, marginBottom: 6 }}>
+            Printed at the end of every invoice. One clause per line, as "Label: clause text" — the label
+            before the first colon is bolded on print, so keep new clauses in that same shape.
+          </p>
+          <div className="auth-field">
+            <textarea
+              id="company-terms_conditions"
+              value={companyForm.terms_conditions}
+              onChange={(e) => updateCompanyField("terms_conditions", e.target.value)}
+              rows={10}
+              style={{ width: "100%", fontFamily: "inherit", fontSize: 12.5, padding: "7px 9px", border: "1px solid #C9D1D8", borderRadius: 5 }}
+            />
+          </div>
 
           <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 14 }}>
             <button className="auth-btn" style={{ width: "auto", padding: "8px 18px" }} onClick={saveCompanyInfo} disabled={companySaving}>

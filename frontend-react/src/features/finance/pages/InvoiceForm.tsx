@@ -5,6 +5,7 @@ import { useAuth } from "../../../context/AuthContext";
 import ItemPicker from "../components/ItemPicker";
 import LineItemsEditor, { newLineFromItem, computeTotals } from "../components/LineItemsEditor";
 import FinanceDocumentPreview from "../components/FinanceDocumentPreview";
+import InvoiceAttachments from "../components/InvoiceAttachments";
 import { listInvoices, saveInvoice, deleteInvoice, DocumentConflictError } from "../services/finance.api";
 import { queueInvoiceSave } from "../../../offline/syncQueue";
 import { FinanceItem, LineItem, InvoiceDoc } from "../types/finance.types";
@@ -212,6 +213,19 @@ export default function InvoiceForm() {
             issuedBy={issuedBy}
             issuedAt={issuedAt}
           />
+
+          {/* Only once the invoice has a real invoice_no it can be
+              attached to — an attachment needs a saved invoice_id
+              server-side, so this isn't shown on an unsaved "New
+              Invoice" draft. Gated on finance.edit specifically (not
+              this page's own `canEdit`, which is narrower — admin or
+              the original issuer only): the backend allows any
+              finance.edit user to attach supporting documents, since
+              adding a PO/delivery note is administrative, not a core
+              financial edit to the invoice itself. */}
+          {invoiceNo && (
+            <InvoiceAttachments invoiceNo={invoiceNo} canEdit={hasPermission(user, PERM.FIN_EDIT)} />
+          )}
         </div>
       </div>
     </div>

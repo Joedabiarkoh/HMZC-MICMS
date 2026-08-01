@@ -1,4 +1,4 @@
-from sqlalchemy import Column, DateTime, ForeignKey, Integer, String, func
+from sqlalchemy import Column, DateTime, ForeignKey, Integer, String, Text, func
 from sqlalchemy.orm import Session, relationship
 
 from app.models.base import BaseModel
@@ -38,6 +38,13 @@ class NotificationSettings(BaseModel):
     bank_sort_code = Column(String, nullable=True)
     bank_swift_code = Column(String, nullable=True)
     bank_iban = Column(String, nullable=True)
+    # Requested directly, invoice-only (same reasoning as bank details
+    # above — a quotation isn't a payment demand yet). Stored as one
+    # clause-per-line block: "Label: body text" per line, so
+    # FinanceDocumentPreview.tsx can bold each clause's label the same
+    # way the source document did, without needing structured/markdown
+    # storage. Text (not String) since this is genuinely long-form.
+    terms_conditions = Column(Text, nullable=True)
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
     updated_by_id = Column(Integer, ForeignKey("users.id"), nullable=True)
     updated_by = relationship("User")

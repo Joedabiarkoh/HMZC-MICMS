@@ -20,6 +20,7 @@ import MySignature from "./features/auth/pages/MySignature";
 import AdminUsers from "./features/auth/pages/AdminUsers";
 import AuditLog from "./features/auth/pages/AuditLog";
 import NotificationSettings from "./features/auth/pages/NotificationSettings";
+import SupplierBoarding from "./features/suppliers/pages/SupplierBoarding";
 import { AuthProvider } from "./context/AuthContext";
 import RequireAuth from "./context/RequireAuth";
 import RequirePermission from "./context/RequirePermission";
@@ -97,6 +98,8 @@ export default function App() {
               <Route path="/finance/payments" element={<RequirePermission permission={PERM.FIN_VIEW}><Payments /></RequirePermission>} />
               <Route path="/finance/expenses" element={<RequirePermission permission={PERM.FIN_VIEW}><Expenses /></RequirePermission>} />
               <Route path="/finance/job-costing" element={<RequirePermission permission={PERM.FIN_VIEW}><JobCosting /></RequirePermission>} />
+              <Route path="/suppliers/boarding" element={<RequirePermission permission={PERM.SUPPLIER_VIEW}><SupplierBoarding /></RequirePermission>} />
+
               {/* No RequirePermission wrapper — Reports has two
                   independent sections (certificates.view_all vs
                   finance.view) and someone could reasonably have only

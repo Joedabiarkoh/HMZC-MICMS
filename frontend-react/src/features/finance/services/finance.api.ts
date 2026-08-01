@@ -1,5 +1,5 @@
 import api from "../../../api/axios";
-import { ExpenseDoc, FinanceItem, InvoiceDoc, JobCostingRow, QuotationDoc, LineItem, DashboardSummary } from "../types/finance.types";
+import { ExpenseDoc, FinanceItem, InvoiceAttachment, InvoiceDoc, JobCostingRow, QuotationDoc, LineItem, DashboardSummary } from "../types/finance.types";
 
 // Matches CertificateConflictError in inspection.api.ts — same reasoning:
 // a 409 here means someone else saved a newer edit in between (see
@@ -165,4 +165,64 @@ export async function saveInvoice(payload: InvoiceSavePayload): Promise<InvoiceD
 
 export async function deleteInvoice(invoiceNo: string): Promise<void> {
   await api.delete(`/finance/invoices/${encodeURIComponent(invoiceNo)}`);
+}
+
+// ============================================================
+// Invoice supporting documents — service report, PO, delivery note, or
+// any other additional document, uploaded and saved against an
+// invoice, downloadable together as one zip bundle (see
+// api/routes/finance.py's download-all-zip endpoint; there's no
+// server-side PDF or in-app email for invoices to bundle "the invoice
+// itself" into, so this bundles the supporting documents only).
+// ============================================================
+
+export async function listInvoiceAttachments(invoiceNo: string): Promise<InvoiceAttachment[]> {
+  const response = await api.get<InvoiceAttachment[]>(`/finance/invoices/${encodeURIComponent(invoiceNo)}/attachments`);
+  return response.data;
+}
+
+export async function uploadInvoiceAttachment(invoiceNo: string, file: File, label: string): Promise<InvoiceAttachment> {
+  const form = new FormData();
+  form.append("file", file);
+  form.append("label", label);
+  const response = await api.post<InvoiceAttachment>(
+    `/finance/invoices/${encodeURIComponent(invoiceNo)}/attachments`,
+    form,
+    { headers: { "Content-Type": "multipart/form-data" } }
+  );
+  return response.data;
+}
+
+export async function deleteInvoiceAttachment(invoiceNo: string, attachmentId: number): Promise<void> {
+  await api.delete(`/finance/invoices/${encodeURIComponent(invoiceNo)}/attachments/${attachmentId}`);
+}
+
+// Blob downloads go through axios (not a plain <a href>) so the Bearer
+// token from the request interceptor (src/api/axios.ts) actually gets
+// attached — these endpoints require finance.view, so an unauthenticated
+// direct link wouldn't work anyway.
+async function downloadBlob(url: string, filename: string): Promise<void> {
+  const response = await api.get(url, { responseType: "blob" });
+  const blobUrl = URL.createObjectURL(response.data);
+  const link = document.createElement("a");
+  link.href = blobUrl;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(blobUrl);
+}
+
+export async function downloadInvoiceAttachment(invoiceNo: string, attachment: InvoiceAttachment): Promise<void> {
+  await downloadBlob(
+    `/finance/invoices/${encodeURIComponent(invoiceNo)}/attachments/${attachment.id}/download`,
+    attachment.original_filename
+  );
+}
+
+export async function downloadAllInvoiceAttachments(invoiceNo: string): Promise<void> {
+  await downloadBlob(
+    `/finance/invoices/${encodeURIComponent(invoiceNo)}/attachments/download-all`,
+    `${invoiceNo.replace(/\//g, "_")}_attachments.zip`
+  );
 }

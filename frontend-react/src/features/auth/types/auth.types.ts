@@ -39,6 +39,8 @@ export const PERM = {
   FIN_DELETE: "finance.delete",
   FIN_CATALOG_MANAGE: "finance.catalog_manage",
   USERS_MANAGE: "users.manage",
+  SUPPLIER_VIEW: "suppliers.view",
+  SUPPLIER_MANAGE: "suppliers.manage",
 } as const;
 
 export const ALL_PERMISSIONS = Object.values(PERM);
@@ -141,4 +143,9 @@ export interface CompanyInfo {
   bank_sort_code: string | null;
   bank_swift_code: string | null;
   bank_iban: string | null;
+  // Invoice Terms and Conditions — one clause per line ("Label: body
+  // text"), see FinanceDocumentPreview.tsx for how each line's label is
+  // bolded on print. Invoice-only (not quotations), same reasoning as
+  // bank details above.
+  terms_conditions: string | null;
 }

@@ -58,6 +58,10 @@ const NAV_GROUPS: NavGroup[] = [
     ],
   },
   {
+    label: "Suppliers",
+    items: [{ to: "/suppliers/boarding", label: "Supplier Boarding", permission: PERM.SUPPLIER_VIEW }],
+  },
+  {
     // No `permission` on this single item, same as Account's items below
     // — Reports.tsx has two independent sections (certificates.view_all
     // vs finance.view) and decides its own visibility per-section, so

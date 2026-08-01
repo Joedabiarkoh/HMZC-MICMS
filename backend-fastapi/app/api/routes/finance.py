@@ -1,13 +1,19 @@
+import io
+import zipfile
 from datetime import datetime, timezone
 from typing import List
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
+from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session, joinedload
 
 from app.api.deps import require_permission
+from app.core.config import settings
 from app.core.database import get_database
+from app.core.file_storage import delete_upload, read_upload, save_upload
 from app.core.permissions import FIN_CATALOG_MANAGE, FIN_DELETE, FIN_EDIT, FIN_VIEW
 from app.models.expense import Expense
+from app.models.finance_attachment import InvoiceAttachment
 from app.models.finance_document import Invoice, Quotation
 from app.models.finance_item import FinanceItem
 from app.models.user import User
@@ -18,6 +24,7 @@ from app.schemas.finance import (
     FinanceItemCreate,
     FinanceItemResponse,
     FinanceItemUpdate,
+    InvoiceAttachmentResponse,
     InvoiceCreate,
     InvoiceResponse,
     JobCostingRow,
@@ -28,6 +35,13 @@ from app.schemas.finance import (
 )
 
 router = APIRouter(tags=["finance"])
+
+
+def _get_invoice_or_404(invoice_no: str, db: Session) -> Invoice:
+    invoice = db.query(Invoice).filter(Invoice.invoice_no == invoice_no).first()
+    if not invoice:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Invoice not found")
+    return invoice
 
 
 # ============================================================
@@ -214,7 +228,18 @@ def save_quotation(
     return quotation
 
 
-@router.delete("/quotations/{quotation_no}", status_code=status.HTTP_204_NO_CONTENT)
+# `:path` (not the plain `{quotation_no}`/`{invoice_no}` used to be
+# used everywhere below) — found while testing the new invoice
+# attachments feature: quotation_no/invoice_no always contain literal
+# "/" (e.g. "INV/HMZC/20260801-001"), and FastAPI's default path
+# converter can't match an embedded slash even URL-encoded as %2F —
+# Starlette decodes the path before routing, then splits on "/", so a
+# %2F-encoded invoice_no was silently splitting across path segments
+# and 404ing at the router level, before ever reaching this function.
+# This was a real, pre-existing bug (delete never worked for a real
+# invoice/quotation number), not something new — fixed here since the
+# new attachment routes below inherit the exact same broken pattern.
+@router.delete("/quotations/{quotation_no:path}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_quotation(quotation_no: str, db: Session = Depends(get_database), _user: User = Depends(require_permission(FIN_DELETE))):
     q = db.query(Quotation).filter(Quotation.quotation_no == quotation_no).first()
     if not q:
@@ -281,7 +306,144 @@ def save_invoice(
     return invoice
 
 
-@router.delete("/invoices/{invoice_no}", status_code=status.HTTP_204_NO_CONTENT)
+# ============================================================
+# Invoice supporting documents — requested directly: "allow other
+# supporting document to be uploaded and save or send all together like
+# service report, PO, delivery note and any additional supporting
+# document". No in-app email exists for invoices today (issuing one
+# just flips its status — see save_invoice above; "Print" is the
+# browser's own print dialog, no server-side PDF), so "together" is a
+# download-all zip bundle here rather than a new outbound-email feature.
+# ============================================================
+
+@router.get("/invoices/{invoice_no:path}/attachments", response_model=List[InvoiceAttachmentResponse])
+def list_invoice_attachments(
+    invoice_no: str,
+    db: Session = Depends(get_database),
+    _user: User = Depends(require_permission(FIN_VIEW)),
+):
+    invoice = _get_invoice_or_404(invoice_no, db)
+    return (
+        db.query(InvoiceAttachment)
+        .options(joinedload(InvoiceAttachment.uploaded_by))
+        .filter(InvoiceAttachment.invoice_id == invoice.id)
+        .order_by(InvoiceAttachment.created_at.desc())
+        .all()
+    )
+
+
+@router.post("/invoices/{invoice_no:path}/attachments", response_model=InvoiceAttachmentResponse, status_code=status.HTTP_201_CREATED)
+def upload_invoice_attachment(
+    invoice_no: str,
+    file: UploadFile = File(...),
+    label: str = Form("Other"),
+    db: Session = Depends(get_database),
+    current_user: User = Depends(require_permission(FIN_EDIT)),
+):
+    invoice = _get_invoice_or_404(invoice_no, db)
+    raw = file.file.read()
+    stored_filename = save_upload(file, settings.ATTACHMENTS_DIR, raw)
+    attachment = InvoiceAttachment(
+        invoice_id=invoice.id,
+        label=label.strip() or "Other",
+        original_filename=file.filename or stored_filename,
+        stored_filename=stored_filename,
+        content_type=file.content_type,
+        size_bytes=len(raw),
+        uploaded_by_id=current_user.id,
+    )
+    db.add(attachment)
+    db.commit()
+    db.refresh(attachment)
+    return attachment
+
+
+def _get_attachment_or_404(invoice_no: str, attachment_id: int, db: Session) -> InvoiceAttachment:
+    invoice = _get_invoice_or_404(invoice_no, db)
+    attachment = (
+        db.query(InvoiceAttachment)
+        .filter(InvoiceAttachment.id == attachment_id, InvoiceAttachment.invoice_id == invoice.id)
+        .first()
+    )
+    if not attachment:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Attachment not found")
+    return attachment
+
+
+@router.get("/invoices/{invoice_no:path}/attachments/{attachment_id}/download")
+def download_invoice_attachment(
+    invoice_no: str,
+    attachment_id: int,
+    db: Session = Depends(get_database),
+    _user: User = Depends(require_permission(FIN_VIEW)),
+):
+    attachment = _get_attachment_or_404(invoice_no, attachment_id, db)
+    raw = read_upload(settings.ATTACHMENTS_DIR, attachment.stored_filename)
+    return StreamingResponse(
+        io.BytesIO(raw),
+        media_type=attachment.content_type or "application/octet-stream",
+        headers={"Content-Disposition": f'attachment; filename="{attachment.original_filename}"'},
+    )
+
+
+@router.get("/invoices/{invoice_no:path}/attachments/download-all")
+def download_all_invoice_attachments(
+    invoice_no: str,
+    db: Session = Depends(get_database),
+    _user: User = Depends(require_permission(FIN_VIEW)),
+):
+    invoice = _get_invoice_or_404(invoice_no, db)
+    attachments = db.query(InvoiceAttachment).filter(InvoiceAttachment.invoice_id == invoice.id).all()
+    if not attachments:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No supporting documents have been uploaded for this invoice.")
+
+    buffer = io.BytesIO()
+    # Dedupe same-name files (two different uploads both called
+    # "PO.pdf") by prefixing the attachment id — better than silently
+    # overwriting one inside the zip.
+    with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as zf:
+        for a in attachments:
+            raw = read_upload(settings.ATTACHMENTS_DIR, a.stored_filename)
+            zf.writestr(f"{a.id}_{a.original_filename}", raw)
+    buffer.seek(0)
+
+    safe_no = invoice_no.replace("/", "_")
+    return StreamingResponse(
+        buffer,
+        media_type="application/zip",
+        headers={"Content-Disposition": f'attachment; filename="{safe_no}_attachments.zip"'},
+    )
+
+
+@router.delete("/invoices/{invoice_no:path}/attachments/{attachment_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_invoice_attachment(
+    invoice_no: str,
+    attachment_id: int,
+    db: Session = Depends(get_database),
+    _user: User = Depends(require_permission(FIN_EDIT)),
+):
+    attachment = _get_attachment_or_404(invoice_no, attachment_id, db)
+    delete_upload(settings.ATTACHMENTS_DIR, attachment.stored_filename)
+    db.delete(attachment)
+    db.commit()
+
+
+# `DELETE /invoices/{invoice_no:path}` has to be registered AFTER every
+# .../attachments/... route above, not just after the invoice CRUD
+# routes it's grouped with elsewhere in this file — a bare trailing
+# `:path` converter (nothing after `{invoice_no}` in this route's own
+# template) matches the rest of ANY path starting with "/invoices/",
+# including "/invoices/X/attachments/1". Starlette tries routes in
+# registration order and stops at the first match, so with this
+# declared first (as it originally was, grouped with save_invoice/
+# list_invoices above), every attachment sub-route was being swallowed
+# by this one instead — attachment_id got folded into invoice_no, the
+# lookup failed, and every attachment route 404'd with "Invoice not
+# found". Found by actually calling DELETE .../attachments/{id} while
+# testing, not by inspection — the analogous GET/POST routes above
+# happen to not collide since there's no bare `GET /invoices/{invoice_no:path}`
+# route for them to lose to, so only DELETE was actually broken by this.
+@router.delete("/invoices/{invoice_no:path}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_invoice(invoice_no: str, db: Session = Depends(get_database), _user: User = Depends(require_permission(FIN_DELETE))):
     inv = db.query(Invoice).filter(Invoice.invoice_no == invoice_no).first()
     if not inv:

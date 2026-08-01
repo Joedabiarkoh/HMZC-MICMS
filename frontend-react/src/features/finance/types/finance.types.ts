@@ -115,6 +115,23 @@ export interface InvoiceDoc {
   updated_at: string | null;
 }
 
+// Matches backend-fastapi's InvoiceAttachmentResponse (see
+// models/finance_attachment.py / api/routes/finance.py) — supporting
+// documents (service report, PO, delivery note, other) uploaded and
+// saved against an invoice.
+export interface InvoiceAttachment {
+  id: number;
+  invoice_id: number;
+  label: string;
+  original_filename: string;
+  content_type: string | null;
+  size_bytes: number;
+  uploaded_by: FinanceUser | null;
+  created_at: string;
+}
+
+export const INVOICE_ATTACHMENT_LABELS = ["Service Report", "Purchase Order", "Delivery Note", "Other"] as const;
+
 // Matches backend-fastapi's DashboardSummary schema — was previously
 // untyped (useFinance.ts's summary was `any`) because GET /finance/dashboard
 // didn't exist server-side at all, so there was nothing real to type

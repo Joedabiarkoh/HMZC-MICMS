@@ -35,6 +35,7 @@ class CompanyInfoResponse(BaseModel):
     bank_sort_code: Optional[str] = None
     bank_swift_code: Optional[str] = None
     bank_iban: Optional[str] = None
+    terms_conditions: Optional[str] = None
 
 
 class CompanyInfoUpdate(BaseModel):
@@ -49,3 +50,4 @@ class CompanyInfoUpdate(BaseModel):
     bank_sort_code: Optional[str] = None
     bank_swift_code: Optional[str] = None
     bank_iban: Optional[str] = None
+    terms_conditions: Optional[str] = None

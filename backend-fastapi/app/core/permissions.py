@@ -29,10 +29,14 @@ FIN_CATALOG_MANAGE = "finance.catalog_manage"  # add/edit the item/price catalog
 
 USERS_MANAGE = "users.manage"        # approve/deactivate accounts, change roles, reset passwords
 
+SUPPLIER_VIEW = "suppliers.view"      # download the boarding form template, see/download submitted forms
+SUPPLIER_MANAGE = "suppliers.manage"  # upload a completed form, delete a submission
+
 ALL_PERMISSIONS = {
     CERT_VIEW, CERT_VIEW_ALL, CERT_EDIT, CERT_DELETE,
     FIN_VIEW, FIN_EDIT, FIN_DELETE, FIN_CATALOG_MANAGE,
     USERS_MANAGE,
+    SUPPLIER_VIEW, SUPPLIER_MANAGE,
 }
 
 # Every role gets at least an empty set — CLIENT included, deliberately:
@@ -56,10 +60,16 @@ ALL_PERMISSIONS = {
 ROLE_DEFAULT_PERMISSIONS = {
     UserRole.ADMIN: set(ALL_PERMISSIONS),
     UserRole.INSPECTOR: {CERT_VIEW, CERT_EDIT},  # "Technical" in the UI — see the note in models/user.py on why the stored value isn't renamed
-    UserRole.SALES: {CERT_VIEW, CERT_VIEW_ALL},
-    UserRole.ADMINISTRATION: {CERT_VIEW, CERT_VIEW_ALL},
-    UserRole.SERVICE_COORDINATION: {CERT_VIEW, CERT_VIEW_ALL},
-    UserRole.FINANCE: {FIN_VIEW, FIN_EDIT},
+    UserRole.SALES: {CERT_VIEW, CERT_VIEW_ALL, SUPPLIER_VIEW},
+    # Supplier boarding paperwork is the kind of thing Administration
+    # actually processes day to day, so they get suppliers.manage
+    # (upload/delete a submission) on top of the company-wide visibility
+    # every other role in this "sees everything" group already has —
+    # Sales/Service Coordination get view-only, same reasoning as their
+    # existing certificates.view_all-but-not-edit split above.
+    UserRole.ADMINISTRATION: {CERT_VIEW, CERT_VIEW_ALL, SUPPLIER_VIEW, SUPPLIER_MANAGE},
+    UserRole.SERVICE_COORDINATION: {CERT_VIEW, CERT_VIEW_ALL, SUPPLIER_VIEW},
+    UserRole.FINANCE: {FIN_VIEW, FIN_EDIT, SUPPLIER_VIEW, SUPPLIER_MANAGE},
     UserRole.LIMITED_ADMIN: {CERT_VIEW, FIN_VIEW},  # baseline only — the admin is expected to grant specific extras per person
     UserRole.CLIENT: set(),
 }

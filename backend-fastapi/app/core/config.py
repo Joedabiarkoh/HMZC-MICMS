@@ -63,6 +63,17 @@ class Settings(BaseSettings):
     # filesystem is thrown away on every rebuild.
     PHOTOS_DIR: str = "/app/uploads/photos"
 
+    # Arbitrary supporting documents (service reports, POs, delivery
+    # notes...) attached to an invoice, and completed Supplier Boarding
+    # forms — both genuinely arbitrary file types (PDF, docx, xlsx...),
+    # unlike PHOTOS_DIR above which only ever holds images decoded from a
+    # data URI. Same volume (see docker-compose.yml's photo_uploads,
+    # which mounts the whole /app/uploads tree, not just .../photos) —
+    # no new volume needed, just new subdirectories inside it.
+    ATTACHMENTS_DIR: str = "/app/uploads/attachments"
+    SUPPLIER_BOARDING_DIR: str = "/app/uploads/supplier_boarding"
+    MAX_UPLOAD_SIZE_BYTES: int = 25 * 1024 * 1024  # 25 MB — generous for a scanned PO/service report
+
     # Optional, and left unset for local Docker Compose on purpose — there,
     # the frontend's own nginx proxies /api/ to the backend on the same
     # origin (see frontend-react/nginx.conf), so a relative "/api/photos/..."

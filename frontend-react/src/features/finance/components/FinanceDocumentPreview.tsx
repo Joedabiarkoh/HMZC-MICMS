@@ -23,6 +23,23 @@ interface Props {
 
 const watermarkStyle = { ["--insp-watermark-url" as any]: `url(${HMZC_LOGO_DATA_URI})` };
 
+// Each line of terms_conditions is "Label: clause text" (see
+// NotificationSettings.tsx's own note on this convention) except the
+// opening preamble paragraph, which has no label — indexOf(": ") only
+// matches within the first 60 characters so a colon appearing naturally
+// inside a long unlabeled paragraph doesn't get mistaken for one.
+function renderTermsLine(line: string, i: number) {
+  const idx = line.indexOf(": ");
+  if (idx > 0 && idx < 60) {
+    return (
+      <p key={i} style={{ margin: "0 0 8px", breakInside: "avoid" }}>
+        <strong>{line.slice(0, idx + 1)}</strong>{line.slice(idx + 1)}
+      </p>
+    );
+  }
+  return <p key={i} style={{ margin: "0 0 8px", breakInside: "avoid" }}>{line}</p>;
+}
+
 /**
  * "make the invoice have same characteristics as the certificate" — same
  * letterhead (logo + Cabinda/Luanda addresses), the same per-document QR
@@ -143,6 +160,17 @@ export default function FinanceDocumentPreview({
               )}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {kind === "INVOICE" && !!companyInfo?.terms_conditions && (
+        <div style={{ marginTop: 24, breakBefore: "page" } as any}>
+          <div style={{ fontSize: 11, fontWeight: 700, color: "var(--insp-navy)", textTransform: "uppercase", letterSpacing: ".03em", marginBottom: 8 }}>
+            Terms and Conditions
+          </div>
+          <div style={{ columnCount: 2, columnGap: 24, fontSize: 9.5, lineHeight: 1.45, color: "#333" }}>
+            {companyInfo.terms_conditions.split("\n").filter((l) => l.trim()).map(renderTermsLine)}
+          </div>
         </div>
       )}
 

@@ -158,6 +158,25 @@ class InvoiceResponse(BaseModel):
         from_attributes = True
 
 
+# ---- Invoice attachments ----
+# Supporting documents (service report, PO, delivery note, other) —
+# see models/finance_attachment.py and api/routes/finance.py's
+# multipart upload/list/download/download-all/delete endpoints.
+
+class InvoiceAttachmentResponse(BaseModel):
+    id: int
+    invoice_id: int
+    label: str
+    original_filename: str
+    content_type: Optional[str] = None
+    size_bytes: int
+    uploaded_by: Optional[UserResponse] = None
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
 # ---- Expenses ----
 # vessel_name is optional on purpose — see models/expense.py's own
 # comment: most expenses aren't about any one job, only fill it in when

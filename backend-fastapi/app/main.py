@@ -6,7 +6,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 import app.models  # noqa: F401 — registers every model with Base for relationship resolution
-from app.api.routes import auth, backup as backup_routes, certificates, finance, health, photos, reports, settings as settings_routes
+from app.api.routes import auth, backup as backup_routes, certificates, finance, health, photos, reports, settings as settings_routes, suppliers
 from app.core.backup import is_backup_configured, run_backup
 from app.core.config import settings
 from app.core.database import SessionLocal
@@ -138,6 +138,7 @@ app.include_router(photos.router, prefix="/api/photos")
 app.include_router(backup_routes.router, prefix="/api/backup")
 app.include_router(reports.router, prefix="/api/reports")
 app.include_router(settings_routes.router, prefix="/api/settings")
+app.include_router(suppliers.router, prefix="/api/suppliers")
 
 
 @app.get("/")
