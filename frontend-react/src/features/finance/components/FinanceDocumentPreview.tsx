@@ -17,6 +17,11 @@ interface Props {
   subtotal: number;
   discountTotal: number;
   total: number;
+  // Short condition bullets printed to the left of the totals block —
+  // invoice-only (undefined/empty on a quotation), editable per document
+  // (see ConditionsEditor.tsx), distinct from the company-wide Terms and
+  // Conditions legal text below.
+  conditions?: string[];
   issuedBy: string | null;
   issuedAt: string | null;
 }
@@ -47,7 +52,7 @@ function renderTermsLine(line: string, i: number) {
  * (CertificatePreview.tsx), applied here to invoices and quotations.
  */
 export default function FinanceDocumentPreview({
-  kind, docNo, customer, vesselName, imoNo, status, lineItems, subtotal, discountTotal, total, issuedBy, issuedAt,
+  kind, docNo, customer, vesselName, imoNo, status, lineItems, subtotal, discountTotal, total, conditions, issuedBy, issuedAt,
 }: Props) {
   // Self-fetched rather than threaded down as a prop from InvoiceForm.tsx/
   // QuotationForm.tsx — this is a rarely-changing, company-wide constant
@@ -121,10 +126,22 @@ export default function FinanceDocumentPreview({
         </tbody>
       </table>
 
-      <div className="finance-totals">
-        <div className="finance-totals-row"><span>Subtotal</span><span>${subtotal.toFixed(2)}</span></div>
-        <div className="finance-totals-row"><span>Discount</span><span>-${discountTotal.toFixed(2)}</span></div>
-        <div className="finance-totals-row grand"><span>Total</span><span>${total.toFixed(2)}</span></div>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 20 }}>
+        {!!conditions?.length && (
+          <div className="finance-conditions">
+            <div style={{ fontSize: 11, fontWeight: 700, color: "var(--insp-navy)", textTransform: "uppercase", letterSpacing: ".03em", marginBottom: 4 }}>
+              Conditions
+            </div>
+            <ul style={{ margin: 0, paddingLeft: 16, fontSize: 10.5, color: "var(--insp-text)", lineHeight: 1.5 }}>
+              {conditions.map((c, i) => <li key={i}>{c}</li>)}
+            </ul>
+          </div>
+        )}
+        <div className="finance-totals" style={{ marginLeft: conditions?.length ? 0 : "auto" }}>
+          <div className="finance-totals-row"><span>Subtotal</span><span>${subtotal.toFixed(2)}</span></div>
+          <div className="finance-totals-row"><span>Discount</span><span>-${discountTotal.toFixed(2)}</span></div>
+          <div className="finance-totals-row grand"><span>Total</span><span>${total.toFixed(2)}</span></div>
+        </div>
       </div>
 
       {hasBankDetails && companyInfo && (

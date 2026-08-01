@@ -134,6 +134,7 @@ class InvoiceCreate(BaseModel):
     subtotal: float
     discount_total: float
     total: float
+    conditions: List[str] = []
     version: Optional[int] = None
 
 
@@ -149,6 +150,7 @@ class InvoiceResponse(BaseModel):
     subtotal: float
     discount_total: float
     total: float
+    conditions: List[str] = []
     issued_by: Optional[UserResponse] = None
     version: int
     created_at: datetime

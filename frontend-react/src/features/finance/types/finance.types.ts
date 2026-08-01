@@ -109,11 +109,28 @@ export interface InvoiceDoc {
   subtotal: number;
   discount_total: number;
   total: number;
+  // Short condition bullets printed beside the totals block (e.g.
+  // "Overtime rate applies...", "Client is responsible for
+  // technician's accommodation, local transportation, and flights") —
+  // per-invoice and editable, distinct from the company-wide Terms and
+  // Conditions legal text (CompanyInfo.terms_conditions).
+  conditions: string[];
   issued_by: FinanceUser | null;
   version: number;
   created_at: string;
   updated_at: string | null;
 }
+
+// Suggested defaults a NEW invoice starts with — matches what was
+// requested directly (overtime/standby rates, and who's responsible for
+// technician accommodation/transport/flights). Fully editable per
+// invoice afterward: remove any that don't apply, add others, or clear
+// the list entirely.
+export const DEFAULT_INVOICE_CONDITIONS: string[] = [
+  "Overtime rate applies for work carried out outside standard working hours, as per the agreed rate card.",
+  "Standby/waiting time is chargeable as per the agreed rate card.",
+  "Client is responsible for the technician's accommodation, local transportation, and flights.",
+];
 
 // Matches backend-fastapi's InvoiceAttachmentResponse (see
 // models/finance_attachment.py / api/routes/finance.py) — supporting

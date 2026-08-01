@@ -148,6 +148,7 @@ export interface InvoiceSavePayload {
   subtotal: number;
   discount_total: number;
   total: number;
+  conditions: string[];
   version?: number | null;
 }
 

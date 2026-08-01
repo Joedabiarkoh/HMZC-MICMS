@@ -164,7 +164,7 @@ def build_document_pdf(doc, kind: str, company: Optional[NotificationSettings]) 
     story.append(items_table)
     story.append(Spacer(1, 8))
 
-    # ---- totals ----
+    # ---- totals (with per-invoice condition bullets to its left) ----
     totals_data = [
         ["Subtotal", f"${doc.subtotal:.2f}"],
         ["Discount", f"-${doc.discount_total:.2f}"],
@@ -176,7 +176,25 @@ def build_document_pdf(doc, kind: str, company: Optional[NotificationSettings]) 
         ("TOPPADDING", (0, 0), (-1, -1), 3),
         ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
     ]))
-    story.append(totals_table)
+
+    # Requested directly: short condition bullets ("Overtime rate
+    # applies...", "Client is responsible for technician's
+    # accommodation, local transportation, and flights") placed to the
+    # LEFT of the totals block — invoices only (Quotation rows have no
+    # `conditions` column at all), and only when the invoice actually
+    # has some (a fresh/older invoice with none just shows totals alone,
+    # same as before).
+    doc_conditions = getattr(doc, "conditions", None) or [] if kind == "INVOICE" else []
+    if doc_conditions:
+        condition_flowables = [Paragraph("<b>Conditions</b>", _STYLE_NORMAL), Spacer(1, 2)]
+        for c in doc_conditions:
+            condition_flowables.append(Paragraph(f"• {c}", _STYLE_SMALL))
+            condition_flowables.append(Spacer(1, 2))
+        row = Table([[condition_flowables, totals_table]], colWidths=[290, 165])
+        row.setStyle(TableStyle([("VALIGN", (0, 0), (-1, -1), "TOP"), ("ALIGN", (1, 0), (1, 0), "RIGHT"), ("LEFTPADDING", (0, 0), (0, 0), 0)]))
+        story.append(row)
+    else:
+        story.append(totals_table)
 
     # ---- bank details (invoice only) ----
     has_bank = kind == "INVOICE" and company and any([

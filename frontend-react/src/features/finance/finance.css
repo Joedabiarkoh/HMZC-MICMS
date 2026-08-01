@@ -110,7 +110,13 @@ table.line-items-table td { padding: 5px 8px; border-bottom: 1px solid #EEF0F2; 
 table.line-items-table input { width: 100%; padding: 4px 6px; border: 1px solid #DDE2E6; border-radius: 4px; font-size: 12px; }
 table.line-items-table .remove-btn { background: none; border: none; color: var(--insp-red); font-weight: 700; cursor: pointer; font-size: 15px; }
 
-.finance-totals { margin-left: auto; width: 260px; font-size: 13px; }
+/* Sits to the left of .finance-totals when an invoice has any
+   conditions (see FinanceDocumentPreview.tsx) — capped so a long
+   condition wraps onto its own lines rather than squeezing the totals
+   block narrower. */
+.finance-conditions { flex: 1 1 auto; max-width: 320px; }
+
+.finance-totals { margin-left: auto; width: 260px; font-size: 13px; flex-shrink: 0; }
 .finance-totals-row { display: flex; justify-content: space-between; padding: 4px 0; }
 .finance-totals-row.grand { border-top: 2px solid var(--insp-navy); margin-top: 6px; padding-top: 8px; font-weight: 700; font-size: 15px; color: var(--insp-navy); }
 

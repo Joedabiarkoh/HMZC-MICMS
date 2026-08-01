@@ -78,6 +78,7 @@ export default function Payments() {
         subtotal: inv.subtotal,
         discount_total: inv.discount_total,
         total: inv.total,
+        conditions: inv.conditions,
         version: inv.version,
       });
       setInvoices((prev) => prev.map((i) => (i.id === updated.id ? updated : i)));
