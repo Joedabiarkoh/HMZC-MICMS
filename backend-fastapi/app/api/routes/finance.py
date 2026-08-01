@@ -207,6 +207,7 @@ def save_quotation(
         existing.subtotal = q_in.subtotal
         existing.discount_total = q_in.discount_total
         existing.total = q_in.total
+        existing.conditions = q_in.conditions
         existing.version += 1
         db.commit()
         db.refresh(existing)
@@ -222,6 +223,7 @@ def save_quotation(
         subtotal=q_in.subtotal,
         discount_total=q_in.discount_total,
         total=q_in.total,
+        conditions=q_in.conditions,
         issued_by_id=current_user.id,
     )
     db.add(quotation)
@@ -303,7 +305,6 @@ def save_invoice(
         existing.subtotal = inv_in.subtotal
         existing.discount_total = inv_in.discount_total
         existing.total = inv_in.total
-        existing.conditions = inv_in.conditions
         existing.version += 1
         db.commit()
         db.refresh(existing)
@@ -320,7 +321,6 @@ def save_invoice(
         subtotal=inv_in.subtotal,
         discount_total=inv_in.discount_total,
         total=inv_in.total,
-        conditions=inv_in.conditions,
         issued_by_id=current_user.id,
     )
     db.add(invoice)

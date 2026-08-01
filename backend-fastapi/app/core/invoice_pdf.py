@@ -180,11 +180,11 @@ def build_document_pdf(doc, kind: str, company: Optional[NotificationSettings]) 
     # Requested directly: short condition bullets ("Overtime rate
     # applies...", "Client is responsible for technician's
     # accommodation, local transportation, and flights") placed to the
-    # LEFT of the totals block — invoices only (Quotation rows have no
-    # `conditions` column at all), and only when the invoice actually
-    # has some (a fresh/older invoice with none just shows totals alone,
-    # same as before).
-    doc_conditions = getattr(doc, "conditions", None) or [] if kind == "INVOICE" else []
+    # LEFT of the totals block — quotations only ("put the condition in
+    # the quotation not the invoice"; Invoice rows have no `conditions`
+    # column at all), and only when the quotation actually has some (a
+    # quotation with none just shows totals alone, same as before).
+    doc_conditions = getattr(doc, "conditions", None) or [] if kind == "QUOTATION" else []
     if doc_conditions:
         condition_flowables = [Paragraph("<b>Conditions</b>", _STYLE_NORMAL), Spacer(1, 2)]
         for c in doc_conditions:

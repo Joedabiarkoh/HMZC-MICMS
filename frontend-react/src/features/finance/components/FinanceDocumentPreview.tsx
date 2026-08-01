@@ -18,9 +18,9 @@ interface Props {
   discountTotal: number;
   total: number;
   // Short condition bullets printed to the left of the totals block —
-  // invoice-only (undefined/empty on a quotation), editable per document
-  // (see ConditionsEditor.tsx), distinct from the company-wide Terms and
-  // Conditions legal text below.
+  // quotation-only (undefined/empty on an invoice), editable per
+  // document (see ConditionsEditor.tsx), distinct from the company-wide
+  // Terms and Conditions legal text below (which prints on invoices).
   conditions?: string[];
   issuedBy: string | null;
   issuedAt: string | null;

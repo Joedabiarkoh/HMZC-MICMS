@@ -5,9 +5,10 @@ import { useAuth } from "../../../context/AuthContext";
 import ItemPicker from "../components/ItemPicker";
 import LineItemsEditor, { newLineFromItem, computeTotals } from "../components/LineItemsEditor";
 import FinanceDocumentPreview from "../components/FinanceDocumentPreview";
+import ConditionsEditor from "../components/ConditionsEditor";
 import { listQuotations, saveQuotation, deleteQuotation, downloadQuotationPdf, DocumentConflictError } from "../services/finance.api";
 import { queueQuotationSave } from "../../../offline/syncQueue";
-import { FinanceItem, LineItem, QuotationDoc } from "../types/finance.types";
+import { FinanceItem, LineItem, QuotationDoc, DEFAULT_QUOTATION_CONDITIONS } from "../types/finance.types";
 import { confirmAction } from "../../../components/ConfirmDialog";
 import { hasPermission, PERM } from "../../auth/types/auth.types";
 
@@ -37,6 +38,7 @@ export default function QuotationForm() {
   const [imoNo, setImoNo] = useState("");
   const [status, setStatus] = useState("draft");
   const [lineItems, setLineItems] = useState<LineItem[]>([]);
+  const [conditions, setConditions] = useState<string[]>(DEFAULT_QUOTATION_CONDITIONS);
   const [version, setVersion] = useState<number | null>(null);
   const [issuedBy, setIssuedBy] = useState<string | null>(null);
   const [issuedAt, setIssuedAt] = useState<string | null>(null);
@@ -58,6 +60,7 @@ export default function QuotationForm() {
       setImoNo(found.imo_no || "");
       setStatus(found.status);
       setLineItems(found.line_items);
+      setConditions(found.conditions || []);
       setVersion(found.version);
       setIssuedBy(found.issued_by ? (found.issued_by.full_name || found.issued_by.email) : null);
       setIssuedById(found.issued_by?.id ?? null);
@@ -85,6 +88,7 @@ export default function QuotationForm() {
       subtotal,
       discount_total: discountTotal,
       total,
+      conditions,
       version,
     };
     try {
@@ -184,6 +188,15 @@ export default function QuotationForm() {
               <LineItemsEditor lineItems={lineItems} onChange={setLineItems} />
             </div>
           )}
+          {canEdit && (
+            <div className="finance-panel" style={{ marginBottom: 16 }}>
+              <h2 style={{ marginTop: 0 }}>Conditions</h2>
+              <p style={{ fontSize: 11.5, color: "var(--insp-muted)", marginTop: -6 }}>
+                Printed beside the totals block — edit, remove, or add as needed for this quotation.
+              </p>
+              <ConditionsEditor conditions={conditions} onChange={setConditions} />
+            </div>
+          )}
           <FinanceDocumentPreview
             kind="QUOTATION"
             docNo={docNo}
@@ -195,6 +208,7 @@ export default function QuotationForm() {
             subtotal={subtotal}
             discountTotal={discountTotal}
             total={total}
+            conditions={conditions}
             issuedBy={issuedBy}
             issuedAt={issuedAt}
           />

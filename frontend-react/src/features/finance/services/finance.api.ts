@@ -109,6 +109,7 @@ export interface QuotationSavePayload {
   subtotal: number;
   discount_total: number;
   total: number;
+  conditions: string[];
   version?: number | null;
 }
 
@@ -148,7 +149,6 @@ export interface InvoiceSavePayload {
   subtotal: number;
   discount_total: number;
   total: number;
-  conditions: string[];
   version?: number | null;
 }
 
@@ -243,6 +243,31 @@ export async function downloadInvoicePdf(invoiceNo: string, withAttachments = tr
     `/finance/invoices/${encodeURIComponent(invoiceNo)}/pdf?with_attachments=${withAttachments}`,
     `${safeNo}.pdf`
   );
+}
+
+/**
+ * Requested directly: "when you give the command to print or save the
+ * loaded documents will be added to the invoice document" — this is
+ * what the invoice's "Print" button now calls instead of window.print()
+ * (which can only ever print the current page, never merge in
+ * separately-uploaded files). Opens the same combined PDF
+ * downloadInvoicePdf() downloads, in a new tab, so the browser's own
+ * PDF viewer's print/save controls both work directly against the
+ * merged document. The tab is opened SYNCHRONOUSLY (before the await)
+ * with about:blank, then redirected once the PDF blob is ready —
+ * opening it only after the fetch resolves would no longer count as a
+ * direct result of the click in most browsers and gets popup-blocked.
+ */
+export async function openInvoicePdf(invoiceNo: string): Promise<void> {
+  const win = window.open("", "_blank");
+  try {
+    const response = await api.get(`/finance/invoices/${encodeURIComponent(invoiceNo)}/pdf?with_attachments=true`, { responseType: "blob" });
+    const blobUrl = URL.createObjectURL(response.data);
+    if (win) win.location.href = blobUrl;
+  } catch (e) {
+    win?.close();
+    throw e;
+  }
 }
 
 export async function downloadQuotationPdf(quotationNo: string): Promise<void> {

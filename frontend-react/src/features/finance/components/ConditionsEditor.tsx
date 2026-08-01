@@ -1,4 +1,4 @@
-import { DEFAULT_INVOICE_CONDITIONS } from "../types/finance.types";
+import { DEFAULT_QUOTATION_CONDITIONS } from "../types/finance.types";
 
 interface Props {
   conditions: string[];
@@ -9,11 +9,12 @@ interface Props {
  * Requested directly: short condition bullets ("Overtime rate
  * applies...", "Client is responsible for technician's accommodation,
  * local transportation, and flights") that print beside the totals
- * block — editable per invoice, not a fixed admin-managed setting like
- * the Terms and Conditions legal text. A new invoice starts with
- * DEFAULT_INVOICE_CONDITIONS pre-filled (see freshInvoice in
- * InvoiceForm.tsx); any of them can be edited or removed here, and more
- * can be added, including re-adding a suggested one that was removed.
+ * block — editable per quotation, not a fixed admin-managed setting
+ * like the Terms and Conditions legal text (which prints on invoices
+ * instead). A new quotation starts with DEFAULT_QUOTATION_CONDITIONS
+ * pre-filled (see QuotationForm.tsx); any of them can be edited or
+ * removed here, and more can be added, including re-adding a suggested
+ * one that was removed.
  */
 export default function ConditionsEditor({ conditions, onChange }: Props) {
   function updateLine(i: number, value: string) {
@@ -30,7 +31,7 @@ export default function ConditionsEditor({ conditions, onChange }: Props) {
     onChange([...conditions, text]);
   }
 
-  const missingSuggested = DEFAULT_INVOICE_CONDITIONS.filter((s) => !conditions.includes(s));
+  const missingSuggested = DEFAULT_QUOTATION_CONDITIONS.filter((s) => !conditions.includes(s));
 
   return (
     <div>
@@ -43,7 +44,7 @@ export default function ConditionsEditor({ conditions, onChange }: Props) {
         </div>
       ))}
       {conditions.length === 0 && (
-        <p style={{ fontSize: 11.5, color: "var(--insp-muted)", marginTop: 0 }}>No conditions on this invoice.</p>
+        <p style={{ fontSize: 11.5, color: "var(--insp-muted)", marginTop: 0 }}>No conditions on this quotation.</p>
       )}
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 6 }}>
         <button type="button" className="finance-btn finance-btn-outline" style={{ padding: "5px 12px", fontSize: 12 }} onClick={() => addLine()}>

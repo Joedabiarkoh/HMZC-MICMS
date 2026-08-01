@@ -6,10 +6,9 @@ import ItemPicker from "../components/ItemPicker";
 import LineItemsEditor, { newLineFromItem, computeTotals } from "../components/LineItemsEditor";
 import FinanceDocumentPreview from "../components/FinanceDocumentPreview";
 import InvoiceAttachments from "../components/InvoiceAttachments";
-import ConditionsEditor from "../components/ConditionsEditor";
-import { listInvoices, saveInvoice, deleteInvoice, downloadInvoicePdf, DocumentConflictError } from "../services/finance.api";
+import { listInvoices, saveInvoice, deleteInvoice, openInvoicePdf, DocumentConflictError } from "../services/finance.api";
 import { queueInvoiceSave } from "../../../offline/syncQueue";
-import { FinanceItem, LineItem, InvoiceDoc, DEFAULT_INVOICE_CONDITIONS } from "../types/finance.types";
+import { FinanceItem, LineItem, InvoiceDoc } from "../types/finance.types";
 import { confirmAction } from "../../../components/ConfirmDialog";
 import { hasPermission, PERM } from "../../auth/types/auth.types";
 
@@ -39,7 +38,6 @@ export default function InvoiceForm() {
   const [imoNo, setImoNo] = useState("");
   const [status, setStatus] = useState("draft");
   const [lineItems, setLineItems] = useState<LineItem[]>([]);
-  const [conditions, setConditions] = useState<string[]>(DEFAULT_INVOICE_CONDITIONS);
   const [version, setVersion] = useState<number | null>(null);
   const [issuedBy, setIssuedBy] = useState<string | null>(null);
   const [issuedAt, setIssuedAt] = useState<string | null>(null);
@@ -61,7 +59,6 @@ export default function InvoiceForm() {
       setImoNo(found.imo_no || "");
       setStatus(found.status);
       setLineItems(found.line_items);
-      setConditions(found.conditions || []);
       setVersion(found.version);
       setIssuedBy(found.issued_by ? (found.issued_by.full_name || found.issued_by.email) : null);
       setIssuedById(found.issued_by?.id ?? null);
@@ -89,7 +86,6 @@ export default function InvoiceForm() {
       subtotal,
       discount_total: discountTotal,
       total,
-      conditions,
       version,
     };
     try {
@@ -191,14 +187,17 @@ export default function InvoiceForm() {
           <div className="finance-btn-row" style={{ display: "flex", gap: 8, marginTop: 14, flexWrap: "wrap" }}>
             {canEdit && <button className="finance-btn finance-btn-outline" disabled={saving} onClick={() => handleSave("draft")}>Save Draft</button>}
             {canEdit && <button className="finance-btn finance-btn-primary" disabled={saving} onClick={() => handleSave("issued")}>Issue Invoice</button>}
-            <button className="finance-btn finance-btn-outline" onClick={() => window.print()}>Print</button>
-            {/* Server-generated PDF that merges in every uploaded
-                supporting document (see InvoiceAttachments below) —
-                only available once the invoice is actually saved, same
-                gating as the Supporting Documents section itself. The
-                plain "Print" button above only ever prints this
-                invoice on its own (browser print, no attachments). */}
-            {invoiceNo && <button className="finance-btn finance-btn-outline" onClick={() => downloadInvoicePdf(invoiceNo)}>Download PDF (with Attachments)</button>}
+            {/* Requested directly: "when you give the command to print
+                or save the loaded documents will be added to the
+                invoice document." window.print() can only ever print
+                the current page, so it can't merge in separately
+                uploaded files — this instead opens the server-rendered
+                combined PDF (invoice + every Supporting Document below)
+                in a new tab, where the browser's own PDF viewer covers
+                both printing and saving from one merged document. Only
+                available once the invoice is actually saved, same
+                gating as the Supporting Documents section itself. */}
+            {invoiceNo && <button className="finance-btn finance-btn-outline" onClick={() => openInvoicePdf(invoiceNo)}>Print / Save (with Attachments)</button>}
             {invoiceNo && hasPermission(user, PERM.FIN_DELETE) && <button className="finance-btn finance-btn-danger" onClick={handleDelete}>Delete</button>}
           </div>
         </div>
@@ -208,15 +207,6 @@ export default function InvoiceForm() {
             <div className="finance-panel" style={{ marginBottom: 16 }}>
               <h2 style={{ marginTop: 0 }}>Line Items</h2>
               <LineItemsEditor lineItems={lineItems} onChange={setLineItems} />
-            </div>
-          )}
-          {canEdit && (
-            <div className="finance-panel" style={{ marginBottom: 16 }}>
-              <h2 style={{ marginTop: 0 }}>Conditions</h2>
-              <p style={{ fontSize: 11.5, color: "var(--insp-muted)", marginTop: -6 }}>
-                Printed beside the totals block — edit, remove, or add as needed for this invoice.
-              </p>
-              <ConditionsEditor conditions={conditions} onChange={setConditions} />
             </div>
           )}
           <FinanceDocumentPreview
@@ -230,7 +220,6 @@ export default function InvoiceForm() {
             subtotal={subtotal}
             discountTotal={discountTotal}
             total={total}
-            conditions={conditions}
             issuedBy={issuedBy}
             issuedAt={issuedAt}
           />

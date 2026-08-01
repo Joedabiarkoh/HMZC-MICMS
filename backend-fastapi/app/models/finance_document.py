@@ -36,6 +36,18 @@ class Quotation(BaseModel):
     subtotal = Column(Float, nullable=False, default=0)
     discount_total = Column(Float, nullable=False, default=0)
     total = Column(Float, nullable=False, default=0)
+    # Requested directly: short condition bullets ("Overtime rate
+    # applies...", "Client is responsible for technician's
+    # accommodation, local transportation, and flights") printed beside
+    # the totals block — a plain list of strings, editable per quotation
+    # (unlike NotificationSettings.terms_conditions, which is one
+    # company-wide legal text block, printed on invoices instead). Lives
+    # on Quotation, not Invoice — "put the condition in the quotation not
+    # the invoice," since these are standing terms stated up front in the
+    # pricing proposal, not something restated after the fact on the
+    # invoice. See DEFAULT_INVOICE_CONDITIONS on the frontend for the
+    # suggested defaults a new quotation starts with.
+    conditions = Column(JSON, nullable=False, default=list)
 
     issued_by_id = Column(Integer, ForeignKey("users.id"), nullable=True)
     issued_by = relationship("User")
@@ -60,14 +72,6 @@ class Invoice(BaseModel):
     subtotal = Column(Float, nullable=False, default=0)
     discount_total = Column(Float, nullable=False, default=0)
     total = Column(Float, nullable=False, default=0)
-    # Requested directly: short condition bullets ("Overtime rate
-    # applies...", "Client is responsible for technician's
-    # accommodation, local transportation, and flights") printed beside
-    # the totals block — a plain list of strings, editable per invoice
-    # (unlike NotificationSettings.terms_conditions, which is one
-    # company-wide legal text block). See freshInvoiceConditions() on
-    # the frontend for the suggested defaults a new invoice starts with.
-    conditions = Column(JSON, nullable=False, default=list)
 
     issued_by_id = Column(Integer, ForeignKey("users.id"), nullable=True)
     issued_by = relationship("User")
