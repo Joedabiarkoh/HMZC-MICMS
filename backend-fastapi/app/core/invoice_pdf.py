@@ -6,10 +6,12 @@ import qrcode
 from PIL import Image as PILImage
 from pypdf import PdfReader, PdfWriter
 from reportlab.lib import colors
-from reportlab.lib.enums import TA_RIGHT
+from reportlab.lib.enums import TA_CENTER, TA_RIGHT
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import mm
+from reportlab.pdfbase import pdfmetrics
+from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.platypus import (
     Image as RLImage,
     KeepTogether,
@@ -38,6 +40,7 @@ from app.models.notification_settings import NotificationSettings
 # one PDF, with its attachments," which is what was actually asked for.
 
 NAVY = colors.HexColor("#1F3B5C")
+TEAL = colors.HexColor("#0E7C86")  # --insp-teal — quotation status badge color, matching .insp-badge on screen
 MUTED = colors.HexColor("#6B7480")
 LINE = colors.HexColor("#DCE1E5")
 # Same --insp-accent (--insp-green) used for the letterhead's
@@ -47,17 +50,44 @@ ACCENT = colors.HexColor("#4C7A3A")
 
 LOGO_PATH = Path(__file__).resolve().parent.parent / "static" / "hmzc_logo.jpeg"
 
+# reportlab's built-in PDF fonts (Helvetica etc.) only cover
+# WinAnsiEncoding (Windows-1252) — enough for the accented Portuguese
+# characters already in HMZC's own address text, but nothing outside
+# that (Cyrillic, Greek, some Latin Extended-A characters a customer or
+# vessel name could genuinely contain). DejaVu Sans has much broader
+# Unicode coverage; the Dockerfile installs it via fonts-dejavu-core.
+# Falls back to Helvetica (unchanged behavior) if the font files aren't
+# there — e.g. running this file outside that container — rather than
+# hard-failing PDF generation over a missing font.
+_FONT_NAME = "Helvetica"
+_FONT_BOLD = "Helvetica-Bold"
+_DEJAVU_DIR = Path("/usr/share/fonts/truetype/dejavu")
+try:
+    _dejavu_regular = _DEJAVU_DIR / "DejaVuSans.ttf"
+    _dejavu_bold = _DEJAVU_DIR / "DejaVuSans-Bold.ttf"
+    if _dejavu_regular.is_file() and _dejavu_bold.is_file():
+        pdfmetrics.registerFont(TTFont("DejaVuSans", str(_dejavu_regular)))
+        pdfmetrics.registerFont(TTFont("DejaVuSans-Bold", str(_dejavu_bold)))
+        pdfmetrics.registerFontFamily("DejaVuSans", normal="DejaVuSans", bold="DejaVuSans-Bold", italic="DejaVuSans", boldItalic="DejaVuSans-Bold")
+        _FONT_NAME = "DejaVuSans"
+        _FONT_BOLD = "DejaVuSans-Bold"
+except Exception:
+    pass
+
 _styles = getSampleStyleSheet()
-_STYLE_NORMAL = ParagraphStyle("InvoiceNormal", parent=_styles["Normal"], fontSize=9, leading=12)
-_STYLE_SMALL = ParagraphStyle("InvoiceSmall", parent=_styles["Normal"], fontSize=7.5, leading=10.5, textColor=MUTED)
-_STYLE_TITLE = ParagraphStyle("InvoiceTitle", parent=_styles["Heading1"], fontSize=18, textColor=NAVY, spaceAfter=0)
+_STYLE_NORMAL = ParagraphStyle("InvoiceNormal", parent=_styles["Normal"], fontName=_FONT_NAME, fontSize=9, leading=12)
+_STYLE_SMALL = ParagraphStyle("InvoiceSmall", parent=_styles["Normal"], fontName=_FONT_NAME, fontSize=7.5, leading=10.5, textColor=MUTED)
+_STYLE_TITLE = ParagraphStyle("InvoiceTitle", parent=_styles["Heading1"], fontName=_FONT_BOLD, fontSize=18, textColor=NAVY, spaceAfter=0)
 # Matches .insp-letterhead .insp-lh-right in inspections.css exactly:
 # right-aligned, 10px/muted-grey, the same letterhead every certificate
 # and the on-screen invoice/quotation preview already uses — this PDF's
 # header previously used its own left-aligned, unstyled block instead,
 # which is what actually made it look different from everything else.
-_STYLE_LETTERHEAD = ParagraphStyle("InvoiceLetterhead", parent=_styles["Normal"], fontSize=9, leading=13.5, textColor=MUTED, alignment=TA_RIGHT)
-_STYLE_SECTION = ParagraphStyle("InvoiceSection", parent=_styles["Normal"], fontSize=8.5, leading=11, textColor=NAVY, spaceBefore=10, spaceAfter=4)
+_STYLE_LETTERHEAD = ParagraphStyle("InvoiceLetterhead", parent=_styles["Normal"], fontName=_FONT_NAME, fontSize=9, leading=13.5, textColor=MUTED, alignment=TA_RIGHT)
+# Bold now (was inheriting plain Normal) — matches the fontWeight:700
+# uppercase section headers actually use on screen (FinanceDocumentPreview.tsx).
+_STYLE_SECTION = ParagraphStyle("InvoiceSection", parent=_styles["Normal"], fontName=_FONT_BOLD, fontSize=8.5, leading=11, textColor=NAVY, spaceBefore=10, spaceAfter=4)
+_STYLE_BADGE = ParagraphStyle("InvoiceBadge", parent=_styles["Normal"], fontName=_FONT_BOLD, fontSize=9, leading=11, textColor=colors.white, alignment=TA_CENTER)
 
 
 def _logo_image(max_width_mm: float, max_height_mm: float) -> RLImage:
@@ -90,6 +120,51 @@ def _qr_image(payload: str, size_mm: float = 20) -> RLImage:
     img.save(buf, format="PNG")
     buf.seek(0)
     return RLImage(buf, width=size_mm * mm, height=size_mm * mm)
+
+
+def _status_badge(kind: str, status: str) -> Table:
+    """
+    A colored rounded pill, matching .insp-badge on screen (navy for
+    invoices, teal for quotations, white uppercase text) — the PDF
+    previously just showed "[ISSUED]" as small plain bracketed text,
+    visibly plainer than the real badge every certificate and the
+    on-screen preview actually use.
+    """
+    badge_color = NAVY if kind == "INVOICE" else TEAL
+    badge = Table([[Paragraph(status.upper(), _STYLE_BADGE)]])
+    badge.setStyle(TableStyle([
+        ("BACKGROUND", (0, 0), (-1, -1), badge_color),
+        ("ROUNDEDCORNERS", [9, 9, 9, 9]),
+        ("LEFTPADDING", (0, 0), (-1, -1), 10),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 10),
+        ("TOPPADDING", (0, 0), (-1, -1), 4),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+    ]))
+    return badge
+
+
+def _draw_watermark(canvas_obj, _doc_template) -> None:
+    """
+    A faint centered logo behind the page content, matching
+    .finance-doc-page::before on screen (every certificate and the
+    invoice/quotation preview has this) — the PDF previously had none
+    at all, a visible gap from the rest of the document family.
+    """
+    if not LOGO_PATH.is_file():
+        return
+    with PILImage.open(LOGO_PATH) as im:
+        native_w, native_h = im.size
+    ratio = native_w / native_h
+    page_w, page_h = A4
+    width = page_w * 0.56  # matches CSS's background-size: 56%
+    height = width / ratio
+    x = (page_w - width) / 2
+    y = (page_h - height) / 2
+    canvas_obj.saveState()
+    canvas_obj.setFillAlpha(0.05)
+    canvas_obj.drawImage(str(LOGO_PATH), x, y, width=width, height=height, preserveAspectRatio=True, mask=None)
+    canvas_obj.restoreState()
 
 
 def _id_table(rows: list[tuple[str, str, str, str]]) -> Table:
@@ -184,8 +259,10 @@ def build_document_pdf(doc, kind: str, company: Optional[NotificationSettings]) 
     story.append(header)
     story.append(Spacer(1, 10))
 
-    # ---- title + status ----
-    story.append(Paragraph(("Invoice" if kind == "INVOICE" else "Quotation") + f" &nbsp;&nbsp; <font size=10 color='#1F3B5C'>[{doc.status.upper()}]</font>", _STYLE_TITLE))
+    # ---- title + status badge ----
+    title_row = Table([[Paragraph("Invoice" if kind == "INVOICE" else "Quotation", _STYLE_TITLE), _status_badge(kind, doc.status)]], colWidths=[None, None])
+    title_row.setStyle(TableStyle([("VALIGN", (0, 0), (-1, -1), "MIDDLE"), ("LEFTPADDING", (1, 0), (1, 0), 10)]))
+    story.append(title_row)
     story.append(Spacer(1, 8))
 
     # ---- ID table ----
@@ -296,7 +373,7 @@ def build_document_pdf(doc, kind: str, company: Optional[NotificationSettings]) 
     )
     story.append(Paragraph(footer_text, _STYLE_SMALL))
 
-    doc_template.build(story)
+    doc_template.build(story, onFirstPage=_draw_watermark, onLaterPages=_draw_watermark)
     return buf.getvalue()
 
 

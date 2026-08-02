@@ -13,7 +13,15 @@ WORKDIR /app
 # OLDER server than itself, never a newer one, so the client here must
 # be pinned to match — installed from the official PGDG apt repo since
 # Debian's own repo doesn't carry v18 yet.
-RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates curl gnupg \
+# fonts-dejavu-core: reportlab's built-in PDF fonts (Helvetica etc.)
+# only cover WinAnsiEncoding (Windows-1252) — enough for the accented
+# Portuguese characters already in HMZC's own address text, but nothing
+# outside that (Cyrillic, Greek, and some Latin Extended-A characters a
+# customer/vessel name could genuinely contain). DejaVu Sans has much
+# broader Unicode coverage and is a small, permissively-licensed
+# package — registered by core/invoice_pdf.py from the path this
+# installs to (/usr/share/fonts/truetype/dejavu/).
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates curl gnupg fonts-dejavu-core \
     && install -d /usr/share/postgresql-common/pgdg \
     && curl -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc --fail https://www.postgresql.org/media/keys/ACCC4CF8.asc \
     && echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt $(. /etc/os-release && echo $VERSION_CODENAME)-pgdg main" > /etc/apt/sources.list.d/pgdg.list \
