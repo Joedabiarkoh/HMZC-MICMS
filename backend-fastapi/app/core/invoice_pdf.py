@@ -60,6 +60,27 @@ _STYLE_LETTERHEAD = ParagraphStyle("InvoiceLetterhead", parent=_styles["Normal"]
 _STYLE_SECTION = ParagraphStyle("InvoiceSection", parent=_styles["Normal"], fontSize=8.5, leading=11, textColor=NAVY, spaceBefore=10, spaceAfter=4)
 
 
+def _logo_image(max_width_mm: float, max_height_mm: float) -> RLImage:
+    """
+    Scales the logo to fit within max_width_mm x max_height_mm while
+    preserving its real aspect ratio — was hardcoded to 34mm x 17mm (a
+    2:1 box) regardless of the source image's actual ~3.28:1 shape,
+    which forced reportlab to stretch it non-uniformly to fill that box
+    exactly. Reads the real dimensions from the file itself rather than
+    hardcoding a ratio, so replacing the logo asset later can't silently
+    reintroduce the same distortion.
+    """
+    with PILImage.open(LOGO_PATH) as im:
+        native_w, native_h = im.size
+    ratio = native_w / native_h
+    width_mm = max_width_mm
+    height_mm = width_mm / ratio
+    if height_mm > max_height_mm:
+        height_mm = max_height_mm
+        width_mm = height_mm * ratio
+    return RLImage(str(LOGO_PATH), width=width_mm * mm, height=height_mm * mm)
+
+
 def _qr_image(payload: str, size_mm: float = 20) -> RLImage:
     qr = qrcode.QRCode(border=1, box_size=6)
     qr.add_data(payload)
@@ -139,7 +160,7 @@ def build_document_pdf(doc, kind: str, company: Optional[NotificationSettings]) 
         + (f"<br/>PEPPOL ID: {company.peppol_id}" if company and company.peppol_id else ""),
         _STYLE_LETTERHEAD,
     )
-    logo_cell = RLImage(str(LOGO_PATH), width=34 * mm, height=17 * mm) if LOGO_PATH.is_file() else Paragraph("HMZC", _STYLE_TITLE)
+    logo_cell = _logo_image(40, 17) if LOGO_PATH.is_file() else Paragraph("HMZC", _STYLE_TITLE)
     qr_cell = _qr_image(f"HMZC {kind}\nNo: {doc_no}\nCustomer: {doc.customer or '—'}\nTotal: ${total:.2f}")
 
     right_group = Table([[letterhead_text, qr_cell]], colWidths=[97 * mm, 25 * mm])
