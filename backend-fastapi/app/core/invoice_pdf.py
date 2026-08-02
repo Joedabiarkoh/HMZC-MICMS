@@ -6,6 +6,7 @@ import qrcode
 from PIL import Image as PILImage
 from pypdf import PdfReader, PdfWriter
 from reportlab.lib import colors
+from reportlab.lib.enums import TA_RIGHT
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import mm
@@ -39,6 +40,10 @@ from app.models.notification_settings import NotificationSettings
 NAVY = colors.HexColor("#1F3B5C")
 MUTED = colors.HexColor("#6B7480")
 LINE = colors.HexColor("#DCE1E5")
+# Same --insp-accent (--insp-green) used for the letterhead's
+# border-bottom everywhere else in the app (theme.css/inspections.css)
+# — the PDF's own header previously had no such border at all.
+ACCENT = colors.HexColor("#4C7A3A")
 
 LOGO_PATH = Path(__file__).resolve().parent.parent / "static" / "hmzc_logo.jpeg"
 
@@ -46,7 +51,12 @@ _styles = getSampleStyleSheet()
 _STYLE_NORMAL = ParagraphStyle("InvoiceNormal", parent=_styles["Normal"], fontSize=9, leading=12)
 _STYLE_SMALL = ParagraphStyle("InvoiceSmall", parent=_styles["Normal"], fontSize=7.5, leading=10.5, textColor=MUTED)
 _STYLE_TITLE = ParagraphStyle("InvoiceTitle", parent=_styles["Heading1"], fontSize=18, textColor=NAVY, spaceAfter=0)
-_STYLE_LETTERHEAD = ParagraphStyle("InvoiceLetterhead", parent=_styles["Normal"], fontSize=8.5, leading=12)
+# Matches .insp-letterhead .insp-lh-right in inspections.css exactly:
+# right-aligned, 10px/muted-grey, the same letterhead every certificate
+# and the on-screen invoice/quotation preview already uses — this PDF's
+# header previously used its own left-aligned, unstyled block instead,
+# which is what actually made it look different from everything else.
+_STYLE_LETTERHEAD = ParagraphStyle("InvoiceLetterhead", parent=_styles["Normal"], fontSize=9, leading=13.5, textColor=MUTED, alignment=TA_RIGHT)
 _STYLE_SECTION = ParagraphStyle("InvoiceSection", parent=_styles["Normal"], fontSize=8.5, leading=11, textColor=NAVY, spaceBefore=10, spaceAfter=4)
 
 
@@ -112,8 +122,17 @@ def build_document_pdf(doc, kind: str, company: Optional[NotificationSettings]) 
     total = doc.total
 
     # ---- letterhead ----
+    # Matches .insp-letterhead's actual layout (inspections.css), the
+    # one every certificate and the on-screen invoice/quotation preview
+    # already uses: logo on the left; on the right, the address block
+    # sits immediately left of the QR code as one right-aligned group
+    # (not spread across three even columns) — and the whole thing sits
+    # on a 3px accent-green bottom border. The PDF's own header
+    # previously matched none of this (evenly-spread 3-column layout,
+    # left-aligned unstyled text, no border), which is what actually
+    # made it look like a different document from everything else.
     letterhead_text = Paragraph(
-        "<b>HMZC LTD — Marine Engineering Services</b><br/>"
+        "HMZC LTD — Marine Engineering Services<br/>"
         "Cabinda HQ: Urbanização 4 De Abril, Cabinda, Angola<br/>"
         "Luanda, Benfica Rua Bento Raimundo.<br/>"
         "admin@hmzchealthinmarine.com | +244 972 320 300"
@@ -122,21 +141,24 @@ def build_document_pdf(doc, kind: str, company: Optional[NotificationSettings]) 
     )
     logo_cell = RLImage(str(LOGO_PATH), width=34 * mm, height=17 * mm) if LOGO_PATH.is_file() else Paragraph("HMZC", _STYLE_TITLE)
     qr_cell = _qr_image(f"HMZC {kind}\nNo: {doc_no}\nCustomer: {doc.customer or '—'}\nTotal: ${total:.2f}")
-    # Column widths were plain point values (80/300/60) while the logo
-    # image itself is sized in mm (34mm ≈ 96pt) — 96pt doesn't fit an
-    # 80pt-wide column, so the logo overflowed straight into the
-    # letterhead text column next to it, visually overlapping the
-    # company name/address. Widths now in mm too, sized to actually fit
-    # each cell's content with room to spare, and sum to the page's full
-    # content width (A4 170mm after this document's 20mm side margins)
-    # so nothing is left unaccounted for.
-    header = Table([[logo_cell, letterhead_text, qr_cell]], colWidths=[45 * mm, 100 * mm, 25 * mm])
+
+    right_group = Table([[letterhead_text, qr_cell]], colWidths=[97 * mm, 25 * mm])
+    right_group.setStyle(TableStyle([
+        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+        ("LEFTPADDING", (0, 0), (-1, -1), 0),
+        ("RIGHTPADDING", (0, 0), (0, 0), 10),
+        ("RIGHTPADDING", (1, 0), (1, 0), 0),
+    ]))
+
+    header = Table([[logo_cell, right_group]], colWidths=[45 * mm, 122 * mm])
     header.setStyle(TableStyle([
         ("VALIGN", (0, 0), (-1, -1), "TOP"),
-        ("ALIGN", (2, 0), (2, 0), "RIGHT"),
         ("LEFTPADDING", (0, 0), (0, 0), 0),
-        ("RIGHTPADDING", (0, 0), (0, 0), 8),
-        ("LEFTPADDING", (1, 0), (1, 0), 4),
+        ("RIGHTPADDING", (0, 0), (0, 0), 0),
+        ("LEFTPADDING", (1, 0), (1, 0), 0),
+        ("RIGHTPADDING", (1, 0), (1, 0), 0),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 9),
+        ("LINEBELOW", (0, 0), (-1, -1), 2.2, ACCENT),
     ]))
     story.append(header)
     story.append(Spacer(1, 10))
