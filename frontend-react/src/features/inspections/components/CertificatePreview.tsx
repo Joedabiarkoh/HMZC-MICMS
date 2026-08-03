@@ -135,6 +135,7 @@ export default function CertificatePreview({ cert, config }: Props) {
         <div className="insp-cert-page" style={watermarkStyle}>
           <Letterhead cert={cert} />
           <div className="insp-cert-title-row"><h2>{config.equipListTitle}</h2><span className="insp-badge">{config.typeName.toUpperCase()}</span></div>
+          <CertNoLine certNo={cert.certNo} />
           <table className="insp-print-chk">
             <thead><tr><th>Item</th><th>Qty</th><th>Unit</th><th>Result</th><th>Remarks</th></tr></thead>
             <tbody>
@@ -159,6 +160,23 @@ export default function CertificatePreview({ cert, config }: Props) {
 
 function checklistResultLabel(r: string) {
   return { done: "Carried Out", not_done: "Not Carried Out", na: "N/A", "": "—" }[r] || r;
+}
+
+// Requested directly: the certificate number should appear on every
+// page of the same certificate, not just the first one. A multi-page
+// boat/crane certificate (main page + a separate ChecklistPage per
+// section — Boat Checklist, Davit Checklist, Equipment List, each its
+// own .insp-cert-page with its own Letterhead) previously only showed
+// Certificate No. on that first page's own ID table — any continuation
+// page had no way to identify which certificate it belonged to once
+// separated from the rest (a printed page shuffled out of order, or a
+// single page photocopied on its own).
+function CertNoLine({ certNo }: { certNo: string }) {
+  return (
+    <div style={{ fontSize: 10.5, color: "var(--insp-muted)", marginTop: -6, marginBottom: 10 }}>
+      Certificate No: <span style={{ fontFamily: "monospace", color: "var(--insp-navy)", fontWeight: 700 }}>{certNo}</span>
+    </div>
+  );
 }
 
 // Requested directly: every certificate page needs a signature. FFE
@@ -818,6 +836,7 @@ function ChecklistPage({ title, config, cert, sections, outstandingKey }: any) {
     <div className="insp-cert-page" style={watermarkStyle}>
       <Letterhead cert={cert} />
       <div className="insp-cert-title-row"><h2>{title}</h2><span className="insp-badge">{config.typeName.toUpperCase()}</span></div>
+      <CertNoLine certNo={cert.certNo} />
       <table className="insp-print-chk">
         <thead><tr><th>Item</th><th>Result</th><th>Remarks</th></tr></thead>
         <tbody>
