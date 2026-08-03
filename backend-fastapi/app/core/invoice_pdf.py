@@ -49,6 +49,11 @@ LINE = colors.HexColor("#DCE1E5")
 ACCENT = colors.HexColor("#4C7A3A")
 
 LOGO_PATH = Path(__file__).resolve().parent.parent / "static" / "hmzc_logo.jpeg"
+# HMZC's official digital stamp — requested directly: "include this
+# stamp to all certificate, and invoice." Invoice-only here (quotations
+# weren't asked for); see FinanceDocumentPreview.tsx/CertificatePreview.tsx
+# for the on-screen/certificate side of the same request.
+STAMP_PATH = Path(__file__).resolve().parent.parent / "static" / "hmzc_stamp.jpeg"
 
 # reportlab's built-in PDF fonts (Helvetica etc.) only cover
 # WinAnsiEncoding (Windows-1252) — enough for the accented Portuguese
@@ -90,17 +95,18 @@ _STYLE_SECTION = ParagraphStyle("InvoiceSection", parent=_styles["Normal"], font
 _STYLE_BADGE = ParagraphStyle("InvoiceBadge", parent=_styles["Normal"], fontName=_FONT_BOLD, fontSize=9, leading=11, textColor=colors.white, alignment=TA_CENTER)
 
 
-def _logo_image(max_width_mm: float, max_height_mm: float) -> RLImage:
+def _scaled_image(path: Path, max_width_mm: float, max_height_mm: float) -> RLImage:
     """
-    Scales the logo to fit within max_width_mm x max_height_mm while
-    preserving its real aspect ratio — was hardcoded to 34mm x 17mm (a
-    2:1 box) regardless of the source image's actual ~3.28:1 shape,
+    Scales an image to fit within max_width_mm x max_height_mm while
+    preserving its real aspect ratio — the logo used to be hardcoded to
+    34mm x 17mm (a 2:1 box) regardless of its actual ~3.28:1 shape,
     which forced reportlab to stretch it non-uniformly to fill that box
     exactly. Reads the real dimensions from the file itself rather than
-    hardcoding a ratio, so replacing the logo asset later can't silently
-    reintroduce the same distortion.
+    hardcoding a ratio, so a differently-shaped replacement asset can't
+    silently reintroduce the same distortion. Shared by the logo and the
+    HMZC stamp — same distortion risk, same fix.
     """
-    with PILImage.open(LOGO_PATH) as im:
+    with PILImage.open(path) as im:
         native_w, native_h = im.size
     ratio = native_w / native_h
     width_mm = max_width_mm
@@ -108,7 +114,7 @@ def _logo_image(max_width_mm: float, max_height_mm: float) -> RLImage:
     if height_mm > max_height_mm:
         height_mm = max_height_mm
         width_mm = height_mm * ratio
-    return RLImage(str(LOGO_PATH), width=width_mm * mm, height=height_mm * mm)
+    return RLImage(str(path), width=width_mm * mm, height=height_mm * mm)
 
 
 def _qr_image(payload: str, size_mm: float = 20) -> RLImage:
@@ -235,7 +241,7 @@ def build_document_pdf(doc, kind: str, company: Optional[NotificationSettings]) 
         + (f"<br/>PEPPOL ID: {company.peppol_id}" if company and company.peppol_id else ""),
         _STYLE_LETTERHEAD,
     )
-    logo_cell = _logo_image(40, 17) if LOGO_PATH.is_file() else Paragraph("HMZC", _STYLE_TITLE)
+    logo_cell = _scaled_image(LOGO_PATH, 40, 17) if LOGO_PATH.is_file() else Paragraph("HMZC", _STYLE_TITLE)
     qr_cell = _qr_image(f"HMZC {kind}\nNo: {doc_no}\nCustomer: {doc.customer or '—'}\nTotal: ${total:.2f}")
 
     right_group = Table([[letterhead_text, qr_cell]], colWidths=[97 * mm, 25 * mm])
@@ -371,7 +377,20 @@ def build_document_pdf(doc, kind: str, company: Optional[NotificationSettings]) 
         + "Prices reflect HMZC's internal price list at the time of issue and are not subject to change once issued"
         + ("." if kind == "INVOICE" else "; a formal invoice will confirm final pricing.")
     )
-    story.append(Paragraph(footer_text, _STYLE_SMALL))
+    footer_para = Paragraph(footer_text, _STYLE_SMALL)
+
+    if kind == "INVOICE" and STAMP_PATH.is_file():
+        stamp_row = Table([[footer_para, _scaled_image(STAMP_PATH, 32, 12)]], colWidths=[135 * mm, 32 * mm])
+        stamp_row.setStyle(TableStyle([
+            ("VALIGN", (0, 0), (-1, -1), "BOTTOM"),
+            ("ALIGN", (1, 0), (1, 0), "RIGHT"),
+            ("LEFTPADDING", (0, 0), (-1, -1), 0),
+            ("RIGHTPADDING", (0, 0), (0, 0), 8),
+            ("RIGHTPADDING", (1, 0), (1, 0), 0),
+        ]))
+        story.append(stamp_row)
+    else:
+        story.append(footer_para)
 
     doc_template.build(story, onFirstPage=_draw_watermark, onLaterPages=_draw_watermark)
     return buf.getvalue()

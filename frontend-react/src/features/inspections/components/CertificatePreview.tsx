@@ -3,6 +3,7 @@ import { EquipmentTypeConfig, InspectionCertificate, ChecklistStatus, EquipResul
 import { getFFEConfig } from "../data/ffeCertTypes";
 import { getCalibrationConfig } from "../data/calibrationCertTypes";
 import { HMZC_LOGO_DATA_URI } from "../assets/logo";
+import { HMZC_STAMP_DATA_URI } from "../assets/stamp";
 import { ABS_LOGO_DATA_URI, BUREAU_VERITAS_LOGO_DATA_URI, CRALOG_LOGO_DATA_URI, DNV_LOGO_DATA_URI } from "../assets/approvalLogos";
 import CertificateQR, { buildCertQrPayload } from "./CertificateQR";
 
@@ -107,7 +108,7 @@ export default function CertificatePreview({ cert, config }: Props) {
 
         <div className="insp-remarks-box">Remarks: {cert.remarks}</div>
 
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 14, marginTop: 18 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr auto", gap: 14, marginTop: 18, alignItems: "end" }}>
           <SignBox label="Captain Signature" name={cert.captainName} sig={cert.captainSig} />
           <SignBox label="Service Engineer" name={cert.engineerName} sig={cert.engineerSig} />
           <div style={{ borderTop: "1px solid #B9C0C6", paddingTop: 6 }}>
@@ -120,6 +121,13 @@ export default function CertificatePreview({ cert, config }: Props) {
               </div>
             )}
           </div>
+          {/* Requested directly: "include this stamp to all certificate,
+              and invoice, this is supposed to be the digital stamp of
+              HMZC." This page doesn't go through the shared
+              SignatureFooter (it has its own 3rd column for the
+              certificate number instead of ApprovalLogosRow alone), so
+              it needs its own copy of the same addition. */}
+          <img src={HMZC_STAMP_DATA_URI} alt="HMZC Official Stamp" style={{ height: 60, objectFit: "contain" }} />
         </div>
         <ApprovalLogosRow />
       </div>
@@ -737,9 +745,16 @@ function Letterhead({ cert }: { cert: InspectionCertificate }) {
 function SignatureFooter({ cert, masterLabel, techLabel }: { cert: InspectionCertificate; masterLabel: string; techLabel: string }) {
   return (
     <>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginTop: 18 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr auto", gap: 14, marginTop: 18, alignItems: "end" }}>
         <SignBox label={masterLabel} name={cert.captainName} sig={cert.captainSig} />
         <SignBox label={techLabel} name={cert.engineerName} sig={cert.engineerSig} />
+        {/* Requested directly: "include this stamp to all certificate,
+            and invoice, this is supposed to be the digital stamp of
+            HMZC." Placed in SignatureFooter (not a one-off addition to
+            a single certificate page) so it appears on every equipment
+            type's certificate, the same per-page repetition the
+            approval logos row below already uses. */}
+        <img src={HMZC_STAMP_DATA_URI} alt="HMZC Official Stamp" style={{ height: 60, objectFit: "contain" }} />
       </div>
       <ApprovalLogosRow />
     </>
