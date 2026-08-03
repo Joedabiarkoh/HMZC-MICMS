@@ -108,9 +108,9 @@ export default function CertificatePreview({ cert, config }: Props) {
 
         <div className="insp-remarks-box">Remarks: {cert.remarks}</div>
 
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr auto", gap: 14, marginTop: 18, alignItems: "end" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 14, marginTop: 18, alignItems: "end" }}>
           <SignBox label="Captain Signature" name={cert.captainName} sig={cert.captainSig} />
-          <SignBox label="Service Engineer" name={cert.engineerName} sig={cert.engineerSig} />
+          <SignBox label="Service Engineer" name={cert.engineerName} sig={cert.engineerSig} stamp />
           <div style={{ borderTop: "1px solid #B9C0C6", paddingTop: 6 }}>
             <div style={{ fontFamily: "monospace", fontSize: 13, color: "var(--insp-navy)" }}>{cert.certNo}</div>
             <div style={{ fontSize: 9.5, color: "var(--insp-muted)", textTransform: "uppercase" }}>Certificate No.</div>
@@ -121,13 +121,6 @@ export default function CertificatePreview({ cert, config }: Props) {
               </div>
             )}
           </div>
-          {/* Requested directly: "include this stamp to all certificate,
-              and invoice, this is supposed to be the digital stamp of
-              HMZC." This page doesn't go through the shared
-              SignatureFooter (it has its own 3rd column for the
-              certificate number instead of ApprovalLogosRow alone), so
-              it needs its own copy of the same addition. */}
-          <img src={HMZC_STAMP_DATA_URI} alt="HMZC Official Stamp" style={{ height: 60, objectFit: "contain" }} />
         </div>
         <ApprovalLogosRow />
       </div>
@@ -745,16 +738,16 @@ function Letterhead({ cert }: { cert: InspectionCertificate }) {
 function SignatureFooter({ cert, masterLabel, techLabel }: { cert: InspectionCertificate; masterLabel: string; techLabel: string }) {
   return (
     <>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr auto", gap: 14, marginTop: 18, alignItems: "end" }}>
+      {/* Requested directly: "include this stamp to all certificate...
+          this is supposed to be the digital stamp of HMZC" — then,
+          asked to make it "look it has been used to stamp over the
+          signature of the technician" rather than sit as its own
+          separate block. `stamp` on the technician/engineer SignBox
+          (never Master's) overlays it there — see SignBox's own
+          comment for how. */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginTop: 18 }}>
         <SignBox label={masterLabel} name={cert.captainName} sig={cert.captainSig} />
-        <SignBox label={techLabel} name={cert.engineerName} sig={cert.engineerSig} />
-        {/* Requested directly: "include this stamp to all certificate,
-            and invoice, this is supposed to be the digital stamp of
-            HMZC." Placed in SignatureFooter (not a one-off addition to
-            a single certificate page) so it appears on every equipment
-            type's certificate, the same per-page repetition the
-            approval logos row below already uses. */}
-        <img src={HMZC_STAMP_DATA_URI} alt="HMZC Official Stamp" style={{ height: 60, objectFit: "contain" }} />
+        <SignBox label={techLabel} name={cert.engineerName} sig={cert.engineerSig} stamp />
       </div>
       <ApprovalLogosRow />
     </>
@@ -786,11 +779,36 @@ function ApprovalLogosRow() {
   );
 }
 
-function SignBox({ label, name, sig }: { label: string; name: string; sig: string }) {
+// Requested directly: the stamp should look like it's actually been
+// used to stamp over the technician's signature, not sit as its own
+// separate block — `stamp` (only ever passed for the technician/
+// engineer box, never Master's) absolutely-positions the transparent
+// stamp PNG (see assets/stamp.ts — background keyed out from the
+// original scan so the signature underneath still shows through the
+// gaps in the ink) over this box, slightly rotated for the imperfect
+// hand-stamped look a real one has. `position: relative` on the
+// wrapper is what the overlay positions against.
+function SignBox({ label, name, sig, stamp }: { label: string; name: string; sig: string; stamp?: boolean }) {
   return (
-    <div style={{ borderTop: "1px solid #B9C0C6", paddingTop: 6 }}>
+    <div style={{ borderTop: "1px solid #B9C0C6", paddingTop: 6, position: "relative" }}>
       {sig ? <img src={sig} alt={label} style={{ height: 34 }} /> : <div style={{ fontFamily: "cursive", fontSize: 18, color: "var(--insp-navy)" }}>{name}</div>}
       <div style={{ fontSize: 9.5, color: "var(--insp-muted)", textTransform: "uppercase" }}>{label}</div>
+      {stamp && (
+        <img
+          src={HMZC_STAMP_DATA_URI}
+          alt="HMZC Official Stamp"
+          style={{
+            position: "absolute",
+            left: "50%",
+            top: -4,
+            transform: "translateX(-50%) rotate(-7deg)",
+            height: 52,
+            width: "auto",
+            opacity: 0.9,
+            pointerEvents: "none",
+          }}
+        />
+      )}
     </div>
   );
 }

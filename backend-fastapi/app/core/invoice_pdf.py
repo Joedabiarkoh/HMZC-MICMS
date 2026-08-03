@@ -53,7 +53,7 @@ LOGO_PATH = Path(__file__).resolve().parent.parent / "static" / "hmzc_logo.jpeg"
 # stamp to all certificate, and invoice." Invoice-only here (quotations
 # weren't asked for); see FinanceDocumentPreview.tsx/CertificatePreview.tsx
 # for the on-screen/certificate side of the same request.
-STAMP_PATH = Path(__file__).resolve().parent.parent / "static" / "hmzc_stamp.jpeg"
+STAMP_PATH = Path(__file__).resolve().parent.parent / "static" / "hmzc_stamp.png"
 
 # reportlab's built-in PDF fonts (Helvetica etc.) only cover
 # WinAnsiEncoding (Windows-1252) — enough for the accented Portuguese
