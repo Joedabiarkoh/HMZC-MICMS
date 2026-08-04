@@ -143,21 +143,19 @@ export default function CertificatePreview({ cert, config }: Props) {
           <Letterhead cert={cert} />
           <div className="insp-cert-title-row"><h2>{config.equipListTitle}</h2><span className="insp-badge">{config.typeName.toUpperCase()}</span></div>
           <CertNoLine certNo={cert.certNo} />
-          <table className="insp-print-chk">
-            <thead>
-              <CertNoTheadRow certNo={cert.certNo} colSpan={5} />
-              <tr><th>Item</th><th>Qty</th><th>Unit</th><th>Result</th><th>Remarks</th></tr>
-            </thead>
-            <tbody>
-              {cert.equip.map((e) => (
-                <tr key={e.n}>
-                  <td>{e.n}</td><td>{e.qty}</td><td>{e.unit}</td>
-                  <td><span className={`insp-pill ${e.result}`}>{equipLabel(e.result)}</span></td>
-                  <td>{e.remark || "—"}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <PaginatedTable
+            certNo={cert.certNo}
+            colSpan={5}
+            columnHeaders={<tr><th>Item</th><th>Qty</th><th>Unit</th><th>Result</th><th>Remarks</th></tr>}
+            rows={cert.equip}
+            renderRow={(e) => (
+              <tr key={e.n}>
+                <td>{e.n}</td><td>{e.qty}</td><td>{e.unit}</td>
+                <td><span className={`insp-pill ${e.result}`}>{equipLabel(e.result)}</span></td>
+                <td>{e.remark || "—"}</td>
+              </tr>
+            )}
+          />
           <SignatureFooter cert={cert} masterLabel="Captain Signature" techLabel="Service Engineer" />
         </div>
       )}
@@ -207,6 +205,76 @@ function CertNoTheadRow({ certNo, colSpan }: { certNo: string; colSpan: number }
     <tr>
       <th colSpan={colSpan} style={{ fontWeight: 400 }}>Certificate No: {certNo}</th>
     </tr>
+  );
+}
+
+// Requested directly: "inset a break for pages when it goes beyond
+// certain number of added rows like 20 added rows per page or 25 for
+// easy orientation and arrangement." Until now these growable tables
+// (item registers, equipment lists) relied purely on wherever content
+// happened to run out of room on the page — break-inside: avoid on
+// each row (inspections.css) only stops a row being split in half, it
+// doesn't control WHERE the break falls, so one certificate's item
+// table might break after 18 rows and another after 31 depending on
+// how much other content sat above it. This forces a hard break every
+// fixed number of rows instead, so a table with (say) 60 added items
+// reliably prints as three pages of 25 rather than some other split.
+const ROWS_PER_PRINT_PAGE = 25;
+
+function chunkRows<T>(rows: T[]): T[][] {
+  if (rows.length === 0) return [[]];
+  const chunks: T[][] = [];
+  for (let i = 0; i < rows.length; i += ROWS_PER_PRINT_PAGE) {
+    chunks.push(rows.slice(i, i + ROWS_PER_PRINT_PAGE));
+  }
+  return chunks;
+}
+
+// Shared by every table below that can grow with however many rows a
+// user has added (FFE/Calibration item tables, the boat/crane
+// Equipment List, checklist tables, Loose Gear's Multiple Items
+// register) — each chunk of ROWS_PER_PRINT_PAGE rows renders as its
+// own <table> with its own repeating <CertNoTheadRow>/column headers
+// (same native-thead-repeats-per-page mechanism CertNoTheadRow already
+// relies on), and break-before: page forces every chunk after the
+// first onto a fresh physical page.
+function PaginatedTable<T>({
+  title, certNo, colSpan, columnHeaders, rows, renderRow, emptyMessage,
+}: {
+  title?: string;
+  certNo: string;
+  colSpan: number;
+  columnHeaders: ReactNode;
+  rows: T[];
+  renderRow: (row: T, indexInChunk: number, globalIndex: number) => ReactNode;
+  emptyMessage?: string;
+}) {
+  const chunks = chunkRows(rows);
+  return (
+    <>
+      {chunks.map((chunk, ci) => (
+        <div key={ci} style={ci > 0 ? ({ breakBefore: "page" } as any) : undefined}>
+          {title && (
+            <div style={{ fontWeight: 700, fontSize: 11.5, color: "var(--insp-navy)", margin: "10px 0 4px" }}>
+              {title}{chunks.length > 1 ? ` (continued — page ${ci + 1} of ${chunks.length})` : ""}
+            </div>
+          )}
+          <table className="insp-print-chk">
+            <thead>
+              <CertNoTheadRow certNo={certNo} colSpan={colSpan} />
+              {columnHeaders}
+            </thead>
+            <tbody>
+              {chunk.length === 0 ? (
+                <tr><td colSpan={colSpan} style={{ color: "var(--insp-muted)" }}>{emptyMessage || "No rows recorded."}</td></tr>
+              ) : (
+                chunk.map((row, i) => renderRow(row, i, ci * ROWS_PER_PRINT_PAGE + i))
+              )}
+            </tbody>
+          </table>
+        </div>
+      ))}
+    </>
   );
 }
 
@@ -301,25 +369,21 @@ function FFECertificatePage({ cert, ffe }: { cert: InspectionCertificate; ffe: F
       )}
 
       {!!cfg.checklistItems?.length && (
-        <>
-          <div style={{ fontWeight: 700, fontSize: 11.5, color: "var(--insp-navy)", margin: "10px 0 4px" }}>Description of Inspection/Tests</div>
-          <table className="insp-print-chk">
-            <thead>
-              <CertNoTheadRow certNo={cert.certNo} colSpan={4} />
-              <tr><th>No</th><th>Description</th><th>Result</th><th>Comment</th></tr>
-            </thead>
-            <tbody>
-              {ffe.checklist.map((row) => (
-                <tr key={row.no}>
-                  <td>{row.no}</td>
-                  <td>{row.description}</td>
-                  <td><span className={`insp-pill ${row.result === "done" ? "good" : row.result === "not_done" ? "repair" : row.result === "na" ? "na" : ""}`}>{checklistResultLabel(row.result)}</span></td>
-                  <td>{row.comment || "—"}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </>
+        <PaginatedTable
+          title="Description of Inspection/Tests"
+          certNo={cert.certNo}
+          colSpan={4}
+          columnHeaders={<tr><th>No</th><th>Description</th><th>Result</th><th>Comment</th></tr>}
+          rows={ffe.checklist}
+          renderRow={(row) => (
+            <tr key={row.no}>
+              <td>{row.no}</td>
+              <td>{row.description}</td>
+              <td><span className={`insp-pill ${row.result === "done" ? "good" : row.result === "not_done" ? "repair" : row.result === "na" ? "na" : ""}`}>{checklistResultLabel(row.result)}</span></td>
+              <td>{row.comment || "—"}</td>
+            </tr>
+          )}
+        />
       )}
 
       {!!cfg.readingsRows?.length && (
@@ -360,30 +424,19 @@ function FFECertificatePage({ cert, ffe }: { cert: InspectionCertificate; ffe: F
 
 function FFEItemsTable({ title, columns, rows, certNo }: { title: string; columns: { key: string; label: string }[]; rows: Record<string, string>[]; certNo: string }) {
   return (
-    <>
-      <div style={{ fontWeight: 700, fontSize: 11.5, color: "var(--insp-navy)", margin: "10px 0 4px" }}>{title}</div>
-      <table className="insp-print-chk">
-        <thead>
-          <CertNoTheadRow certNo={certNo} colSpan={columns.length + 1} />
-          <tr>
-            <th>#</th>
-            {columns.map((c) => <th key={c.key}>{c.label}</th>)}
-          </tr>
-        </thead>
-        <tbody>
-          {rows.length === 0 ? (
-            <tr><td colSpan={columns.length + 1} style={{ color: "var(--insp-muted)" }}>No rows recorded.</td></tr>
-          ) : (
-            rows.map((row, i) => (
-              <tr key={i}>
-                <td>{i + 1}</td>
-                {columns.map((c) => <td key={c.key}>{row[c.key] || "—"}</td>)}
-              </tr>
-            ))
-          )}
-        </tbody>
-      </table>
-    </>
+    <PaginatedTable
+      title={title}
+      certNo={certNo}
+      colSpan={columns.length + 1}
+      columnHeaders={<tr><th>#</th>{columns.map((c) => <th key={c.key}>{c.label}</th>)}</tr>}
+      rows={rows}
+      renderRow={(row, _i, globalIndex) => (
+        <tr key={globalIndex}>
+          <td>{globalIndex + 1}</td>
+          {columns.map((c) => <td key={c.key}>{row[c.key] || "—"}</td>)}
+        </tr>
+      )}
+    />
   );
 }
 
@@ -728,35 +781,32 @@ function MultipleItemsPage({ cert, data }: { cert: InspectionCertificate; data: 
         </tbody>
       </table>
 
-      <table className="insp-print-chk">
-        <thead>
-          <CertNoTheadRow certNo={cert.certNo} colSpan={10} />
+      <PaginatedTable
+        certNo={cert.certNo}
+        colSpan={10}
+        emptyMessage="No items recorded."
+        columnHeaders={
           <tr>
             <th>Serial No.</th><th>Description</th><th>SWL</th><th>Manufacturer</th><th>Result</th>
             <th>Cert No./Test Date</th><th>Location</th><th>Type of Inspection</th><th>Next Inspection</th><th>Safe to Use</th>
           </tr>
-        </thead>
-        <tbody>
-          {data.rows.length === 0 ? (
-            <tr><td colSpan={10} style={{ color: "var(--insp-muted)" }}>No items recorded.</td></tr>
-          ) : (
-            data.rows.map((row, i) => (
-              <tr key={i}>
-                <td>{row.serialNo || "—"}</td>
-                <td>{row.description || "—"}</td>
-                <td>{row.swl || "—"}</td>
-                <td>{row.manufacturer || "—"}</td>
-                <td>{row.result || "—"}</td>
-                <td>{row.certNoTestDate || "—"}</td>
-                <td>{row.itemLocation || "—"}</td>
-                <td>{row.typeOfInspection || "—"}</td>
-                <td>{fmtDate(row.nextInspectionDate)}</td>
-                <td><span className={`insp-pill ${row.safeToUse === "yes" ? "good" : row.safeToUse === "no" ? "repair" : ""}`}>{yesNoLabel(row.safeToUse)}</span></td>
-              </tr>
-            ))
-          )}
-        </tbody>
-      </table>
+        }
+        rows={data.rows}
+        renderRow={(row, i) => (
+          <tr key={i}>
+            <td>{row.serialNo || "—"}</td>
+            <td>{row.description || "—"}</td>
+            <td>{row.swl || "—"}</td>
+            <td>{row.manufacturer || "—"}</td>
+            <td>{row.result || "—"}</td>
+            <td>{row.certNoTestDate || "—"}</td>
+            <td>{row.itemLocation || "—"}</td>
+            <td>{row.typeOfInspection || "—"}</td>
+            <td>{fmtDate(row.nextInspectionDate)}</td>
+            <td><span className={`insp-pill ${row.safeToUse === "yes" ? "good" : row.safeToUse === "no" ? "repair" : ""}`}>{yesNoLabel(row.safeToUse)}</span></td>
+          </tr>
+        )}
+      />
 
       {cert.issuedBy && (
         <div style={{ fontSize: 9, color: "var(--insp-muted)", marginTop: 8 }}>
@@ -873,42 +923,56 @@ function SignBox({ label, name, sig, stamp }: { label: string; name: string; sig
   );
 }
 
+// Flattened first so a checklist's many sections (each a header row plus
+// its own items/special items) can be chunked by ROWS_PER_PRINT_PAGE the
+// same way every other growable table is — a section header counts as
+// one row toward the page limit like any other, since it takes up one
+// physical table row too.
+function flattenChecklistSections(sections: any[], cert: any) {
+  const flat: any[] = [];
+  for (const sec of sections) {
+    if (sec.hydraulicGate && cert.type === "rescueboat" && !cert.hydraulicFitted) continue;
+    flat.push({ kind: "section", code: sec.code, name: sec.name });
+    for (const it of sec.items) flat.push({ kind: "item", label: it.label, status: it.status, remark: it.remark });
+    for (const it of sec.special) flat.push({ kind: "special", label: it.label, presetRemark: it.presetRemark, status: it.status, remark: it.remark });
+  }
+  return flat;
+}
+
 function ChecklistPage({ title, config, cert, sections, outstandingKey }: any) {
+  const flatRows = flattenChecklistSections(sections, cert);
   return (
     <div className="insp-cert-page" style={watermarkStyle}>
       <Letterhead cert={cert} />
       <div className="insp-cert-title-row"><h2>{title}</h2><span className="insp-badge">{config.typeName.toUpperCase()}</span></div>
       <CertNoLine certNo={cert.certNo} />
-      <table className="insp-print-chk">
-        <thead>
-          <CertNoTheadRow certNo={cert.certNo} colSpan={3} />
-          <tr><th>Item</th><th>Result</th><th>Remarks</th></tr>
-        </thead>
-        <tbody>
-          {sections.map((sec: any) => {
-            if (sec.hydraulicGate && cert.type === "rescueboat" && !cert.hydraulicFitted) return null;
+      <PaginatedTable
+        certNo={cert.certNo}
+        colSpan={3}
+        columnHeaders={<tr><th>Item</th><th>Result</th><th>Remarks</th></tr>}
+        rows={flatRows}
+        renderRow={(row, i) => {
+          if (row.kind === "section") {
+            return <tr className="insp-section-row" key={`hdr-${i}`}><td colSpan={3}>{row.code}. {row.name}</td></tr>;
+          }
+          if (row.kind === "special") {
             return (
-              <>
-                <tr className="insp-section-row" key={`${sec.code}-hdr`}><td colSpan={3}>{sec.code}. {sec.name}</td></tr>
-                {sec.items.map((it: any, i: number) => (
-                  <tr key={`${sec.code}-${i}`}>
-                    <td>{it.label}</td>
-                    <td><span className={`insp-pill ${it.status}`}>{statusLabel(it.status)}</span></td>
-                    <td>{it.remark || "—"}</td>
-                  </tr>
-                ))}
-                {sec.special.map((it: any, i: number) => (
-                  <tr key={`${sec.code}-sp-${i}`}>
-                    <td>{it.label} <em style={{ color: "var(--insp-muted)" }}>({it.presetRemark})</em></td>
-                    <td><span className={`insp-pill ${it.status}`}>{statusLabel(it.status)}</span></td>
-                    <td>{it.remark || "—"}</td>
-                  </tr>
-                ))}
-              </>
+              <tr key={`sp-${i}`}>
+                <td>{row.label} <em style={{ color: "var(--insp-muted)" }}>({row.presetRemark})</em></td>
+                <td><span className={`insp-pill ${row.status}`}>{statusLabel(row.status)}</span></td>
+                <td>{row.remark || "—"}</td>
+              </tr>
             );
-          })}
-        </tbody>
-      </table>
+          }
+          return (
+            <tr key={`it-${i}`}>
+              <td>{row.label}</td>
+              <td><span className={`insp-pill ${row.status}`}>{statusLabel(row.status)}</span></td>
+              <td>{row.remark || "—"}</td>
+            </tr>
+          );
+        }}
+      />
       <div className="insp-remarks-box" style={{ borderColor: "var(--insp-red)", background: "#FBEEEC", color: "#7A241B" }}>
         Outstanding Issues / Defects Raised: {(cert.outstanding && cert.outstanding[outstandingKey]) || "None"}
       </div>
