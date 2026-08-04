@@ -10,8 +10,19 @@ import { ChecklistSectionDef, EquipmentTypeConfig, EquipmentTypeKey } from "../t
 
 const SPECIAL = (label: string, presetRemark: string) => ({ label, presetRemark });
 
+// Every one of Iberia Lifeboat Service's reference checklists (Rescue
+// Boat, Rescue Boat Davit, Free-Fall Boat, Free-Fall Launching
+// Appliances) opens with this same GENERAL item before its first named
+// section — carried over here as "D-1" so every boat/davit checklist in
+// the app has it too, matching how every section already numbers from
+// D-2 onward (as if D-1 had always been reserved for it).
+const GENERAL_INSPECTION_SECTION: ChecklistSectionDef = {
+  code: "D-1", name: "General", items: ["Weekly & monthly inspection has been carried out regularly (check log scheme)"],
+};
+
 // ---- Lifeboat (conventional) ----
 const LB_GENERAL_BOAT_SECTIONS: ChecklistSectionDef[] = [
+  GENERAL_INSPECTION_SECTION,
   {
     code: "D-2", name: "Lifeboat General", items: [
       "Outside hull", "Outside canopy", "Buoyant lifeline", "Enclosure structure", "Inside structure",
@@ -59,6 +70,7 @@ const LB_D7D8_SECTIONS: ChecklistSectionDef[] = [
 ];
 
 const LB_DAVIT_SECTIONS: ChecklistSectionDef[] = [
+  GENERAL_INSPECTION_SECTION,
   {
     code: "D-2", name: "Lifeboat Davit System", items: [
       "Tackle, shaft, oil cup", "Frame", "Jib arm, shaft, bolt", "Slip hook", "Remote control rope",
@@ -95,6 +107,7 @@ const LB_EQUIP_ITEMS = [
   { n: "Rust Proof Dipper with Lanyard", qty: "1", unit: "ea" },
   { n: "Rust Proof Drinking Vessel", qty: "1", unit: "ea" },
   { n: "Waterproof Electric Torch (with Spare Battery & Bulb)", qty: "1", unit: "Set" },
+  { n: "Tool Set", qty: "1", unit: "Set" },
   { n: "Daylight Signalling Mirror", qty: "1", unit: "ea" },
   { n: "Life-Saving Signal Table", qty: "1", unit: "ea" },
   { n: "Whistle with Lanyard", qty: "1", unit: "ea" },
@@ -109,12 +122,25 @@ const LB_EQUIP_ITEMS = [
 ];
 
 // ---- Rescue boat (FRC) ----
+// D-2/D-3 expanded against Iberia Lifeboat Service's own "Rescue Boat
+// Checklist" — the app's previous item set had been adapted from the
+// conventional (inboard diesel) Lifeboat checklist rather than an
+// actual outboard-engine FRC checklist, so it was missing most of the
+// outboard-specific engine checks and about half of the Miscellaneous
+// section's hull/deployment checks entirely.
 const RB_BOAT_SECTIONS: ChecklistSectionDef[] = [
+  GENERAL_INSPECTION_SECTION,
   {
     code: "D-2", name: "Rescue Boat General", items: [
       "Outside hull", "Outside canopy", "Buoyant lifeline", "Enclosure structure", "Inside structure",
       "Painter release device", "Doors and hatches", "Ventilator", "Handrail", "Rope ladder",
       "Drain plug", "Hand pump", "Equipment",
+      "Condition of lifting slings connections", "Condition of fender", "Bilge pump checked for operation",
+      "Check boat for leakage", "Check bow line painter release hook handle",
+      "Bowsing / tricing equipment checked for wear", "Function of compass",
+      "Check if all stickers are fitted & readable", "Condition of grab line",
+      "Hatch inventory box watertight", "Condition of reflective stripes",
+      "Check the righting system (if fitted)",
     ],
   },
   {
@@ -123,6 +149,11 @@ const RB_BOAT_SECTIONS: ChecklistSectionDef[] = [
       "Engine oil filter (if fitted)", "Air filter (if fitted)", "Clutch oil", "Fuel oil tank",
       "Fuel oil pipe", "Fuel oil filter", "Cooling water system", "V type belt", "Fuel oil pump",
       "Instrument panel", "Spare parts", "Tools", "Operation instruction plate",
+      "Steering gear & engine controls checked for operation", "Propeller, shaft & rudder free from obstructions",
+      "Remote control system (if fitted)", "Change gear oil", "Clean & replace spark plugs",
+      "Condition of propeller with cotter pin", "Lubricate all movable parts", "Test run of engine with water",
+      "Check impeller (cooling) system", "Visually inspect condition of engine case",
+      "Visually inspect condition of control console & instrumentation",
     ],
   },
   { code: "D-4", name: "Electric", items: ["Battery", "Position light", "Search light", "Compass light", "Electric wiring", "Battery charger"] },
@@ -142,19 +173,34 @@ const RB_BOAT_SECTIONS: ChecklistSectionDef[] = [
   { code: "D-6", name: "Manipulative System", items: ["Speed control device", "Steering device"] },
 ];
 
+// D-2/D-3 expanded against Iberia Lifeboat Service's own "Rescue Boat
+// Davit Checklist" (Davit + Winch sections) — Limit switch added to
+// D-3 per direct request ("davit also missing inspection of limit
+// switch"), matching how the conventional Lifeboat's own davit
+// checklist (LB_DAVIT_SECTIONS) already checks it.
 const RB_DAVIT_SECTIONS: ChecklistSectionDef[] = [
+  GENERAL_INSPECTION_SECTION,
   {
     code: "D-2", name: "Rescue Boat Davit System",
-    items: ["Tackle, shaft, oil cup", "Jib arm, shaft, bolt", "Remote control rope", "Release hook unit", "Boat fall unit", "Shackle, alloy"],
+    items: [
+      "Tackle, shaft, oil cup", "Jib arm, shaft, bolt", "Remote control rope", "Release hook unit",
+      "Boat fall unit", "Shackle, alloy", "Sheave", "Suspension block", "Slewing bearing",
+      "Slewing stopper", "Slewing reducer", "Lubrication oil", "Recovery strap", "Hanging off pendant",
+      "Deck operation device",
+    ],
   },
   {
     code: "D-3", name: "Electric Rescue Boat Winch System",
-    items: ["Gear", "Bearing", "Oil sealing", "Speed limit friction line", "Brake friction line", "Rotate handle", "Lubricating oil", "Brake level"],
+    items: [
+      "Gear", "Bearing", "Oil sealing", "Speed limit friction line", "Brake friction line",
+      "Rotate handle", "Lubricating oil", "Brake level", "Limit switch", "Governor (dynamic) brake device",
+      "Cam clutch", "Wire drum condition", "Electric motor", "Starter panel",
+    ],
     special: [SPECIAL("Brake test", "Annual"), SPECIAL("Brake test", "1.1 times load (Each five years)")],
   },
   {
     code: "D-4", name: "Hydraulic System (If Fitted)", conditional: true, hydraulicGate: true,
-    items: ["Accumulator", "Slewing unit", "Connection bolt", "Hydraulic oil", "Pipelines", "Pump station", "Oil filter", "Air filter", "Oil from pump station", "Control valve"],
+    items: ["Accumulator", "Slewing unit", "Connection bolt", "Hydraulic oil", "Pipelines", "Pump station", "Oil filter", "Air filter", "Oil from pump station", "Control valve", "Hydraulic hose & joint"],
   },
 ];
 
@@ -168,6 +214,7 @@ const RB_EQUIP_ITEMS = [
   { n: "Bucket", qty: "1", unit: "ea" },
   { n: "Survival Manual", qty: "1", unit: "ea" },
   { n: "Sea Anchor with Hawser", qty: "1", unit: "ea" },
+  { n: "Waterproof Electric Torch (with Spare Battery & Bulb)", qty: "1", unit: "Set" },
   { n: "Whistle with Lanyard", qty: "1", unit: "ea" },
   { n: "Jack-Knife with Lanyard", qty: "1", unit: "ea" },
   { n: "Thermal Protective Aid", qty: "10% of Full Personnel", unit: "ea" },
@@ -177,7 +224,17 @@ const RB_EQUIP_ITEMS = [
 ];
 
 // ---- Free-fall launching appliance (shared by dry-cargo & tanker types) ----
+// D-2/D-3/D-4 (the freefall boat's own skid/ramp release mechanism) were
+// already covered here. D-5/D-6/D-7 are new — added against Iberia
+// Lifeboat Service's own "Free Fall Launching Appliances" checklist,
+// which is titled the same as this one (see davitTitle below) but
+// actually covers the separate recovery davit/winch/hydraulic power
+// pack used to hoist and stow the boat after a launch, rather than the
+// boat's own release gear — entirely missing here before. This is also
+// where "Check condition of limit switch" (requested directly: "davit
+// also missing inspection of limit switch") comes from, under D-6.
 const FF_LAUNCH_SECTIONS: ChecklistSectionDef[] = [
+  GENERAL_INSPECTION_SECTION,
   {
     code: "D-2", name: "Free-Fall Launching System", items: [
       "Skid / ramp structure", "Ramp surface & rollers", "Ramp angle & locking pins",
@@ -194,6 +251,33 @@ const FF_LAUNCH_SECTIONS: ChecklistSectionDef[] = [
       "Remote release control (embarkation station)", "Local manual release lever",
       "Control panel & indicator lights", "Emergency / battery back-up power", "Cabling & junction boxes",
     ],
+  },
+  {
+    code: "D-5", name: "Recovery Winch", items: [
+      "Visually inspect fall wires — kinks, abrasions, corrosion", "Condition of winch drum of hoist wire",
+      "Lubricate fall wires as necessary", "Check for leak on hydraulic hoses", "Check hoist wire end",
+      "Check for corrosion at the winch", "New hoist wires fitted (min. every 5 years, or per manufacturer)",
+      "Check foundation winch & bolts",
+    ],
+    special: [SPECIAL("Empty load test", "Annual Service"), SPECIAL("Test with 1.1 overload", "Five-yearly inspection")],
+  },
+  {
+    code: "D-6", name: "Recovery Davit", items: [
+      "Check/lubricate hoist wire sheave bearings", "Davits & access free from obstruction/loose equipment",
+      "Check davit frames", "Check for leak on cylinders", "Check cylinders hinges",
+      "Check for leak on hydraulic hoses", "Check condition of limit switch", "Check hanged maintenance devices",
+      "Check sling ropes", "Check floating block and grease if necessary",
+      "Visually inspect lashing wire & associated slip hooks", "Check lashing bollard", "Check main lashing",
+      "Check rollers or sliding surface",
+    ],
+  },
+  {
+    code: "D-7", name: "Hydraulic Power Pack", items: [
+      "Check for leak on hydraulic hoses", "Check control levers",
+      "Hydraulic pump and electric motor work correctly", "Check manometer (per manufacturer's manual)",
+      "Check overcenter brake valve", "Check gear breathers", "Check electric motor",
+    ],
+    special: [SPECIAL("Empty load test (lowering test, check speed)", "Annual Service"), SPECIAL("Test with 1.1 overload (abrupt brake)", "Five-yearly inspection")],
   },
 ];
 

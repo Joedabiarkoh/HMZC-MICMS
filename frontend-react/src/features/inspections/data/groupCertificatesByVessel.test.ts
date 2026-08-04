@@ -12,6 +12,7 @@ function cert(overrides: Partial<InspectionCertificate> & { certNo: string }): I
     kindOfServicing: "Annual",
     vesselName: "",
     imoNo: "",
+    flag: "",
     location: "",
     remarks: "",
     remarksAuto: true,

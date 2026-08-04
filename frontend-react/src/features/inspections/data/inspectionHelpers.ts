@@ -106,6 +106,7 @@ export function freshCertificate(type: EquipmentTypeKey, existingNumbers: Set<st
     kindOfServicing: "Annual",
     vesselName: "",
     imoNo: "",
+    flag: "",
     location: "",
     remarks: cfg.remarksTemplate ? cfg.remarksTemplate("") : "",
     remarksAuto: true,

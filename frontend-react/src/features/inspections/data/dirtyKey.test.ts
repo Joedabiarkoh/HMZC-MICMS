@@ -25,6 +25,7 @@ function baseCert(overrides: Partial<InspectionCertificate> = {}): InspectionCer
     kindOfServicing: "Annual",
     vesselName: "MV Test",
     imoNo: "1234567",
+    flag: "",
     location: "",
     remarks: "",
     remarksAuto: true,

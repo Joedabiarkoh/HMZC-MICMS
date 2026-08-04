@@ -850,7 +850,10 @@ function StatementForm({ type, current, updateField, updateNested, toggleAutoRem
 
       <fieldset className="insp-fieldset">
         <legend className="insp-legend">Vessel</legend>
-        <div className="insp-field"><label htmlFor="stmt-vessel-name">Name of Ship</label><input id="stmt-vessel-name" value={current.vesselName} onChange={(e) => updateField("vesselName", e.target.value)} /></div>
+        <div className="insp-row2">
+          <div className="insp-field"><label htmlFor="stmt-vessel-name">Name of Ship</label><input id="stmt-vessel-name" value={current.vesselName} onChange={(e) => updateField("vesselName", e.target.value)} /></div>
+          <div className="insp-field"><label htmlFor="stmt-flag">Flag</label><input id="stmt-flag" value={current.flag} onChange={(e) => updateField("flag", e.target.value)} placeholder="e.g. Cyprus" /></div>
+        </div>
         <div className="insp-row2">
           <div className="insp-field"><label htmlFor="stmt-imo-no">IMO No.</label><input id="stmt-imo-no" value={current.imoNo} onChange={(e) => updateField("imoNo", e.target.value)} /></div>
           <div className="insp-field">

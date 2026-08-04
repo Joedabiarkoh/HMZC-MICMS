@@ -90,6 +90,7 @@ export interface InspectionCertificate {
 
   vesselName: string;
   imoNo: string;
+  flag: string;
   location: string;
 
   // Boat-type fields (lifeboat / rescueboat / freefall_*)

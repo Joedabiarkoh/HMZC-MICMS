@@ -68,6 +68,15 @@ export default function CertificatePreview({ cert, config }: Props) {
               <td className="insp-label-cell">Name of Ship</td><td>{cert.vesselName || "—"}</td>
               <td className="insp-label-cell">IMO No.</td><td>{cert.imoNo || "—"}</td>
             </tr>
+            {/* Requested directly: "the statement is also missing date and
+                other information" — Flag and Location on Board were
+                already captured by the form (StatementForm.tsx) but never
+                printed on the certificate; Flag didn't exist as a field
+                at all until now. */}
+            <tr>
+              <td className="insp-label-cell">Flag</td><td>{cert.flag || "—"}</td>
+              <td className="insp-label-cell">{isBoat ? "Location on Board" : "Crane Location"}</td><td>{cert.location || "—"}</td>
+            </tr>
             {isBoat ? (
               <>
                 <tr>
@@ -79,13 +88,42 @@ export default function CertificatePreview({ cert, config }: Props) {
                   <td className="insp-label-cell" /><td>Mfg: {cert.boat?.mfgDate || "—"}</td>
                   <td className="insp-label-cell">Capacity</td><td>{cert.capacity || "—"}</td>
                 </tr>
+                {/* Requested directly: Manufacturer was already captured
+                    by the form for every one of boat/release/davit/winch
+                    (IdBlock in InspectionWorkspace.tsx) but the printed
+                    certificate previously showed none of it, and Release
+                    Mechanism didn't appear on the printed certificate at
+                    all — matching the reference Iberia Lifeboat Service
+                    certificates, which print Type/Building No./
+                    Manufacturer for the boat, release gear, davit, and
+                    winch as four distinct blocks. */}
+                <tr>
+                  <td className="insp-label-cell">Manufacturer</td><td colSpan={3}>{cert.boat?.manufacturer || "—"}</td>
+                </tr>
+                <tr>
+                  <td className="insp-label-cell">Release Mechanism</td>
+                  <td>Type: {cert.release?.typeName || "—"}</td>
+                  <td className="insp-label-cell">Serial No.</td><td>{cert.release?.serial || "—"}</td>
+                </tr>
+                <tr>
+                  <td className="insp-label-cell" /><td>Mfg: {cert.release?.mfgDate || "—"}</td>
+                  <td className="insp-label-cell">Manufacturer</td><td>{cert.release?.manufacturer || "—"}</td>
+                </tr>
                 <tr>
                   <td className="insp-label-cell">Davit</td><td>Type: {cert.davit?.typeName || "—"}</td>
                   <td className="insp-label-cell">Serial No.</td><td>{cert.davit?.serial || "—"}</td>
                 </tr>
                 <tr>
+                  <td className="insp-label-cell" /><td>Mfg: {cert.davit?.mfgDate || "—"}</td>
+                  <td className="insp-label-cell">Manufacturer</td><td>{cert.davit?.manufacturer || "—"}</td>
+                </tr>
+                <tr>
                   <td className="insp-label-cell">Winch</td><td>Type: {cert.winch?.typeName || "—"}</td>
                   <td className="insp-label-cell">Serial No.</td><td>{cert.winch?.serial || "—"}</td>
+                </tr>
+                <tr>
+                  <td className="insp-label-cell" /><td>Mfg: {cert.winch?.mfgDate || "—"}</td>
+                  <td className="insp-label-cell">Manufacturer</td><td>{cert.winch?.manufacturer || "—"}</td>
                 </tr>
               </>
             ) : (
