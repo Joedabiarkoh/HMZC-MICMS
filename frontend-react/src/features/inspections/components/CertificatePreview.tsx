@@ -61,6 +61,10 @@ export default function CertificatePreview({ cert, config }: Props) {
         <table className="insp-id-table">
           <tbody>
             <tr>
+              <td className="insp-label-cell">Certificate No</td><td>{cert.certNo}</td>
+              <td className="insp-label-cell">Date of Servicing</td><td>{fmtDate(cert.dateOfServicing)}</td>
+            </tr>
+            <tr>
               <td className="insp-label-cell">Name of Ship</td><td>{cert.vesselName || "—"}</td>
               <td className="insp-label-cell">IMO No.</td><td>{cert.imoNo || "—"}</td>
             </tr>
@@ -108,21 +112,24 @@ export default function CertificatePreview({ cert, config }: Props) {
 
         <div className="insp-remarks-box">Remarks: {cert.remarks}</div>
 
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 14, marginTop: 18, alignItems: "end" }}>
-          <SignBox label="Captain Signature" name={cert.captainName} sig={cert.captainSig} />
-          <SignBox label="Service Engineer" name={cert.engineerName} sig={cert.engineerSig} stamp />
-          <div style={{ borderTop: "1px solid #B9C0C6", paddingTop: 6 }}>
-            <div style={{ fontFamily: "monospace", fontSize: 13, color: "var(--insp-navy)" }}>{cert.certNo}</div>
-            <div style={{ fontSize: 9.5, color: "var(--insp-muted)", textTransform: "uppercase" }}>Certificate No.</div>
-            <div style={{ fontSize: 10.5 }}>Serviced: {fmtDate(cert.dateOfServicing)}</div>
-            {cert.issuedBy && (
-              <div style={{ fontSize: 9, color: "var(--insp-muted)", marginTop: 2 }}>
-                Issued by {cert.issuedBy}{cert.issuedAt ? ` — ${new Date(cert.issuedAt).toLocaleString()}` : ""}
-              </div>
-            )}
+        {/* Requested directly: "keep the signature style same for all
+            certificate" — this page used to have its own bespoke
+            3-column signature grid (Captain | Engineer | a Certificate
+            No./Serviced/Issued-by block crammed in as the 3rd column)
+            instead of the shared SignatureFooter every other
+            certificate type uses. Certificate No. and Date of
+            Servicing moved into the ID table above (matching
+            FFECertificatePage's own convention), "Issued by" moved to
+            this small line right before the signatures (matching
+            FFECertificatePage/MultipleItemsPage's own convention too),
+            and the signature area itself is now the same shared
+            2-column SignatureFooter as everywhere else. */}
+        {cert.issuedBy && (
+          <div style={{ fontSize: 10, color: "var(--insp-muted)", marginTop: 8 }}>
+            Issued by {cert.issuedBy}{cert.issuedAt ? ` — ${new Date(cert.issuedAt).toLocaleString()}` : ""}
           </div>
-        </div>
-        <ApprovalLogosRow />
+        )}
+        <SignatureFooter cert={cert} masterLabel="Captain Signature" techLabel="Service Engineer" />
       </div>
 
       {isBoat && cert.boatChecklist && (
@@ -137,7 +144,10 @@ export default function CertificatePreview({ cert, config }: Props) {
           <div className="insp-cert-title-row"><h2>{config.equipListTitle}</h2><span className="insp-badge">{config.typeName.toUpperCase()}</span></div>
           <CertNoLine certNo={cert.certNo} />
           <table className="insp-print-chk">
-            <thead><tr><th>Item</th><th>Qty</th><th>Unit</th><th>Result</th><th>Remarks</th></tr></thead>
+            <thead>
+              <CertNoTheadRow certNo={cert.certNo} colSpan={5} />
+              <tr><th>Item</th><th>Qty</th><th>Unit</th><th>Result</th><th>Remarks</th></tr>
+            </thead>
             <tbody>
               {cert.equip.map((e) => (
                 <tr key={e.n}>
@@ -176,6 +186,27 @@ function CertNoLine({ certNo }: { certNo: string }) {
     <div style={{ fontSize: 10.5, color: "var(--insp-muted)", marginTop: -6, marginBottom: 10 }}>
       Certificate No: <span style={{ fontFamily: "monospace", color: "var(--insp-navy)", fontWeight: 700 }}>{certNo}</span>
     </div>
+  );
+}
+
+// Requested directly: "ensure certificate number appears on all pages
+// of other inspection report, as FFE certificate can also go beyond 1
+// page depending on number of equipment on board." A certificate is
+// deliberately ONE continuous .insp-cert-page div per section (see the
+// comment above FFECertificatePage) — natural browser print pagination
+// decides where it actually splits across physical pages, so
+// CertNoLine (a plain block shown once near the top) only ever prints
+// on that section's FIRST physical page. A <thead> row, by contrast,
+// is a real native browser behavior that repeats on every physical
+// page a table spans — this is that row, meant to be the first row
+// inside a table's own <thead>, above its real column headers, for
+// any table long enough to plausibly overflow a page on its own (an
+// equipment/item register, a checklist).
+function CertNoTheadRow({ certNo, colSpan }: { certNo: string; colSpan: number }) {
+  return (
+    <tr>
+      <th colSpan={colSpan} style={{ fontWeight: 400 }}>Certificate No: {certNo}</th>
+    </tr>
   );
 }
 
@@ -262,18 +293,21 @@ function FFECertificatePage({ cert, ffe }: { cert: InspectionCertificate; ffe: F
       {cfg.note && <div style={{ fontSize: 10, color: "var(--insp-muted)", marginTop: 8 }}>{cfg.note}</div>}
 
       {!!cfg.itemColumns?.length && (
-        <FFEItemsTable title={cfg.itemTableLabel || "Items"} columns={cfg.itemColumns} rows={ffe.items} />
+        <FFEItemsTable title={cfg.itemTableLabel || "Items"} columns={cfg.itemColumns} rows={ffe.items} certNo={cert.certNo} />
       )}
 
       {!!cfg.items2Columns?.length && (
-        <FFEItemsTable title={cfg.items2Label || "Items"} columns={cfg.items2Columns} rows={ffe.items2} />
+        <FFEItemsTable title={cfg.items2Label || "Items"} columns={cfg.items2Columns} rows={ffe.items2} certNo={cert.certNo} />
       )}
 
       {!!cfg.checklistItems?.length && (
         <>
           <div style={{ fontWeight: 700, fontSize: 11.5, color: "var(--insp-navy)", margin: "10px 0 4px" }}>Description of Inspection/Tests</div>
           <table className="insp-print-chk">
-            <thead><tr><th>No</th><th>Description</th><th>Result</th><th>Comment</th></tr></thead>
+            <thead>
+              <CertNoTheadRow certNo={cert.certNo} colSpan={4} />
+              <tr><th>No</th><th>Description</th><th>Result</th><th>Comment</th></tr>
+            </thead>
             <tbody>
               {ffe.checklist.map((row) => (
                 <tr key={row.no}>
@@ -292,7 +326,10 @@ function FFECertificatePage({ cert, ffe }: { cert: InspectionCertificate; ffe: F
         <>
           <div style={{ fontWeight: 700, fontSize: 11.5, color: "var(--insp-navy)", margin: "10px 0 4px" }}>Readings</div>
           <table className="insp-print-chk">
-            <thead><tr><th>Type of Vapor/Gas</th><th>Measured Value</th><th>Maximum Allowed</th></tr></thead>
+            <thead>
+              <CertNoTheadRow certNo={cert.certNo} colSpan={3} />
+              <tr><th>Type of Vapor/Gas</th><th>Measured Value</th><th>Maximum Allowed</th></tr>
+            </thead>
             <tbody>
               {cfg.readingsRows.map((r) => (
                 <tr key={r.key}>
@@ -321,12 +358,13 @@ function FFECertificatePage({ cert, ffe }: { cert: InspectionCertificate; ffe: F
   );
 }
 
-function FFEItemsTable({ title, columns, rows }: { title: string; columns: { key: string; label: string }[]; rows: Record<string, string>[] }) {
+function FFEItemsTable({ title, columns, rows, certNo }: { title: string; columns: { key: string; label: string }[]; rows: Record<string, string>[]; certNo: string }) {
   return (
     <>
       <div style={{ fontWeight: 700, fontSize: 11.5, color: "var(--insp-navy)", margin: "10px 0 4px" }}>{title}</div>
       <table className="insp-print-chk">
         <thead>
+          <CertNoTheadRow certNo={certNo} colSpan={columns.length + 1} />
           <tr>
             <th>#</th>
             {columns.map((c) => <th key={c.key}>{c.label}</th>)}
@@ -393,8 +431,8 @@ function CalibrationCertificatePage({ cert, calibration }: { cert: InspectionCer
         </>
       )}
 
-      <FFEItemsTable title={cfg.itemTableLabel} columns={cfg.itemColumns} rows={calibration.items} />
-      <FFEItemsTable title={cfg.items2Label} columns={cfg.items2Columns} rows={calibration.items2} />
+      <FFEItemsTable title={cfg.itemTableLabel} columns={cfg.itemColumns} rows={calibration.items} certNo={cert.certNo} />
+      <FFEItemsTable title={cfg.items2Label} columns={cfg.items2Columns} rows={calibration.items2} certNo={cert.certNo} />
 
       {cfg.note && <div style={{ fontSize: 10, color: "var(--insp-muted)", marginTop: 8 }}>{cfg.note}</div>}
 
@@ -670,6 +708,9 @@ function MultipleItemsPage({ cert, data }: { cert: InspectionCertificate; data: 
       <table className="insp-id-table">
         <tbody>
           <tr>
+            <td className="insp-label-cell">Certificate No</td><td colSpan={3}>{cert.certNo}</td>
+          </tr>
+          <tr>
             <td className="insp-label-cell">Job/PO No.</td><td>{data.jobPoNo || "—"}</td>
             <td className="insp-label-cell">Inspected By</td><td>{data.inspectedBy || "—"}</td>
           </tr>
@@ -689,6 +730,7 @@ function MultipleItemsPage({ cert, data }: { cert: InspectionCertificate; data: 
 
       <table className="insp-print-chk">
         <thead>
+          <CertNoTheadRow certNo={cert.certNo} colSpan={10} />
           <tr>
             <th>Serial No.</th><th>Description</th><th>SWL</th><th>Manufacturer</th><th>Result</th>
             <th>Cert No./Test Date</th><th>Location</th><th>Type of Inspection</th><th>Next Inspection</th><th>Safe to Use</th>
@@ -838,7 +880,10 @@ function ChecklistPage({ title, config, cert, sections, outstandingKey }: any) {
       <div className="insp-cert-title-row"><h2>{title}</h2><span className="insp-badge">{config.typeName.toUpperCase()}</span></div>
       <CertNoLine certNo={cert.certNo} />
       <table className="insp-print-chk">
-        <thead><tr><th>Item</th><th>Result</th><th>Remarks</th></tr></thead>
+        <thead>
+          <CertNoTheadRow certNo={cert.certNo} colSpan={3} />
+          <tr><th>Item</th><th>Result</th><th>Remarks</th></tr>
+        </thead>
         <tbody>
           {sections.map((sec: any) => {
             if (sec.hydraulicGate && cert.type === "rescueboat" && !cert.hydraulicFitted) return null;
