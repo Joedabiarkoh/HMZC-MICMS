@@ -900,7 +900,7 @@ function SignatureFooter({ cert, masterLabel, techLabel }: { cert: InspectionCer
           separate block. `stamp` on the technician/engineer SignBox
           (never Master's) overlays it there — see SignBox's own
           comment for how. */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginTop: 18 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginTop: 12 }}>
         <SignBox label={masterLabel} name={cert.captainName} sig={cert.captainSig} />
         <SignBox label={techLabel} name={cert.engineerName} sig={cert.engineerSig} stamp />
       </div>

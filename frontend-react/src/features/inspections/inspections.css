@@ -179,7 +179,7 @@
 .insp-letterhead { display: flex; justify-content: space-between; border-bottom: 3px solid var(--insp-accent); padding-bottom: 9px; margin-bottom: 10px; }
 .insp-letterhead img { height: 42px; }
 .insp-letterhead .insp-lh-right { text-align: right; font-size: 10px; color: var(--insp-muted); line-height: 1.5; }
-.insp-cert-title-row { display: flex; justify-content: space-between; align-items: center; margin: 8px 0 10px; }
+.insp-cert-title-row { display: flex; justify-content: space-between; align-items: center; margin: 6px 0 8px; }
 .insp-cert-title-row h2 { font-family: Georgia, "Times New Roman", serif; font-size: 17px; color: var(--insp-navy); margin: 0; text-transform: uppercase; }
 
 /* table-layout: fixed — without it, the browser's auto layout sizes
@@ -195,8 +195,16 @@ table.insp-id-table td { border: 1px solid #CBD2D8; padding: 5px 8px; overflow-w
 table.insp-id-table td.insp-label-cell { background: #F4F6F7; font-weight: 700; color: var(--insp-navy); width: 16%; }
 
 table.insp-print-chk { width: 100%; border-collapse: collapse; font-size: 10px; margin-bottom: 10px; }
-table.insp-print-chk th { background: var(--insp-navy); color: #fff; text-align: left; padding: 4px 6px; font-size: 9px; text-transform: uppercase; }
-table.insp-print-chk td { padding: 3px 6px; border: 1px solid #E4E7E9; }
+/* Requested directly: "make lifeboat certificate 2 page, davit
+   certificate 1 page, equipment 1 page[,] same for FRC and free
+   fall." Row/header cell padding trimmed (th: 4px→3px, td: 3px→2px
+   vertical) — a ~2px saving per row is what closes the gap between a
+   davit checklist's natural height and one page's usable ~892px
+   (reserving the pinned letterhead/approvals zones) across the ~36
+   rows the Lifeboat/FRC davit checklists each have, without needing a
+   forced/arbitrary page break. */
+table.insp-print-chk th { background: var(--insp-navy); color: #fff; text-align: left; padding: 3px 6px; font-size: 9px; text-transform: uppercase; }
+table.insp-print-chk td { padding: 2px 6px; border: 1px solid #E4E7E9; }
 table.insp-print-chk tr.insp-section-row td { background: #EEF1F3; font-weight: 700; color: var(--insp-navy); font-size: 9.5px; text-transform: uppercase; }
 
 /* Requested directly: a certificate should be one page by default and
@@ -225,7 +233,7 @@ table.insp-print-chk tr.insp-section-row td { background: #EEF1F3; font-weight: 
 .insp-pill.repair, .insp-pill.missing, .insp-pill.damaged { background: var(--insp-red); }
 .insp-pill.na { background: #8B93A0; }
 
-.insp-remarks-box { border: 1px solid var(--insp-accent); background: var(--insp-accent-light); border-radius: 6px; padding: 10px 12px; font-size: 11px; font-weight: 600; color: var(--insp-navy); margin: 12px 0; }
+.insp-remarks-box { border: 1px solid var(--insp-accent); background: var(--insp-accent-light); border-radius: 6px; padding: 8px 12px; font-size: 11px; font-weight: 600; color: var(--insp-navy); margin: 10px 0; }
 
 /* ---- buttons ---- */
 .insp-btn {
