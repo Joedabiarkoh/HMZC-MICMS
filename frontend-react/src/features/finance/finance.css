@@ -164,14 +164,14 @@ table.line-items-table .remove-btn { background: none; border: none; color: var(
     padding: 0 !important;
     gap: 0 !important;
   }
-  /* Requested directly: "all the header and footer static adjustment
-     is for all certificate issued, quotation and invoices" — the
-     letterhead/footer here are wrapped in a real <table> (see
-     FinanceDocumentPreview.tsx), the same fix applied to certificates
-     (see inspections.css's own comment on table.insp-page-frame for
-     the full reasoning — position: fixed proved unreliable for a
-     repeating footer in real printed PDFs, native <thead>/<tfoot>
-     repetition is not). */
+  /* Requested directly: "do the pagination engine (paged.js)."
+     Attempted, then reverted — see inspections.css's own comment on
+     table.insp-page-frame for why (Paged.js's own pagination call
+     never resolved in this app's actual runtime, even for a
+     deliberately tiny document). Back to the previous working
+     mechanism: the letterhead/footer here are wrapped in a real
+     <table> (see FinanceDocumentPreview.tsx), the same fix applied to
+     certificates. */
   .finance-doc-page {
     max-width: none !important;
     margin: 0 !important;

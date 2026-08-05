@@ -166,6 +166,30 @@
 
 /* ---- certificate preview (print-like) ---- */
 .insp-cert-scroll { max-height: 80vh; overflow: auto; padding: 20px; background: #EAECEE; }
+
+/* Requested directly: "do the pagination engine (paged.js), to solve
+   the issue once and for all." Attempted, then reverted — instrumented
+   directly, Paged.js's own pagination call never resolved even for a
+   deliberately tiny (156KB) document, well past any reasonable
+   timeout, consistently reproducible in this app's actual runtime. A
+   hung, frozen certificate preview is a worse outcome than the bug it
+   was meant to fix. Back to the previous working mechanism instead:
+   each certificate page's Letterhead/content/ApprovalLogosRow are
+   wrapped in one real <table> (see CertPageFrame in
+   CertificatePreview.tsx) — <thead> and <tfoot> natively, reliably
+   repeat on every physical page a table spans when printed (the exact
+   mechanism CertNoTheadRow relies on), unlike position: fixed, which
+   proved unreliable earlier in the same investigation: `top: 0`
+   letterheads repeated correctly, but `bottom: 0` footers didn't.
+   Purely a structural wrapper — no border/background/padding of its
+   own — so it's invisible either way. */
+table.insp-page-frame { width: 100%; border-collapse: collapse; }
+table.insp-page-frame > thead > tr > td,
+table.insp-page-frame > tbody > tr > td,
+table.insp-page-frame > tfoot > tr > td {
+  padding: 0; border: none;
+}
+
 .insp-cert-page {
   background: #fff; max-width: 800px; margin: 0 auto 24px; padding: 30px 42px 26px;
   border: 1px solid #d7dbdf; box-shadow: 0 2px 10px rgba(0,0,0,.06); position: relative; overflow: hidden;
@@ -177,26 +201,20 @@
 }
 .insp-cert-page > * { position: relative; z-index: 1; }
 
-/* Requested directly, reviewing several real printed PDFs: "the fixed
-   or pin header and footer is only applying to some certificate and
-   not all... all pages must have their own header and footer." Each
-   certificate page's Letterhead/content/ApprovalLogosRow are wrapped
-   in one real <table> (see CertPageFrame in CertificatePreview.tsx) —
-   <thead> and <tfoot> natively, reliably repeat on every physical page
-   a table spans when printed (the exact mechanism CertNoTheadRow has
-   relied on all session), unlike position: fixed, which proved
-   unreliable in practice: `top: 0` letterheads repeated correctly, but
-   `bottom: 0` footers didn't. Purely a structural wrapper — no
-   border/background/padding of its own — so it's invisible either way. */
-table.insp-page-frame { width: 100%; border-collapse: collapse; }
-table.insp-page-frame > thead > tr > td,
-table.insp-page-frame > tbody > tr > td,
-table.insp-page-frame > tfoot > tr > td {
-  padding: 0; border: none;
-}
-
 .insp-letterhead { display: flex; justify-content: space-between; border-bottom: 3px solid var(--insp-accent); padding-bottom: 9px; margin-bottom: 10px; }
-.insp-letterhead img { height: 42px; }
+/* Requested directly, reviewing why Paged.js pagination on a
+   multi-section certificate was blocking the browser for tens of
+   seconds: was <img src={HMZC_LOGO_DATA_URI}>, duplicating the logo's
+   full base64 data into every section's own markup — see
+   cssVars.ts's own comment for why a shared CSS variable replaces
+   that. Explicit width (138px) rather than "auto" since a
+   background-image has no intrinsic size the way an <img> does —
+   preserves the source JPEG's own 1080:329 aspect ratio at this
+   height. */
+.insp-letterhead-logo {
+  height: 42px; width: 138px;
+  background-image: var(--insp-watermark-url); background-size: contain; background-repeat: no-repeat;
+}
 .insp-letterhead .insp-lh-right { text-align: right; font-size: 10px; color: var(--insp-muted); line-height: 1.5; }
 .insp-cert-title-row { display: flex; justify-content: space-between; align-items: center; margin: 6px 0 8px; }
 .insp-cert-title-row h2 { font-family: Georgia, "Times New Roman", serif; font-size: 17px; color: var(--insp-navy); margin: 0; text-transform: uppercase; }

@@ -2,17 +2,14 @@ import type { ReactNode } from "react";
 import { EquipmentTypeConfig, InspectionCertificate, ChecklistStatus, EquipResult, CalibrationData, FFEData, LooseGearData, LooseGearMultipleItemsData, LooseGearStandardReportData, LooseGearStatutoryAnswers, LooseGearVisualCertData, LooseGearYesNo } from "../types/inspection.types";
 import { getFFEConfig } from "../data/ffeCertTypes";
 import { getCalibrationConfig } from "../data/calibrationCertTypes";
-import { HMZC_LOGO_DATA_URI } from "../assets/logo";
-import { HMZC_STAMP_DATA_URI } from "../assets/stamp";
 import { ABS_LOGO_DATA_URI, BUREAU_VERITAS_LOGO_DATA_URI, CRALOG_LOGO_DATA_URI, DNV_LOGO_DATA_URI } from "../assets/approvalLogos";
 import CertificateQR, { buildCertQrPayload } from "./CertificateQR";
-
-// Faint background watermark on every printed page, same treatment as the
-// previous standalone tool. Set as a CSS custom property (rather than a
-// plain CSS background-image) so the data-URI logo constant can drive it
-// without a build-time asset pipeline. Module-level so every page-shaped
-// component below (CertificatePreview, ChecklistPage) can share it.
-const watermarkStyle = { ["--insp-watermark-url" as any]: `url(${HMZC_LOGO_DATA_URI})` };
+// Side-effect only — sets --insp-watermark-url/--insp-stamp-url once
+// on the root element. See cssVars.ts's own comment for why the logo/
+// stamp are referenced via these CSS variables (a single background-
+// image) rather than each certificate section carrying its own <img>
+// copy of either.
+import "../assets/cssVars";
 
 interface Props {
   cert: InspectionCertificate;
@@ -850,35 +847,30 @@ function MultipleItemsPage({ cert, data }: { cert: InspectionCertificate; data: 
   );
 }
 
-// Requested directly, reviewing several real printed PDFs: "the fixed
-// or pin header and footer is only applying to some certificate and
-// not all... if the pin header and footer can be applied to all
-// certificate that will be issued, even if it is printed empty, all
-// pages must have their own header and footer." Those PDFs proved
-// position: fixed unreliable for this: `top: 0` (the letterhead)
-// reliably repeated on every physical page, but `bottom: 0` (the
-// approvals footer) did not — it only ever rendered on whichever ONE
-// page it would have landed on in normal document flow, sometimes not
-// at all. This wraps a certificate page's entire content in one real
-// <table>, with the letterhead as its <thead> and ApprovalLogosRow as
-// its <tfoot> — <thead> repeating on every physical page a table spans
-// is the exact same native, browser-guaranteed behavior CertNoTheadRow
-// has relied on all session (proven correct many times over); <tfoot>
-// is specified to repeat the same way, and unlike position: fixed
-// doesn't need the browser to know a page's total height in advance to
-// place it correctly. The signature grid is NOT inside the <tfoot> —
-// it's ordinary <tbody> content, so it still prints exactly once,
-// wherever it naturally falls ("do not make the signature section part
-// of the header and footer... signature can move with the page").
+// Requested directly: "do the pagination engine (paged.js), to solve
+// the issue once and for all." Attempted — genuine CSS Paged Media
+// running headers/footers via Paged.js (see the now-removed
+// PagedPreview.tsx) — but reverted: instrumented directly, Paged.js's
+// own pagination call never resolved even for a deliberately tiny
+// (156KB) document, well past any reasonable timeout, consistently
+// reproducible in this app's actual runtime. A hung, frozen
+// certificate preview is a worse outcome than the bug it was meant to
+// fix, so this reverts to the previous working mechanism: wrapping a
+// certificate page's entire content in one real <table>, with the
+// letterhead as its <thead> and ApprovalLogosRow as its <tfoot> —
+// <thead>/<tfoot> repeating on every physical page a table spans is a
+// reliable, native browser behavior (the same mechanism
+// CertNoTheadRow relies on), unlike position: fixed, which proved
+// unreliable earlier in the same investigation. The signature grid is
+// NOT inside the <tfoot> — it's ordinary <tbody> content, so it still
+// prints exactly once, wherever it naturally falls ("do not make the
+// signature section part of the header and footer").
 function CertPageFrame({ cert, children }: { cert: InspectionCertificate; children: ReactNode }) {
   return (
-    <div className="insp-cert-page" style={watermarkStyle}>
+    <div className="insp-cert-page">
       <table className="insp-page-frame">
         <thead><tr><td><Letterhead cert={cert} /></td></tr></thead>
-        {/* Requested directly, reviewing a real printed PDF: "the
-            approval line for the footer... keeps changing position
-            based on number of rows... it should stay below the page."
-            min-height on a <td> itself is unreliable — measured on a
+        {/* min-height on a <td> itself is unreliable — measured on a
             real page, the browser didn't stretch it — but the exact
             same min-height on a plain <div> inside that <td> does. See
             inspections.css's own comment on .insp-page-tbody-fill for
@@ -894,7 +886,15 @@ function CertPageFrame({ cert, children }: { cert: InspectionCertificate; childr
 function Letterhead({ cert }: { cert: InspectionCertificate }) {
   return (
     <div className="insp-letterhead">
-      <img src={HMZC_LOGO_DATA_URI} alt="HMZC LTD" />
+      {/* Requested directly, reviewing why Paged.js pagination on a
+          multi-section certificate was blocking the browser for tens
+          of seconds: this used to be <img src={HMZC_LOGO_DATA_URI}>,
+          which carried a full copy of the logo's base64 data in every
+          section's own markup (Letterhead renders once per
+          CertPageFrame). See cssVars.ts for why a background-image
+          referencing the shared --insp-watermark-url variable
+          (already set once, globally) replaces that. */}
+      <div role="img" aria-label="HMZC LTD" className="insp-letterhead-logo" />
       <div className="insp-lh-right" style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
         <div>
           HMZC LTD — Marine Engineering Services<br />
@@ -977,17 +977,32 @@ function SignBox({ label, name, sig, stamp }: { label: string; name: string; sig
     <div style={{ borderTop: "1px solid #B9C0C6", paddingTop: 6, position: "relative" }}>
       {sig ? <img src={sig} alt={label} style={{ height: 34 }} /> : <div style={{ fontFamily: "cursive", fontSize: 18, color: "var(--insp-navy)" }}>{name}</div>}
       <div style={{ fontSize: 9.5, color: "var(--insp-muted)", textTransform: "uppercase" }}>{label}</div>
+      {/* Requested directly, reviewing why Paged.js pagination on a
+          multi-section certificate was blocking the browser for tens
+          of seconds: this used to be <img src={HMZC_STAMP_DATA_URI}>,
+          which carried a full copy of the stamp's base64 data in
+          every section's own markup (SignBox renders once per
+          SignatureGrid, once per CertPageFrame section). See
+          cssVars.ts for why a background-image referencing the
+          shared --insp-stamp-url variable (already set once,
+          globally) replaces that — width is explicit rather than
+          "auto" since a background-image has no intrinsic size to
+          derive one from the way an <img> does; 164x52 preserves the
+          source PNG's own 327:104 aspect ratio at this height. */}
       {stamp && (
-        <img
-          src={HMZC_STAMP_DATA_URI}
-          alt="HMZC Official Stamp"
+        <div
+          role="img"
+          aria-label="HMZC Official Stamp"
           style={{
             position: "absolute",
             left: "50%",
             top: -4,
             transform: "translateX(-50%) rotate(-7deg)",
             height: 52,
-            width: "auto",
+            width: 164,
+            backgroundImage: "var(--insp-stamp-url)",
+            backgroundSize: "contain",
+            backgroundRepeat: "no-repeat",
             opacity: 0.9,
             pointerEvents: "none",
           }}
