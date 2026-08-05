@@ -20,9 +20,24 @@ const GENERAL_INSPECTION_SECTION: ChecklistSectionDef = {
   code: "D-1", name: "General", items: ["Weekly & monthly inspection has been carried out regularly (check log scheme)"],
 };
 
+// Requested directly: "in the general section of lifeboat inspection
+// and FRC inspection, include check for identification plate" — a
+// check for the BOAT's own identification plate, so it belongs on the
+// boat's own General section specifically, not the shared
+// GENERAL_INSPECTION_SECTION above (also used by the davit/launching
+// appliance checklists, which have no boat plate of their own to
+// check). Matches the same kind of administrative check the Deck
+// Crane's own General section (CRANE_SECTIONS) already has.
+const BOAT_GENERAL_SECTION: ChecklistSectionDef = {
+  code: "D-1", name: "General", items: [
+    "Weekly & monthly inspection has been carried out regularly (check log scheme)",
+    "Check for identification plate",
+  ],
+};
+
 // ---- Lifeboat (conventional) ----
 const LB_GENERAL_BOAT_SECTIONS: ChecklistSectionDef[] = [
-  GENERAL_INSPECTION_SECTION,
+  BOAT_GENERAL_SECTION,
   {
     code: "D-2", name: "Lifeboat General", items: [
       "Outside hull", "Outside canopy", "Buoyant lifeline", "Enclosure structure", "Inside structure",
@@ -129,7 +144,7 @@ const LB_EQUIP_ITEMS = [
 // outboard-specific engine checks and about half of the Miscellaneous
 // section's hull/deployment checks entirely.
 const RB_BOAT_SECTIONS: ChecklistSectionDef[] = [
-  GENERAL_INSPECTION_SECTION,
+  BOAT_GENERAL_SECTION,
   {
     code: "D-2", name: "Rescue Boat General", items: [
       "Outside hull", "Outside canopy", "Buoyant lifeline", "Enclosure structure", "Inside structure",
