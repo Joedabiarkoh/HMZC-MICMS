@@ -294,7 +294,17 @@ table.insp-print-chk tr.insp-section-row td { background: #EEF1F3; font-weight: 
   .insp-cert-page {
     max-width: none !important;
     margin: 0 !important;
-    padding: 0 !important;
+    /* Requested directly: "create a footer and header for all
+       certificate and make it static, the footer should not shift up
+       or down based on the length of the information." The letterhead
+       and signature/approvals footer below are pinned with
+       position: fixed, which removes them from normal document flow —
+       this padding is what reserves the matching amount of space at
+       the top and bottom of the printable area so in-flow content
+       doesn't render underneath them. Sized generously above each
+       one's measured height (~72px / ~84px) to comfortably cover a
+       longer captain/engineer name or an uploaded signature image. */
+    padding: 90px 0 120px !important;
     border: none !important;
     box-shadow: none !important;
     overflow: visible !important;
@@ -307,5 +317,28 @@ table.insp-print-chk tr.insp-section-row td { background: #EEF1F3; font-weight: 
   .insp-cert-page:last-child {
     page-break-after: auto;
     break-after: auto;
+  }
+  /* position: fixed in paged/print media repeats an element on every
+     physical page for as long as it's the "current" fixed element in
+     document order — so each .insp-cert-page's own letterhead/footer
+     (cert-specific QR code, cert-specific signatures) automatically
+     takes over as the running header/footer for whichever physical
+     page(s) that section's content spans, including pages in the
+     middle of a long table where neither previously appeared at all.
+     !important overrides the unconditional ".insp-cert-page > *
+     { position: relative }" rule above, which would otherwise win by
+     source order. White backgrounds mask any in-flow content that
+     lands close to the reserved edge. */
+  .insp-cert-page .insp-letterhead {
+    position: fixed !important;
+    top: 0; left: 0; right: 0;
+    background: #fff;
+    z-index: 2;
+  }
+  .insp-cert-page .insp-cert-footer {
+    position: fixed !important;
+    bottom: 0; left: 0; right: 0;
+    background: #fff;
+    z-index: 2;
   }
 }

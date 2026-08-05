@@ -895,9 +895,19 @@ function Letterhead({ cert }: { cert: InspectionCertificate }) {
 // from the rest of the certificate couldn't be authenticated on its
 // own. One shared component rather than repeating the same markup on
 // every page type.
+// Requested directly: "create a footer ... for all certificate and make
+// it static, the footer should not shift up or down based on the
+// length of the information" — this div is what inspections.css's
+// print rule pins to `position: fixed; bottom: 0` on every physical
+// printed page, instead of the signature block landing wherever the
+// preceding content happened to end (previously higher up on a short
+// page, lower down on a page packed with content). Wrapping the
+// signature grid and ApprovalLogosRow together in one element is what
+// lets both move as a single fixed unit — approvals stay put in the
+// footer exactly as before, just no longer drifting with content length.
 function SignatureFooter({ cert, masterLabel, techLabel }: { cert: InspectionCertificate; masterLabel: string; techLabel: string }) {
   return (
-    <>
+    <div className="insp-cert-footer">
       {/* Requested directly: "include this stamp to all certificate...
           this is supposed to be the digital stamp of HMZC" — then,
           asked to make it "look it has been used to stamp over the
@@ -910,7 +920,7 @@ function SignatureFooter({ cert, masterLabel, techLabel }: { cert: InspectionCer
         <SignBox label={techLabel} name={cert.engineerName} sig={cert.engineerSig} stamp />
       </div>
       <ApprovalLogosRow />
-    </>
+    </div>
   );
 }
 
