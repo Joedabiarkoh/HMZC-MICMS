@@ -308,6 +308,21 @@ table.insp-print-chk tr.insp-section-row td { background: #EEF1F3; font-weight: 
     border: none !important;
     box-shadow: none !important;
     overflow: visible !important;
+    /* Requested directly: "when there is a break in the table, the
+       next page table start right below header line ... goes inside
+       the header, leave some small allowance ... to avoid it running
+       into header." By default a box's padding/border only render on
+       its FIRST and LAST page fragment (CSS fragmentation "slice"
+       behavior) — so when a long table forces .insp-cert-page itself
+       to break mid-content, the reserved padding-top above only
+       existed on that first page; every continuation page started at
+       the very top of the printable area, right where the fixed
+       letterhead sits, with zero gap. box-decoration-break: clone
+       makes the padding-top/padding-bottom re-apply on every page
+       fragment, not just the first/last, restoring the same gap above
+       a broken table's continuation as above the letterhead on page 1. */
+    -webkit-box-decoration-break: clone;
+    box-decoration-break: clone;
     /* One certificate can be several .insp-cert-page blocks (Statement,
        Boat Checklist, Davit Checklist, Equipment List) — each is its
        own physical page when printed, not stacked on one. */
