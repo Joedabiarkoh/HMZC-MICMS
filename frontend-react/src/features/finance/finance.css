@@ -180,4 +180,18 @@ table.line-items-table .remove-btn { background: none; border: none; color: var(
     border: none !important;
     overflow: visible !important;
   }
+  /* Requested directly, reviewing real printed certificate PDFs: the
+     footer kept landing wherever short content happened to end instead
+     of the true bottom of the page — see inspections.css's own comment
+     on .insp-page-tbody-fill for the full reasoning (including why
+     this targets a plain <div> wrapping the <td>'s content rather than
+     the <td> itself). A short invoice/quotation (no line items yet, no
+     bank details, no T&Cs) has the exact same problem, so it gets the
+     same fix. 850px = the physical A4 content-area height (273mm ≈
+     1032px at 96dpi) minus this frame's own measured letterhead
+     (~82px) and stamp/issued-by footer (~93px) height, with a small
+     safety margin. */
+  .finance-doc-page .insp-page-tbody-fill {
+    min-height: 850px;
+  }
 }

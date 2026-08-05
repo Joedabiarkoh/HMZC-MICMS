@@ -875,7 +875,16 @@ function CertPageFrame({ cert, children }: { cert: InspectionCertificate; childr
     <div className="insp-cert-page" style={watermarkStyle}>
       <table className="insp-page-frame">
         <thead><tr><td><Letterhead cert={cert} /></td></tr></thead>
-        <tbody><tr><td>{children}</td></tr></tbody>
+        {/* Requested directly, reviewing a real printed PDF: "the
+            approval line for the footer... keeps changing position
+            based on number of rows... it should stay below the page."
+            min-height on a <td> itself is unreliable — measured on a
+            real page, the browser didn't stretch it — but the exact
+            same min-height on a plain <div> inside that <td> does. See
+            inspections.css's own comment on .insp-page-tbody-fill for
+            the full reasoning (short content now pads out to a full
+            page instead of leaving the footer stranded partway down). */}
+        <tbody><tr><td><div className="insp-page-tbody-fill">{children}</div></td></tr></tbody>
         <tfoot><tr><td><ApprovalLogosRow /></td></tr></tfoot>
       </table>
     </div>

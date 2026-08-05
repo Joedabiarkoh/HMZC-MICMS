@@ -105,7 +105,7 @@ export default function FinanceDocumentPreview({
             </div>
           </div>
         </td></tr></thead>
-        <tbody><tr><td>
+        <tbody><tr><td><div className="insp-page-tbody-fill">
 
       <div className="insp-cert-title-row">
         <h2>{kind === "INVOICE" ? "Invoice" : "Quotation"}</h2>
@@ -206,7 +206,7 @@ export default function FinanceDocumentPreview({
         </div>
       )}
 
-        </td></tr></tbody>
+        </div></td></tr></tbody>
         <tfoot><tr><td>
       <div style={{ marginTop: 24, borderTop: "1px solid #B9C0C6", paddingTop: 8, display: "flex", justifyContent: "space-between", alignItems: "flex-end", gap: 16 }}>
         <div style={{ fontSize: 10, color: "var(--insp-muted)" }}>
