@@ -165,28 +165,19 @@ table.line-items-table .remove-btn { background: none; border: none; color: var(
     gap: 0 !important;
   }
   /* Requested directly: "all the header and footer static adjustment
-     is for all certificate issued, quotation and invoices" — the same
-     fixed letterhead + reserved top padding + box-decoration-break
-     treatment inspections.css applies to .insp-cert-page, applied here
-     to .finance-doc-page. The signed-off/stamp footer is deliberately
-     NOT pinned (see inspections.css's own comment on .insp-cert-page
-     for why — a real printed PDF showed the fixed footer bleeding onto
-     the following page's header) — it prints as normal, one-time
-     in-flow content at the end of the document instead. */
+     is for all certificate issued, quotation and invoices" — the
+     letterhead/footer here are wrapped in a real <table> (see
+     FinanceDocumentPreview.tsx), the same fix applied to certificates
+     (see inspections.css's own comment on table.insp-page-frame for
+     the full reasoning — position: fixed proved unreliable for a
+     repeating footer in real printed PDFs, native <thead>/<tfoot>
+     repetition is not). */
   .finance-doc-page {
     max-width: none !important;
     margin: 0 !important;
-    padding-top: 80px !important;
+    padding: 0 !important;
     box-shadow: none !important;
     border: none !important;
     overflow: visible !important;
-    -webkit-box-decoration-break: clone;
-    box-decoration-break: clone;
-  }
-  .finance-doc-page .insp-letterhead {
-    position: fixed !important;
-    top: 0; left: 0; right: 0;
-    background: #fff;
-    z-index: 2;
   }
 }

@@ -441,7 +441,7 @@ export default function InspectionWorkspace() {
           </div>
         </div>
         {getFinalizeBlockers().length > 0 && (
-          <div style={{ margin: "0 20px 10px", background: "#FBF0E2", border: "1px solid #B4690E", borderRadius: 6, padding: "8px 12px", fontSize: 12, color: "#7A4A08" }}>
+          <div className="no-print" style={{ margin: "0 20px 10px", background: "#FBF0E2", border: "1px solid #B4690E", borderRadius: 6, padding: "8px 12px", fontSize: 12, color: "#7A4A08" }}>
             <strong>Not ready to finalize yet:</strong> {getFinalizeBlockers().join(" · ")}
           </div>
         )}
@@ -497,7 +497,7 @@ export default function InspectionWorkspace() {
           </div>
         </div>
         {getFinalizeBlockers().length > 0 && (
-          <div style={{ margin: "0 20px 10px", background: "#FBF0E2", border: "1px solid #B4690E", borderRadius: 6, padding: "8px 12px", fontSize: 12, color: "#7A4A08" }}>
+          <div className="no-print" style={{ margin: "0 20px 10px", background: "#FBF0E2", border: "1px solid #B4690E", borderRadius: 6, padding: "8px 12px", fontSize: 12, color: "#7A4A08" }}>
             <strong>Not ready to finalize yet:</strong> {getFinalizeBlockers().join(" · ")}
           </div>
         )}
@@ -552,7 +552,7 @@ export default function InspectionWorkspace() {
           </div>
         </div>
         {getFinalizeBlockers().length > 0 && (
-          <div style={{ margin: "0 20px 10px", background: "#FBF0E2", border: "1px solid #B4690E", borderRadius: 6, padding: "8px 12px", fontSize: 12, color: "#7A4A08" }}>
+          <div className="no-print" style={{ margin: "0 20px 10px", background: "#FBF0E2", border: "1px solid #B4690E", borderRadius: 6, padding: "8px 12px", fontSize: 12, color: "#7A4A08" }}>
             <strong>Not ready to finalize yet:</strong> {getFinalizeBlockers().join(" · ")}
           </div>
         )}
@@ -769,7 +769,7 @@ export default function InspectionWorkspace() {
       </div>
 
       {getFinalizeBlockers().length > 0 && (
-        <div style={{ margin: "0 20px 10px", background: "#FBF0E2", border: "1px solid #B4690E", borderRadius: 6, padding: "8px 12px", fontSize: 12, color: "#7A4A08" }}>
+        <div className="no-print" style={{ margin: "0 20px 10px", background: "#FBF0E2", border: "1px solid #B4690E", borderRadius: 6, padding: "8px 12px", fontSize: 12, color: "#7A4A08" }}>
           <strong>Not ready to finalize yet:</strong> {getFinalizeBlockers().join(" · ")}
         </div>
       )}

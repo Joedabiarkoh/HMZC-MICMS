@@ -50,8 +50,7 @@ export default function CertificatePreview({ cert, config }: Props) {
 
   return (
     <>
-      <div className="insp-cert-page" style={watermarkStyle}>
-        <Letterhead cert={cert} />
+      <CertPageFrame cert={cert}>
         <div className="insp-cert-title-row">
           <h2>Statement</h2>
           <span className="insp-badge">{config.typeName.toUpperCase()}</span>
@@ -154,21 +153,21 @@ export default function CertificatePreview({ cert, config }: Props) {
             certificate" — this page used to have its own bespoke
             3-column signature grid (Captain | Engineer | a Certificate
             No./Serviced/Issued-by block crammed in as the 3rd column)
-            instead of the shared SignatureFooter every other
+            instead of the shared SignatureGrid every other
             certificate type uses. Certificate No. and Date of
             Servicing moved into the ID table above (matching
             FFECertificatePage's own convention), "Issued by" moved to
             this small line right before the signatures (matching
             FFECertificatePage/MultipleItemsPage's own convention too),
             and the signature area itself is now the same shared
-            2-column SignatureFooter as everywhere else. */}
+            2-column SignatureGrid as everywhere else. */}
         {cert.issuedBy && (
           <div style={{ fontSize: 10, color: "var(--insp-muted)", marginTop: 8 }}>
             Issued by {cert.issuedBy}{cert.issuedAt ? ` — ${new Date(cert.issuedAt).toLocaleString()}` : ""}
           </div>
         )}
-        <SignatureFooter cert={cert} masterLabel="Captain Signature" techLabel="Service Engineer" />
-      </div>
+        <SignatureGrid cert={cert} masterLabel="Captain Signature" techLabel="Service Engineer" />
+      </CertPageFrame>
 
       {isBoat && cert.boatChecklist && (
         <ChecklistPage title={config.boatTitle || "Checklist"} config={config} cert={cert} sections={cert.boatChecklist} outstandingKey="boatChecklist" />
@@ -177,8 +176,7 @@ export default function CertificatePreview({ cert, config }: Props) {
         <ChecklistPage title={config.davitTitle || "Davit Checklist"} config={config} cert={cert} sections={cert.davitChecklist} outstandingKey="davitChecklist" />
       )}
       {isBoat && cert.equip && (
-        <div className="insp-cert-page" style={watermarkStyle}>
-          <Letterhead cert={cert} />
+        <CertPageFrame cert={cert}>
           <div className="insp-cert-title-row"><h2>{config.equipListTitle}</h2><span className="insp-badge">{config.typeName.toUpperCase()}</span></div>
           <table className="insp-print-chk">
             <thead>
@@ -195,8 +193,8 @@ export default function CertificatePreview({ cert, config }: Props) {
               ))}
             </tbody>
           </table>
-          <SignatureFooter cert={cert} masterLabel="Captain Signature" techLabel="Service Engineer" />
-        </div>
+          <SignatureGrid cert={cert} masterLabel="Captain Signature" techLabel="Service Engineer" />
+        </CertPageFrame>
       )}
       {!isBoat && cert.checklist && (
         <ChecklistPage title={config.checklistTitle || "Inspection Checklist"} config={config} cert={cert} sections={cert.checklist} outstandingKey="checklist" />
@@ -320,7 +318,7 @@ function PaginatedTable<T>({
 // Checklist / Equipment List, always separate regardless of how short
 // any one of them is) — one page for the header+technical info, one
 // per populated table section, one for comments/sign-off — each with
-// its own letterhead and its own SignatureFooter.
+// its own letterhead and its own SignatureGrid/ApprovalLogosRow.
 // Requested directly: a certificate should be ONE page by default, and
 // only spill onto additional pages when there's actually enough content
 // (a long item register, a big checklist) to need it — not force
@@ -330,7 +328,7 @@ function PaginatedTable<T>({
 // two rows and no checklist still printed 3 forced pages).
 //
 // One .insp-cert-page div now holds every section, with ONE Letterhead
-// at the top and ONE SignatureFooter at the true end — natural browser
+// at the top and ONE SignatureGrid at the true end — natural browser
 // print pagination (no forced page-break-after) decides where content
 // actually needs to continue onto a new physical page. Each table's own
 // <thead> (item tables, checklist) still repeats its column headers on
@@ -344,8 +342,7 @@ function FFECertificatePage({ cert, ffe }: { cert: InspectionCertificate; ffe: F
   const cfg = getFFEConfig(ffe.subType);
 
   return (
-    <div className="insp-cert-page" style={watermarkStyle}>
-      <Letterhead cert={cert} />
+    <CertPageFrame cert={cert}>
       <div className="insp-cert-title-row">
         <h2>Certificate &amp; Checklist</h2>
         <span className="insp-badge">{cfg.label.toUpperCase()}</span>
@@ -453,8 +450,8 @@ function FFECertificatePage({ cert, ffe }: { cert: InspectionCertificate; ffe: F
         )}
       </div>
 
-      <SignatureFooter cert={cert} masterLabel="Master" techLabel="Technician" />
-    </div>
+      <SignatureGrid cert={cert} masterLabel="Master" techLabel="Technician" />
+    </CertPageFrame>
   );
 }
 
@@ -483,8 +480,7 @@ function CalibrationCertificatePage({ cert, calibration }: { cert: InspectionCer
   const cfg = getCalibrationConfig(calibration.subType);
 
   return (
-    <div className="insp-cert-page" style={watermarkStyle}>
-      <Letterhead cert={cert} />
+    <CertPageFrame cert={cert}>
       <div className="insp-cert-title-row">
         <h2>Calibration Certificate</h2>
         <span className="insp-badge">{cfg.label.toUpperCase()}</span>
@@ -535,8 +531,8 @@ function CalibrationCertificatePage({ cert, calibration }: { cert: InspectionCer
         )}
       </div>
 
-      <SignatureFooter cert={cert} masterLabel="Master" techLabel="Checked/Approved By" />
-    </div>
+      <SignatureGrid cert={cert} masterLabel="Master" techLabel="Checked/Approved By" />
+    </CertPageFrame>
   );
 }
 
@@ -620,8 +616,7 @@ function StatutoryAnswersRows({ data }: { data: LooseGearStatutoryAnswers }) {
 
 function VisualCertPage({ cert, data }: { cert: InspectionCertificate; data: LooseGearVisualCertData }) {
   return (
-    <div className="insp-cert-page" style={watermarkStyle}>
-      <Letterhead cert={cert} />
+    <CertPageFrame cert={cert}>
       <div className="insp-cert-title-row">
         <h2>Visual Certificate of Thorough Examination</h2>
         <span className="insp-badge">LOOSE GEAR &amp; LIFTING EQUIPMENT</span>
@@ -702,15 +697,14 @@ function VisualCertPage({ cert, data }: { cert: InspectionCertificate; data: Loo
           Issued by {cert.issuedBy}{cert.issuedAt ? ` — ${new Date(cert.issuedAt).toLocaleString()}` : ""}
         </div>
       )}
-      <SignatureFooter cert={cert} masterLabel="Master" techLabel="Inspector" />
-    </div>
+      <SignatureGrid cert={cert} masterLabel="Master" techLabel="Inspector" />
+    </CertPageFrame>
   );
 }
 
 function StandardReportPage({ cert, data }: { cert: InspectionCertificate; data: LooseGearStandardReportData }) {
   return (
-    <div className="insp-cert-page" style={watermarkStyle}>
-      <Letterhead cert={cert} />
+    <CertPageFrame cert={cert}>
       <div className="insp-cert-title-row">
         <h2>Report of Thorough Examination</h2>
         <span className="insp-badge">LOOSE GEAR &amp; LIFTING EQUIPMENT</span>
@@ -772,8 +766,8 @@ function StandardReportPage({ cert, data }: { cert: InspectionCertificate; data:
           Issued by {cert.issuedBy}{cert.issuedAt ? ` — ${new Date(cert.issuedAt).toLocaleString()}` : ""}
         </div>
       )}
-      <SignatureFooter cert={cert} masterLabel="Master" techLabel="Inspector" />
-    </div>
+      <SignatureGrid cert={cert} masterLabel="Master" techLabel="Inspector" />
+    </CertPageFrame>
   );
 }
 
@@ -788,8 +782,7 @@ const REASON_PRINT_LABELS: Record<string, string> = {
 
 function MultipleItemsPage({ cert, data }: { cert: InspectionCertificate; data: LooseGearMultipleItemsData }) {
   return (
-    <div className="insp-cert-page" style={watermarkStyle}>
-      <Letterhead cert={cert} />
+    <CertPageFrame cert={cert}>
       <div className="insp-cert-title-row">
         <h2>Report of Thorough Examination (Multiple Items)</h2>
         <span className="insp-badge">LOOSE GEAR &amp; LIFTING EQUIPMENT</span>
@@ -852,7 +845,39 @@ function MultipleItemsPage({ cert, data }: { cert: InspectionCertificate; data: 
           Issued by {cert.issuedBy}{cert.issuedAt ? ` — ${new Date(cert.issuedAt).toLocaleString()}` : ""}
         </div>
       )}
-      <SignatureFooter cert={cert} masterLabel="Master" techLabel="Inspector" />
+      <SignatureGrid cert={cert} masterLabel="Master" techLabel="Inspector" />
+    </CertPageFrame>
+  );
+}
+
+// Requested directly, reviewing several real printed PDFs: "the fixed
+// or pin header and footer is only applying to some certificate and
+// not all... if the pin header and footer can be applied to all
+// certificate that will be issued, even if it is printed empty, all
+// pages must have their own header and footer." Those PDFs proved
+// position: fixed unreliable for this: `top: 0` (the letterhead)
+// reliably repeated on every physical page, but `bottom: 0` (the
+// approvals footer) did not — it only ever rendered on whichever ONE
+// page it would have landed on in normal document flow, sometimes not
+// at all. This wraps a certificate page's entire content in one real
+// <table>, with the letterhead as its <thead> and ApprovalLogosRow as
+// its <tfoot> — <thead> repeating on every physical page a table spans
+// is the exact same native, browser-guaranteed behavior CertNoTheadRow
+// has relied on all session (proven correct many times over); <tfoot>
+// is specified to repeat the same way, and unlike position: fixed
+// doesn't need the browser to know a page's total height in advance to
+// place it correctly. The signature grid is NOT inside the <tfoot> —
+// it's ordinary <tbody> content, so it still prints exactly once,
+// wherever it naturally falls ("do not make the signature section part
+// of the header and footer... signature can move with the page").
+function CertPageFrame({ cert, children }: { cert: InspectionCertificate; children: ReactNode }) {
+  return (
+    <div className="insp-cert-page" style={watermarkStyle}>
+      <table className="insp-page-frame">
+        <thead><tr><td><Letterhead cert={cert} /></td></tr></thead>
+        <tbody><tr><td>{children}</td></tr></tbody>
+        <tfoot><tr><td><ApprovalLogosRow /></td></tr></tfoot>
+      </table>
     </div>
   );
 }
@@ -884,42 +909,32 @@ function Letterhead({ cert }: { cert: InspectionCertificate }) {
 // from the rest of the certificate couldn't be authenticated on its
 // own. One shared component rather than repeating the same markup on
 // every page type.
-// The signature grid itself prints as plain, one-time, in-flow content
-// at the end of the page — deliberately NOT pinned/repeating (requested
-// directly: "do not make the signature section part of the header and
-// footer... the signature and technician name can move with the page
-// as it is now"). ApprovalLogosRow below, by contrast, IS pinned — see
-// its own comment for why the two are treated differently.
-function SignatureFooter({ cert, masterLabel, techLabel }: { cert: InspectionCertificate; masterLabel: string; techLabel: string }) {
+// Plain, one-time, in-flow content wherever it's placed in a
+// CertPageFrame's children — deliberately NOT part of the repeating
+// <thead>/<tfoot> ("do not make the signature section part of the
+// header and footer... the signature and technician name can move
+// with the page as it is now"). ApprovalLogosRow (rendered separately,
+// in CertPageFrame's own <tfoot>) is what repeats.
+function SignatureGrid({ cert, masterLabel, techLabel }: { cert: InspectionCertificate; masterLabel: string; techLabel: string }) {
   return (
-    <>
-      {/* Requested directly: "include this stamp to all certificate...
-          this is supposed to be the digital stamp of HMZC" — then,
-          asked to make it "look it has been used to stamp over the
-          signature of the technician" rather than sit as its own
-          separate block. `stamp` on the technician/engineer SignBox
-          (never Master's) overlays it there — see SignBox's own
-          comment for how. */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginTop: 12 }}>
-        <SignBox label={masterLabel} name={cert.captainName} sig={cert.captainSig} />
-        <SignBox label={techLabel} name={cert.engineerName} sig={cert.engineerSig} stamp />
-      </div>
-      <ApprovalLogosRow />
-    </>
+    // Requested directly: "include this stamp to all certificate...
+    // this is supposed to be the digital stamp of HMZC" — then, asked
+    // to make it "look it has been used to stamp over the signature of
+    // the technician" rather than sit as its own separate block.
+    // `stamp` on the technician/engineer SignBox (never Master's)
+    // overlays it there — see SignBox's own comment for how.
+    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginTop: 12 }}>
+      <SignBox label={masterLabel} name={cert.captainName} sig={cert.captainSig} />
+      <SignBox label={techLabel} name={cert.engineerName} sig={cert.engineerSig} stamp />
+    </div>
   );
 }
 
 // Requested directly: HMZC's classification society / approval body
-// logos (ABS, DNV, Bureau Veritas, CRALOG), printed in the footer of
-// every certificate. Pinned to the bottom of every physical printed
-// page (inspections.css's .insp-approvals-footer print rule) — the
-// signature grid above it is deliberately excluded from that pinning
-// ("the approval and the line above it should stay as the footer and
-// not move based on the page usage"), so this is now the ONLY part of
-// SignatureFooter that repeats/stays fixed; it's a small, fixed-height
-// block (a divider line, a label, four logos), unlike the signature
-// grid which varies with whether a signature is an uploaded image or a
-// cursive-font name fallback.
+// logos (ABS, DNV, Bureau Veritas, CRALOG). Rendered inside every
+// CertPageFrame's <tfoot> — see that component's own comment for why a
+// real table footer, not position: fixed, is what makes this actually
+// repeat on every physical printed page.
 function ApprovalLogosRow() {
   const logos = [
     { src: ABS_LOGO_DATA_URI, alt: "ABS" },
@@ -928,7 +943,7 @@ function ApprovalLogosRow() {
     { src: CRALOG_LOGO_DATA_URI, alt: "CRALOG" },
   ];
   return (
-    <div className="insp-approvals-footer" style={{ borderTop: "1px solid #E4E7E9", marginTop: 16, paddingTop: 8 }}>
+    <div style={{ borderTop: "1px solid #E4E7E9", marginTop: 16, paddingTop: 8 }}>
       <div style={{ fontSize: 8.5, color: "var(--insp-muted)", textTransform: "uppercase", letterSpacing: ".04em", marginBottom: 5 }}>Approvals</div>
       <div style={{ display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
         {logos.map((logo) => (
@@ -975,8 +990,7 @@ function SignBox({ label, name, sig, stamp }: { label: string; name: string; sig
 
 function ChecklistPage({ title, config, cert, sections, outstandingKey }: any) {
   return (
-    <div className="insp-cert-page" style={watermarkStyle}>
-      <Letterhead cert={cert} />
+    <CertPageFrame cert={cert}>
       <div className="insp-cert-title-row"><h2>{title}</h2><span className="insp-badge">{config.typeName.toUpperCase()}</span></div>
       <table className="insp-print-chk">
         <thead>
@@ -1018,7 +1032,7 @@ function ChecklistPage({ title, config, cert, sections, outstandingKey }: any) {
           ))}
         </div>
       )}
-      <SignatureFooter cert={cert} masterLabel="Captain Signature" techLabel="Service Engineer" />
-    </div>
+      <SignatureGrid cert={cert} masterLabel="Captain Signature" techLabel="Service Engineer" />
+    </CertPageFrame>
   );
 }

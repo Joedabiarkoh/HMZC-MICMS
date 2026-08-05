@@ -77,21 +77,35 @@ export default function FinanceDocumentPreview({
     companyInfo.bank_sort_code, companyInfo.bank_swift_code, companyInfo.bank_iban,
   ].some(Boolean);
 
+  // Requested directly, reviewing several real printed PDFs: "the fixed
+  // or pin header and footer is only applying to some certificate and
+  // not all... all pages must have their own header and footer."
+  // Wrapping this whole document's content in one real <table> — the
+  // letterhead as its <thead>, this footer block as its <tfoot> — is
+  // what makes both reliably repeat on every physical printed page,
+  // the same fix applied to certificates (see CertPageFrame in
+  // CertificatePreview.tsx for the full reasoning: position: fixed
+  // proved unreliable for a repeating footer specifically, while
+  // native <thead>/<tfoot> repetition is not).
   return (
     <div className="finance-doc-page" style={watermarkStyle}>
-      <div className="insp-letterhead">
-        <img src={HMZC_LOGO_DATA_URI} alt="HMZC LTD" />
-        <div className="insp-lh-right" style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
-          <div>
-            HMZC LTD — Marine Engineering Services<br />
-            Cabinda HQ: Urbanização 4 De Abril, Cabinda, Angola<br />
-            Luanda, Benfica Rua Bento Raimundo.<br />
-            admin@hmzchealthinmarine.com&nbsp;|&nbsp;+244 972 320 300
-            {peppolId && <><br />PEPPOL ID: {peppolId}</>}
+      <table className="insp-page-frame">
+        <thead><tr><td>
+          <div className="insp-letterhead">
+            <img src={HMZC_LOGO_DATA_URI} alt="HMZC LTD" />
+            <div className="insp-lh-right" style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
+              <div>
+                HMZC LTD — Marine Engineering Services<br />
+                Cabinda HQ: Urbanização 4 De Abril, Cabinda, Angola<br />
+                Luanda, Benfica Rua Bento Raimundo.<br />
+                admin@hmzchealthinmarine.com&nbsp;|&nbsp;+244 972 320 300
+                {peppolId && <><br />PEPPOL ID: {peppolId}</>}
+              </div>
+              <CertificateQR payload={`HMZC ${kind}\nNo: ${docNo}\nCustomer: ${customer || "—"}\nTotal: $${total.toFixed(2)}`} size={54} />
+            </div>
           </div>
-          <CertificateQR payload={`HMZC ${kind}\nNo: ${docNo}\nCustomer: ${customer || "—"}\nTotal: $${total.toFixed(2)}`} size={54} />
-        </div>
-      </div>
+        </td></tr></thead>
+        <tbody><tr><td>
 
       <div className="insp-cert-title-row">
         <h2>{kind === "INVOICE" ? "Invoice" : "Quotation"}</h2>
@@ -192,15 +206,9 @@ export default function FinanceDocumentPreview({
         </div>
       )}
 
-      {/* Requested directly: "all the header and footer static
-          adjustment is for all certificate issued, quotation and
-          invoices" — reuses the exact class inspections.css already
-          pins to the bottom of every printed page for certificates
-          (see CertificatePreview.tsx's SignatureFooter), so an
-          invoice/quotation gets the same static footer treatment
-          rather than one that drifts with how much content (line
-          items, conditions, bank details) sits above it. */}
-      <div className="insp-cert-footer" style={{ marginTop: 24, borderTop: "1px solid #B9C0C6", paddingTop: 8, display: "flex", justifyContent: "space-between", alignItems: "flex-end", gap: 16 }}>
+        </td></tr></tbody>
+        <tfoot><tr><td>
+      <div style={{ marginTop: 24, borderTop: "1px solid #B9C0C6", paddingTop: 8, display: "flex", justifyContent: "space-between", alignItems: "flex-end", gap: 16 }}>
         <div style={{ fontSize: 10, color: "var(--insp-muted)" }}>
           {issuedBy && <div>Issued by {issuedBy}{issuedAt ? ` — ${new Date(issuedAt).toLocaleString()}` : ""}</div>}
           <div style={{ marginTop: 4 }}>
@@ -212,10 +220,12 @@ export default function FinanceDocumentPreview({
         {/* Requested directly: "include this stamp to all certificate,
             and invoice, this is supposed to be the digital stamp of
             HMZC." Invoice-only (quotations weren't asked for) — see
-            CertificatePreview.tsx's SignatureFooter for the certificate
+            CertificatePreview.tsx's CertPageFrame for the certificate
             side of the same request. */}
         {kind === "INVOICE" && <img src={HMZC_STAMP_DATA_URI} alt="HMZC Official Stamp" style={{ height: 60, objectFit: "contain", flexShrink: 0 }} />}
       </div>
+        </td></tr></tfoot>
+      </table>
     </div>
   );
 }

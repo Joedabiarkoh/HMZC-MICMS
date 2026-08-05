@@ -176,6 +176,25 @@
   background-size: 56%; opacity: .05; pointer-events: none; z-index: 0;
 }
 .insp-cert-page > * { position: relative; z-index: 1; }
+
+/* Requested directly, reviewing several real printed PDFs: "the fixed
+   or pin header and footer is only applying to some certificate and
+   not all... all pages must have their own header and footer." Each
+   certificate page's Letterhead/content/ApprovalLogosRow are wrapped
+   in one real <table> (see CertPageFrame in CertificatePreview.tsx) —
+   <thead> and <tfoot> natively, reliably repeat on every physical page
+   a table spans when printed (the exact mechanism CertNoTheadRow has
+   relied on all session), unlike position: fixed, which proved
+   unreliable in practice: `top: 0` letterheads repeated correctly, but
+   `bottom: 0` footers didn't. Purely a structural wrapper — no
+   border/background/padding of its own — so it's invisible either way. */
+table.insp-page-frame { width: 100%; border-collapse: collapse; }
+table.insp-page-frame > thead > tr > td,
+table.insp-page-frame > tbody > tr > td,
+table.insp-page-frame > tfoot > tr > td {
+  padding: 0; border: none;
+}
+
 .insp-letterhead { display: flex; justify-content: space-between; border-bottom: 3px solid var(--insp-accent); padding-bottom: 9px; margin-bottom: 10px; }
 .insp-letterhead img { height: 42px; }
 .insp-letterhead .insp-lh-right { text-align: right; font-size: 10px; color: var(--insp-muted); line-height: 1.5; }
@@ -302,44 +321,10 @@ table.insp-print-chk tr.insp-section-row td { background: #EEF1F3; font-weight: 
   .insp-cert-page {
     max-width: none !important;
     margin: 0 !important;
-    /* Requested directly, reviewing an actual printed PDF: "the header
-       and footer are completely messed up, with the footer entering
-       some pages as header and cutting off the header ... do not make
-       the signature section part of the header and footer." Pinning
-       the SIGNATURE grid (which varies in height — an uploaded image
-       vs. a cursive-font name fallback) required guessing the exact
-       pixel height of a printed page to anchor it against, and that
-       guess didn't match the browser's actual print/PDF output (e.g.
-       with the browser's own "headers and footers" print option
-       enabled, which reserves more space than @page's 12mm margin
-       alone) — the fixed offset landed past the true bottom of the
-       page and bled onto the top of the next one. The signature grid
-       is back to plain, one-time, in-flow content ("the signature and
-       technician name can move with the page as it is now").
-       ApprovalLogosRow, by contrast, stays pinned (see its own comment)
-       — it's a small, FIXED-height block (a line, a label, four logo
-       images, no variable content), so this reserves just enough room
-       for it plus the letterhead, not the old, much larger combined
-       signature+approvals footer zone. */
-    padding: 80px 0 60px !important;
+    padding: 0 !important;
     border: none !important;
     box-shadow: none !important;
     overflow: visible !important;
-    /* Requested directly: "when there is a break in the table, the
-       next page table start right below header line ... goes inside
-       the header, leave some small allowance ... to avoid it running
-       into header." By default a box's padding/border only render on
-       its FIRST and LAST page fragment (CSS fragmentation "slice"
-       behavior) — so when a long table forces .insp-cert-page itself
-       to break mid-content, the reserved padding above only existed on
-       the first/last page; a continuation page started at the very top
-       of the printable area, right where the fixed letterhead sits,
-       with zero gap (and, symmetrically, the last page's own bottom
-       margin wouldn't clear the pinned approvals footer either).
-       box-decoration-break: clone makes both paddings re-apply on
-       every page fragment, not just the first/last. */
-    -webkit-box-decoration-break: clone;
-    box-decoration-break: clone;
     /* One certificate can be several .insp-cert-page blocks (Statement,
        Boat Checklist, Davit Checklist, Equipment List) — each is its
        own physical page when printed, not stacked on one. */
@@ -349,37 +334,5 @@ table.insp-print-chk tr.insp-section-row td { background: #EEF1F3; font-weight: 
   .insp-cert-page:last-child {
     page-break-after: auto;
     break-after: auto;
-  }
-  /* position: fixed in paged/print media repeats an element on every
-     physical page for as long as it's the "current" fixed element in
-     document order — so each .insp-cert-page's own letterhead
-     (cert-specific QR code) automatically takes over as the running
-     header for whichever physical page(s) that section's content
-     spans, including pages in the middle of a long table where it
-     previously never appeared at all. !important overrides the
-     unconditional ".insp-cert-page > * { position: relative }" rule
-     above, which would otherwise win by source order. White background
-     masks any in-flow content that lands close to the reserved edge. */
-  .insp-cert-page .insp-letterhead {
-    position: fixed !important;
-    top: 0; left: 0; right: 0;
-    background: #fff;
-    z-index: 2;
-  }
-  /* Requested directly: "the approval and the line above it should
-     stay as the footer and not move based on the page usage." Unlike
-     the earlier attempt at pinning the whole (signature + approvals)
-     footer — which needed a `top` offset computed from a guessed total
-     page height, and broke when that guess was wrong — this uses
-     `bottom: 0` directly: the semantically correct way to anchor
-     "flush with the true bottom of whichever page this is," with no
-     page-height arithmetic to get wrong. Same content on every page
-     (not cert-specific like the letterhead/signature), so unlike those
-     there's nothing here that varies per page to get out of sync. */
-  .insp-cert-page .insp-approvals-footer {
-    position: fixed !important;
-    bottom: 0; left: 0; right: 0;
-    background: #fff;
-    z-index: 2;
   }
 }
