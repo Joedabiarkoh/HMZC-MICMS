@@ -180,7 +180,6 @@ export default function CertificatePreview({ cert, config }: Props) {
         <div className="insp-cert-page" style={watermarkStyle}>
           <Letterhead cert={cert} />
           <div className="insp-cert-title-row"><h2>{config.equipListTitle}</h2><span className="insp-badge">{config.typeName.toUpperCase()}</span></div>
-          <CertNoLine certNo={cert.certNo} />
           <table className="insp-print-chk">
             <thead>
               <CertNoTheadRow certNo={cert.certNo} colSpan={5} />
@@ -218,28 +217,18 @@ function checklistResultLabel(r: string) {
 // Certificate No. on that first page's own ID table — any continuation
 // page had no way to identify which certificate it belonged to once
 // separated from the rest (a printed page shuffled out of order, or a
-// single page photocopied on its own).
-function CertNoLine({ certNo }: { certNo: string }) {
-  return (
-    <div style={{ fontSize: 10.5, color: "var(--insp-muted)", marginTop: -6, marginBottom: 10 }}>
-      Certificate No: <span style={{ fontFamily: "monospace", color: "var(--insp-navy)", fontWeight: 700 }}>{certNo}</span>
-    </div>
-  );
-}
-
-// Requested directly: "ensure certificate number appears on all pages
-// of other inspection report, as FFE certificate can also go beyond 1
-// page depending on number of equipment on board." A certificate is
-// deliberately ONE continuous .insp-cert-page div per section (see the
-// comment above FFECertificatePage) — natural browser print pagination
-// decides where it actually splits across physical pages, so
-// CertNoLine (a plain block shown once near the top) only ever prints
-// on that section's FIRST physical page. A <thead> row, by contrast,
-// is a real native browser behavior that repeats on every physical
-// page a table spans — this is that row, meant to be the first row
-// inside a table's own <thead>, above its real column headers, for
-// any table long enough to plausibly overflow a page on its own (an
-// equipment/item register, a checklist).
+// single page photocopied on its own). A <thead> row is a real native
+// browser behavior that repeats on every physical page a table spans —
+// this is that row, meant to be the first row inside a table's own
+// <thead>, above its real column headers, for any table long enough to
+// plausibly overflow a page on its own (an equipment/item register, a
+// checklist). There used to also be a plain, one-off "Certificate No:"
+// line printed just above the table for this same reason — removed
+// (requested directly, reviewing a printed PDF: "the certificate
+// number is appearing twice on the same page") since this thead row
+// already covers the table's first page too, making that line pure
+// duplication there, and it never printed on the table's own
+// continuation pages anyway.
 function CertNoTheadRow({ certNo, colSpan }: { certNo: string; colSpan: number }) {
   return (
     <tr>
@@ -895,19 +884,15 @@ function Letterhead({ cert }: { cert: InspectionCertificate }) {
 // from the rest of the certificate couldn't be authenticated on its
 // own. One shared component rather than repeating the same markup on
 // every page type.
-// Prints as plain, one-time, in-flow content at the end of the page —
-// deliberately NOT pinned/repeating. That was tried (position: fixed;
-// bottom: 0, repeating on every physical page) but a real printed PDF
-// showed it bleeding past the true bottom of a page onto the following
-// page's letterhead, since there's no reliable way to read a page's
-// actual printed height from CSS to anchor a fixed "bottom" against.
-// Requested directly, reviewing that PDF: "do not make the signature
-// section part of the header and footer." The .insp-cert-footer class
-// name is kept only because FinanceDocumentPreview.tsx's footer reuses
-// it too, not because anything still pins it.
+// The signature grid itself prints as plain, one-time, in-flow content
+// at the end of the page — deliberately NOT pinned/repeating (requested
+// directly: "do not make the signature section part of the header and
+// footer... the signature and technician name can move with the page
+// as it is now"). ApprovalLogosRow below, by contrast, IS pinned — see
+// its own comment for why the two are treated differently.
 function SignatureFooter({ cert, masterLabel, techLabel }: { cert: InspectionCertificate; masterLabel: string; techLabel: string }) {
   return (
-    <div className="insp-cert-footer">
+    <>
       {/* Requested directly: "include this stamp to all certificate...
           this is supposed to be the digital stamp of HMZC" — then,
           asked to make it "look it has been used to stamp over the
@@ -920,16 +905,21 @@ function SignatureFooter({ cert, masterLabel, techLabel }: { cert: InspectionCer
         <SignBox label={techLabel} name={cert.engineerName} sig={cert.engineerSig} stamp />
       </div>
       <ApprovalLogosRow />
-    </div>
+    </>
   );
 }
 
 // Requested directly: HMZC's classification society / approval body
 // logos (ABS, DNV, Bureau Veritas, CRALOG), printed in the footer of
-// every certificate — placed inside SignatureFooter so it appears
-// wherever a signature does, the same per-page repetition the
-// letterhead/watermark already use rather than a one-off addition to a
-// single page.
+// every certificate. Pinned to the bottom of every physical printed
+// page (inspections.css's .insp-approvals-footer print rule) — the
+// signature grid above it is deliberately excluded from that pinning
+// ("the approval and the line above it should stay as the footer and
+// not move based on the page usage"), so this is now the ONLY part of
+// SignatureFooter that repeats/stays fixed; it's a small, fixed-height
+// block (a divider line, a label, four logos), unlike the signature
+// grid which varies with whether a signature is an uploaded image or a
+// cursive-font name fallback.
 function ApprovalLogosRow() {
   const logos = [
     { src: ABS_LOGO_DATA_URI, alt: "ABS" },
@@ -938,7 +928,7 @@ function ApprovalLogosRow() {
     { src: CRALOG_LOGO_DATA_URI, alt: "CRALOG" },
   ];
   return (
-    <div style={{ borderTop: "1px solid #E4E7E9", marginTop: 16, paddingTop: 8 }}>
+    <div className="insp-approvals-footer" style={{ borderTop: "1px solid #E4E7E9", marginTop: 16, paddingTop: 8 }}>
       <div style={{ fontSize: 8.5, color: "var(--insp-muted)", textTransform: "uppercase", letterSpacing: ".04em", marginBottom: 5 }}>Approvals</div>
       <div style={{ display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
         {logos.map((logo) => (
@@ -988,7 +978,6 @@ function ChecklistPage({ title, config, cert, sections, outstandingKey }: any) {
     <div className="insp-cert-page" style={watermarkStyle}>
       <Letterhead cert={cert} />
       <div className="insp-cert-title-row"><h2>{title}</h2><span className="insp-badge">{config.typeName.toUpperCase()}</span></div>
-      <CertNoLine certNo={cert.certNo} />
       <table className="insp-print-chk">
         <thead>
           <CertNoTheadRow certNo={cert.certNo} colSpan={3} />
