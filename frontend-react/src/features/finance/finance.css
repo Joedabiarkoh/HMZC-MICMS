@@ -164,10 +164,36 @@ table.line-items-table .remove-btn { background: none; border: none; color: var(
     padding: 0 !important;
     gap: 0 !important;
   }
+  /* Requested directly: "all the header and footer static adjustment
+     is for all certificate issued, quotation and invoices" — the same
+     fixed letterhead/footer + reserved padding + box-decoration-break
+     treatment inspections.css applies to .insp-cert-page, applied here
+     to .finance-doc-page so an invoice/quotation's letterhead and
+     signed-off footer are pinned to every printed page too (relevant
+     once the Terms and Conditions section, or a long line-item table,
+     pushes a document past one page). See inspections.css's own
+     comments on .insp-cert-page for the full reasoning behind each of
+     these values. */
   .finance-doc-page {
     max-width: none !important;
     margin: 0 !important;
+    padding: 80px 0 106px !important;
     box-shadow: none !important;
     border: none !important;
+    overflow: visible !important;
+    -webkit-box-decoration-break: clone;
+    box-decoration-break: clone;
+  }
+  .finance-doc-page .insp-letterhead {
+    position: fixed !important;
+    top: 0; left: 0; right: 0;
+    background: #fff;
+    z-index: 2;
+  }
+  .finance-doc-page .insp-cert-footer {
+    position: fixed !important;
+    top: 926px; left: 0; right: 0; bottom: auto;
+    background: #fff;
+    z-index: 2;
   }
 }

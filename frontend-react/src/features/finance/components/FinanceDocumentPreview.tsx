@@ -192,7 +192,15 @@ export default function FinanceDocumentPreview({
         </div>
       )}
 
-      <div style={{ marginTop: 24, borderTop: "1px solid #B9C0C6", paddingTop: 8, display: "flex", justifyContent: "space-between", alignItems: "flex-end", gap: 16 }}>
+      {/* Requested directly: "all the header and footer static
+          adjustment is for all certificate issued, quotation and
+          invoices" — reuses the exact class inspections.css already
+          pins to the bottom of every printed page for certificates
+          (see CertificatePreview.tsx's SignatureFooter), so an
+          invoice/quotation gets the same static footer treatment
+          rather than one that drifts with how much content (line
+          items, conditions, bank details) sits above it. */}
+      <div className="insp-cert-footer" style={{ marginTop: 24, borderTop: "1px solid #B9C0C6", paddingTop: 8, display: "flex", justifyContent: "space-between", alignItems: "flex-end", gap: 16 }}>
         <div style={{ fontSize: 10, color: "var(--insp-muted)" }}>
           {issuedBy && <div>Issued by {issuedBy}{issuedAt ? ` — ${new Date(issuedAt).toLocaleString()}` : ""}</div>}
           <div style={{ marginTop: 4 }}>

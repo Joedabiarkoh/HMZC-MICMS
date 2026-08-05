@@ -301,10 +301,15 @@ table.insp-print-chk tr.insp-section-row td { background: #EEF1F3; font-weight: 
        position: fixed, which removes them from normal document flow —
        this padding is what reserves the matching amount of space at
        the top and bottom of the printable area so in-flow content
-       doesn't render underneath them. Sized generously above each
-       one's measured height (~72px / ~84px) to comfortably cover a
-       longer captain/engineer name or an uploaded signature image. */
-    padding: 90px 0 120px !important;
+       doesn't render underneath them.
+       Requested directly, a follow-up tuning pass: "move the starting
+       position of the page up a bit under the header" (top trimmed
+       from 90px to 80px — an 8px gap under the ~72px letterhead,
+       tighter but still clear of it) and "drop the sign and footer
+       bundle a bit lower" (bottom zone trimmed from 120px to 106px —
+       see .insp-cert-footer below for why this moved from `bottom: 0`
+       to a `top` offset computed off the same number). */
+    padding: 80px 0 106px !important;
     border: none !important;
     box-shadow: none !important;
     overflow: visible !important;
@@ -350,9 +355,23 @@ table.insp-print-chk tr.insp-section-row td { background: #EEF1F3; font-weight: 
     background: #fff;
     z-index: 2;
   }
+  /* Requested directly: "when print is issued the sign off and
+     approvals section does not come into print, the footer does not
+     print even though it show in preview." `position: fixed; bottom: 0`
+     needs the print engine to resolve where "the bottom of this
+     specific physical page" is before it can place the element — a
+     harder, less reliably-supported computation than `top`, which is
+     just a fixed offset from a page's own start. That's the likely
+     reason the footer rendered fine on screen (where it's normal
+     in-flow content, unaffected by this print-only rule) but silently
+     dropped out of the actual print/PDF output. Anchoring from `top`
+     instead — using the same physical A4 content-area height @page
+     already defines (297mm page − 12mm×2 margin = 273mm ≈ 1032px at
+     96dpi) minus the reserved zone below — uses the same positioning
+     mechanism the letterhead above already prints correctly with. */
   .insp-cert-page .insp-cert-footer {
     position: fixed !important;
-    bottom: 0; left: 0; right: 0;
+    top: 926px; left: 0; right: 0; bottom: auto;
     background: #fff;
     z-index: 2;
   }
