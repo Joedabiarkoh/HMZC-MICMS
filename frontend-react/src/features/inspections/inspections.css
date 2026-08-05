@@ -373,14 +373,22 @@ table.insp-print-chk tr.insp-section-row td { background: #EEF1F3; font-weight: 
      itself — measured directly on a real page, min-height on the <td>
      was silently not respected (a known table-cell sizing quirk), but
      the identical min-height on an ordinary block-level child of that
-     <td> renders exactly as expected. 880px is the physical A4
-     content-area height @page defines (273mm ≈ 1032px at 96dpi) minus
-     this frame's own measured letterhead (~82px) and approvals (~65px)
-     height, with a small safety margin so rounding can't tip the total
-     over one page and force a needless blank one. Print-only: an
-     on-screen preview panel padded out to a full fake "page" height
-     per section would look broken while still editing. */
+     <td> renders exactly as expected.
+     Requested directly, reviewing a real printed PDF: 880px (measured
+     against on-screen rendering: 1032px content area minus this
+     frame's own ~82px letterhead and ~65px approvals, leaving only a
+     5px safety margin) was too tight in practice — actual print/PDF
+     rendering computed a few pixels taller than the same layout looked
+     on screen, enough to tip a "single page" section over into a
+     second, physical page, stranding the footer alone on an otherwise
+     blank trailing page (the exact opposite of the intended fix,
+     repeated on every short section — Statement, a single-page davit
+     checklist, Equipment List — each spilling its own extra blank
+     page). 780px trades some of the "flush with the true bottom"
+     precision for a much larger ~105px safety margin, since a footer
+     sitting a bit short of the physical bottom edge is a far smaller
+     defect than an entire extra blank page. */
   .insp-page-tbody-fill {
-    min-height: 880px;
+    min-height: 780px;
   }
 }
