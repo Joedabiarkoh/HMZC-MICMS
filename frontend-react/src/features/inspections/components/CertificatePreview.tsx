@@ -895,16 +895,16 @@ function Letterhead({ cert }: { cert: InspectionCertificate }) {
 // from the rest of the certificate couldn't be authenticated on its
 // own. One shared component rather than repeating the same markup on
 // every page type.
-// Requested directly: "create a footer ... for all certificate and make
-// it static, the footer should not shift up or down based on the
-// length of the information" — this div is what inspections.css's
-// print rule pins to `position: fixed; bottom: 0` on every physical
-// printed page, instead of the signature block landing wherever the
-// preceding content happened to end (previously higher up on a short
-// page, lower down on a page packed with content). Wrapping the
-// signature grid and ApprovalLogosRow together in one element is what
-// lets both move as a single fixed unit — approvals stay put in the
-// footer exactly as before, just no longer drifting with content length.
+// Prints as plain, one-time, in-flow content at the end of the page —
+// deliberately NOT pinned/repeating. That was tried (position: fixed;
+// bottom: 0, repeating on every physical page) but a real printed PDF
+// showed it bleeding past the true bottom of a page onto the following
+// page's letterhead, since there's no reliable way to read a page's
+// actual printed height from CSS to anchor a fixed "bottom" against.
+// Requested directly, reviewing that PDF: "do not make the signature
+// section part of the header and footer." The .insp-cert-footer class
+// name is kept only because FinanceDocumentPreview.tsx's footer reuses
+// it too, not because anything still pins it.
 function SignatureFooter({ cert, masterLabel, techLabel }: { cert: InspectionCertificate; masterLabel: string; techLabel: string }) {
   return (
     <div className="insp-cert-footer">

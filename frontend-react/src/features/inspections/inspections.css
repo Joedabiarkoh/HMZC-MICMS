@@ -294,22 +294,28 @@ table.insp-print-chk tr.insp-section-row td { background: #EEF1F3; font-weight: 
   .insp-cert-page {
     max-width: none !important;
     margin: 0 !important;
-    /* Requested directly: "create a footer and header for all
-       certificate and make it static, the footer should not shift up
-       or down based on the length of the information." The letterhead
-       and signature/approvals footer below are pinned with
-       position: fixed, which removes them from normal document flow —
-       this padding is what reserves the matching amount of space at
-       the top and bottom of the printable area so in-flow content
-       doesn't render underneath them.
-       Requested directly, a follow-up tuning pass: "move the starting
-       position of the page up a bit under the header" (top trimmed
-       from 90px to 80px — an 8px gap under the ~72px letterhead,
-       tighter but still clear of it) and "drop the sign and footer
-       bundle a bit lower" (bottom zone trimmed from 120px to 106px —
-       see .insp-cert-footer below for why this moved from `bottom: 0`
-       to a `top` offset computed off the same number). */
-    padding: 80px 0 106px !important;
+    /* Requested directly, reviewing an actual printed PDF: "the header
+       and footer are completely messed up, with the footer entering
+       some pages as header and cutting off the header ... do not make
+       the signature section part of the header and footer." Pinning
+       the footer with `position: fixed` required guessing the exact
+       pixel height of a printed page (there's no reliable way to read
+       the real one from CSS) — when that guess didn't match what the
+       browser's actual print/PDF output used (e.g. with the browser's
+       own "headers and footers" print option enabled, which reserves
+       more space than @page's 12mm margin alone), the footer's fixed
+       offset landed past the true bottom of the page and bled onto the
+       top of the next one, on top of that page's letterhead. The
+       signature block (and approvals) are back to plain, one-time,
+       in-flow content — only the letterhead stays pinned as a real
+       repeating header, since that only needs a reliable `top: 0`, not
+       a guess at total page height. Dropping the fixed footer also
+       gives back the ~106px of every page that was reserved for it
+       whether or not anything was printing there, which was
+       needlessly forcing tables to break earlier and leave a mostly
+       empty trailing page (e.g. 1-3 leftover rows) more often than the
+       content actually required. */
+    padding-top: 80px !important;
     border: none !important;
     box-shadow: none !important;
     overflow: visible !important;
@@ -323,9 +329,9 @@ table.insp-print-chk tr.insp-section-row td { background: #EEF1F3; font-weight: 
        existed on that first page; every continuation page started at
        the very top of the printable area, right where the fixed
        letterhead sits, with zero gap. box-decoration-break: clone
-       makes the padding-top/padding-bottom re-apply on every page
-       fragment, not just the first/last, restoring the same gap above
-       a broken table's continuation as above the letterhead on page 1. */
+       makes the padding-top re-apply on every page fragment, not just
+       the first, restoring the same gap above a broken table's
+       continuation as above the letterhead on page 1. */
     -webkit-box-decoration-break: clone;
     box-decoration-break: clone;
     /* One certificate can be several .insp-cert-page blocks (Statement,
@@ -340,38 +346,17 @@ table.insp-print-chk tr.insp-section-row td { background: #EEF1F3; font-weight: 
   }
   /* position: fixed in paged/print media repeats an element on every
      physical page for as long as it's the "current" fixed element in
-     document order — so each .insp-cert-page's own letterhead/footer
-     (cert-specific QR code, cert-specific signatures) automatically
-     takes over as the running header/footer for whichever physical
-     page(s) that section's content spans, including pages in the
-     middle of a long table where neither previously appeared at all.
-     !important overrides the unconditional ".insp-cert-page > *
-     { position: relative }" rule above, which would otherwise win by
-     source order. White backgrounds mask any in-flow content that
-     lands close to the reserved edge. */
+     document order — so each .insp-cert-page's own letterhead
+     (cert-specific QR code) automatically takes over as the running
+     header for whichever physical page(s) that section's content
+     spans, including pages in the middle of a long table where it
+     previously never appeared at all. !important overrides the
+     unconditional ".insp-cert-page > * { position: relative }" rule
+     above, which would otherwise win by source order. White background
+     masks any in-flow content that lands close to the reserved edge. */
   .insp-cert-page .insp-letterhead {
     position: fixed !important;
     top: 0; left: 0; right: 0;
-    background: #fff;
-    z-index: 2;
-  }
-  /* Requested directly: "when print is issued the sign off and
-     approvals section does not come into print, the footer does not
-     print even though it show in preview." `position: fixed; bottom: 0`
-     needs the print engine to resolve where "the bottom of this
-     specific physical page" is before it can place the element — a
-     harder, less reliably-supported computation than `top`, which is
-     just a fixed offset from a page's own start. That's the likely
-     reason the footer rendered fine on screen (where it's normal
-     in-flow content, unaffected by this print-only rule) but silently
-     dropped out of the actual print/PDF output. Anchoring from `top`
-     instead — using the same physical A4 content-area height @page
-     already defines (297mm page − 12mm×2 margin = 273mm ≈ 1032px at
-     96dpi) minus the reserved zone below — uses the same positioning
-     mechanism the letterhead above already prints correctly with. */
-  .insp-cert-page .insp-cert-footer {
-    position: fixed !important;
-    top: 926px; left: 0; right: 0; bottom: auto;
     background: #fff;
     z-index: 2;
   }
