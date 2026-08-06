@@ -14,6 +14,7 @@ import LooseGearForm from "../components/LooseGearForm";
 import CalibrationForm from "../components/CalibrationForm";
 import { getFFEConfig } from "../data/ffeCertTypes";
 import { getCalibrationConfig } from "../data/calibrationCertTypes";
+import { exportCertificateDocx } from "../utils/certificateDocxExport";
 import { checklistProgress } from "../data/inspectionHelpers";
 import { dirtyKey } from "../data/dirtyKey";
 import { useAuth } from "../../../context/AuthContext";
@@ -54,6 +55,21 @@ export default function InspectionWorkspace() {
   const { user } = useAuth();
 
   const cfg = INSPECTION_TYPES[type];
+
+  // Requested directly: "let's see if we can give option to print, save
+  // in pdf or in word file" — Print already covers PDF (the browser's
+  // own print dialog offers "Save as PDF"), so this is the one missing
+  // option. See certificateDocxExport.ts for how the .docx itself is
+  // built; this just triggers it and surfaces a failure if the browser
+  // couldn't generate/download the file.
+  async function handleExportWord() {
+    try {
+      await exportCertificateDocx(current, cfg);
+    } catch (err) {
+      console.error("Word export failed", err);
+      alert("Could not generate the Word document. Please try again.");
+    }
+  }
 
   // Auto-save + "you have unsaved changes" warning. Placed here (before
   // the placeholder/view-only early returns below) because hooks can't
@@ -399,6 +415,7 @@ export default function InspectionWorkspace() {
             </div>
             <div className="insp-btn-row">
               <button className="insp-btn insp-btn-primary" onClick={() => window.print()}>Print / Download</button>
+              <button className="insp-btn insp-btn-outline" onClick={handleExportWord}>Save as Word</button>
             </div>
           </>
         ) : (
@@ -459,6 +476,7 @@ export default function InspectionWorkspace() {
           </div>
           <div className="insp-btn-group insp-btn-group--secondary">
             <button className="insp-btn insp-btn-outline" onClick={() => window.print()}>Print</button>
+            <button className="insp-btn insp-btn-outline" onClick={handleExportWord}>Save as Word</button>
             <button className="insp-btn insp-btn-outline" onClick={() => startNew(type)}>New Certificate</button>
           </div>
         </div>
@@ -515,6 +533,7 @@ export default function InspectionWorkspace() {
           </div>
           <div className="insp-btn-group insp-btn-group--secondary">
             <button className="insp-btn insp-btn-outline" onClick={() => window.print()}>Print</button>
+            <button className="insp-btn insp-btn-outline" onClick={handleExportWord}>Save as Word</button>
             <button className="insp-btn insp-btn-outline" onClick={() => startNew(type)}>New Certificate</button>
           </div>
         </div>
@@ -570,6 +589,7 @@ export default function InspectionWorkspace() {
           </div>
           <div className="insp-btn-group insp-btn-group--secondary">
             <button className="insp-btn insp-btn-outline" onClick={() => window.print()}>Print</button>
+            <button className="insp-btn insp-btn-outline" onClick={handleExportWord}>Save as Word</button>
             <button className="insp-btn insp-btn-outline" onClick={() => startNew(type)}>New Certificate</button>
           </div>
         </div>
@@ -787,6 +807,7 @@ export default function InspectionWorkspace() {
         </div>
         <div className="insp-btn-group insp-btn-group--secondary">
           <button className="insp-btn insp-btn-outline" onClick={() => window.print()}>Print</button>
+          <button className="insp-btn insp-btn-outline" onClick={handleExportWord}>Save as Word</button>
           <button className="insp-btn insp-btn-outline" onClick={() => startNew(type)}>New Certificate</button>
         </div>
       </div>
