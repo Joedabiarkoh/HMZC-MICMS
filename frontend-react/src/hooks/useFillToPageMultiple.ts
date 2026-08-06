@@ -28,8 +28,19 @@ import type { RefObject } from "react";
 // few pixels taller than the identical layout looked on screen, so a
 // large-ish margin (not a razor-thin one) is deliberate — pulled in
 // closer to the true edge on request, but not shaved down to zero.
+// Requested directly, reviewing a real printed PDF: "the half filled
+// page footer can drop a little lower to match the fully filled page
+// position" — reduced from 55 to 35. This also happens to help the
+// specific case that prompted it: a forced page break independent of
+// this calculation (FFE's item table breaks every 25 rows regardless
+// of how much vertical space that used) can make an earlier page take
+// more than its "fair share" of a multi-page section's real content,
+// leaving less than a full page's worth for this fill to distribute
+// to a later page — a smaller margin (a larger per-page budget) gives
+// that later page more of the shortfall back, without fully solving
+// the uneven distribution a forced break can cause.
 const PAGE_HEIGHT_PX = 1032; // @page A4 content area: (297mm - 24mm) at 96dpi
-const SAFETY_MARGIN_PX = 55;
+const SAFETY_MARGIN_PX = 35;
 
 export function useFillToPageMultiple(
   fillRef: RefObject<HTMLElement>,

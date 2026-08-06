@@ -60,7 +60,14 @@ export default function SignatureCanvas({ label, value, onChange, allowSavedDefa
 
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
-    ctx.lineWidth = 2.2;
+    // Requested directly: "the signature also appear too small, make
+    // it a bit bolder." This canvas draws at 360x110 (below) but
+    // SignBox in CertificatePreview.tsx only ever displays it at
+    // 44px tall — roughly a 2.5x downscale — so the previous 2.2px
+    // stroke rendered under 1px wide by the time it reached print,
+    // barely visible. 3.4px survives that downscale as a genuinely
+    // bold stroke instead.
+    ctx.lineWidth = 3.4;
     ctx.lineCap = "round";
     ctx.strokeStyle = "#1F3B5C";
 

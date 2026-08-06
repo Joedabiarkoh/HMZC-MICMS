@@ -991,7 +991,23 @@ function ApprovalLogosRow() {
 function SignBox({ label, name, sig, stamp }: { label: string; name: string; sig: string; stamp?: boolean }) {
   return (
     <div style={{ borderTop: "1px solid #B9C0C6", paddingTop: 6, position: "relative" }}>
-      {sig ? <img src={sig} alt={label} style={{ height: 34 }} /> : <div style={{ fontFamily: "cursive", fontSize: 18, color: "var(--insp-navy)" }}>{name}</div>}
+      {/* Requested directly: "technician name is still not appearing
+          on the pdf." It never printed whenever a signature image
+          existed — sig replaced name entirely rather than
+          supplementing it, so a certificate with a real drawn
+          signature (the normal case) never showed the typed name at
+          all, only the (often hard-to-read) signature scribble. Real
+          paper certificates print BOTH — a signature line with the
+          signer's printed name underneath it for legibility — so this
+          now does the same: the image if one exists, the typed name
+          underneath it either way (not just as a same-slot fallback
+          when there's no image). Enlarged from 34px to 44px and the
+          canvas stroke drawn bolder (SignatureCanvas.tsx) — requested
+          directly: "the signature also appear too small ... bolder or
+          enlarging it." */}
+      {sig && <img src={sig} alt={label} style={{ height: 44 }} />}
+      {!sig && name && <div style={{ fontFamily: "cursive", fontSize: 20, color: "var(--insp-navy)" }}>{name}</div>}
+      {sig && name && <div style={{ fontSize: 10, color: "var(--insp-text)", marginTop: 2 }}>{name}</div>}
       <div style={{ fontSize: 9.5, color: "var(--insp-muted)", textTransform: "uppercase" }}>{label}</div>
       {/* Requested directly, reviewing why Paged.js pagination on a
           multi-section certificate was blocking the browser for tens
