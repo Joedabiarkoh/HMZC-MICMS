@@ -384,11 +384,15 @@ table.insp-print-chk tr.insp-section-row td { background: #EEF1F3; font-weight: 
      blank trailing page (the exact opposite of the intended fix,
      repeated on every short section — Statement, a single-page davit
      checklist, Equipment List — each spilling its own extra blank
-     page). 780px trades some of the "flush with the true bottom"
-     precision for a much larger ~105px safety margin, since a footer
-     sitting a bit short of the physical bottom edge is a far smaller
-     defect than an entire extra blank page. */
+     page). Dropped to 780px (~105px margin) to stop that, then
+     requested directly to bring it back closer to the true bottom
+     edge while keeping the no-blank-page fix — 830px splits the
+     difference: a ~55px margin, roughly half of 780px's, on the
+     reasoning that the screen-vs-print discrepancy that broke 880px's
+     5px margin is very unlikely to be anywhere near 55px (nothing
+     observed so far suggests a double-digit-plus gap), while still
+     leaving real headroom rather than gambling back down near zero. */
   .insp-page-tbody-fill {
-    min-height: 780px;
+    min-height: 830px;
   }
 }
