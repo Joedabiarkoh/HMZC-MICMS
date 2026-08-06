@@ -990,7 +990,19 @@ function ApprovalLogosRow() {
 // wrapper is what the overlay positions against.
 function SignBox({ label, name, sig, stamp }: { label: string; name: string; sig: string; stamp?: boolean }) {
   return (
-    <div style={{ borderTop: "1px solid #B9C0C6", paddingTop: 6, position: "relative" }}>
+    // Requested directly, reviewing the technician box with the stamp
+    // applied: "put the master or the technician name on the line
+    // above the stamp or remove that line." Measured directly in the
+    // browser: the stamp's own rotated bounding box (rotate(-7deg))
+    // extends from ~13px above this box's top down to ~58px into it —
+    // well past where the old borderTop divider sat (right at the very
+    // top, y:0) — so that divider line was being visually crossed/cut
+    // by the stamp graphic rather than sitting cleanly above it. Removed
+    // rather than relocating the printed name (the other option) since
+    // the name was only just fixed to appear at all here, and the
+    // SignatureGrid's own gap (14px) plus marginTop (12px) already
+    // separate this block from the content above without it.
+    <div style={{ paddingTop: 6, position: "relative" }}>
       {/* Requested directly: "technician name is still not appearing
           on the pdf." It never printed whenever a signature image
           existed — sig replaced name entirely rather than
