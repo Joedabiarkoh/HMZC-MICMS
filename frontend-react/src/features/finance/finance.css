@@ -138,13 +138,15 @@ table.line-items-table .remove-btn { background: none; border: none; color: var(
   /* Requested directly, reviewing certificates: "the background water
      mark is also not consistent on the various pages, make it appear
      in all pages printed, increase the size... to about 200%" (later
-     reduced to 150%) — same fix applied here for the same reason. See
-     inspections.css's own comment on .insp-cert-page::before for the
-     full explanation of why repeat-y at exactly one @page's content
-     height (1032px) is what makes it land on every physical page
-     instead of just one. */
-  background-repeat: repeat-y; background-position: center top;
-  background-size: 150% 1032px; opacity: .05; pointer-events: none; z-index: 0;
+     150%, now 120%) and "shift the HMZC right, bringing into center
+     the leave like part" — same fix applied here for the same reason.
+     See inspections.css's own comment on .insp-cert-page::before for
+     the full explanation of both the repeat-y/1032px page-height
+     tiling and the -142% horizontal position (the source logo's icon
+     sits left-of-center within the image itself, so centering the
+     image's own midpoint centered the wordmark instead of the icon). */
+  background-repeat: repeat-y; background-position: -142% top;
+  background-size: 120% 1032px; opacity: .05; pointer-events: none; z-index: 0;
   /* Requested directly: "the stamp is not showing" — see
      inspections.css's own comment on .insp-cert-page::before for the
      full reasoning (Chrome suppresses background-image in print by

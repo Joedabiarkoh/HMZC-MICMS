@@ -212,9 +212,23 @@ table.insp-page-frame > tfoot > tr > td {
      — makes one full tile land on every physical page instead, since
      this div's own top coincides with a fresh physical page's top
      (page-break-after: always on every .insp-cert-page below). Width
-     was 200%, reduced to the requested 150%. */
-  background-repeat: repeat-y; background-position: center top;
-  background-size: 150% 1032px; opacity: .05; pointer-events: none; z-index: 0;
+     was 200%, then 150%, now the requested 120%.
+
+     Requested directly: "shift the HMZC right, bringing into center
+     the leave [sic, leaf] like part" — the source logo (assets/logo.ts)
+     isn't symmetric: the sail+leaf icon sits in roughly the left 36%
+     of the image (x: 0-390 of 1080px), with the "HMZC,LTD" wordmark
+     filling the rest — so background-position: center (the image's
+     own midpoint) put the icon well left of the page's true center,
+     with the wordmark crowding the right edge. Measured the icon
+     cluster's own center directly from the source image (≈18% across
+     it) and solved for the horizontal position that lands THAT point
+     at the container's center instead of the image's own midpoint:
+     -142%. This pushes the wordmark mostly past the right edge
+     (clipped by this element's overflow: hidden) so the icon reads as
+     the centered watermark. */
+  background-repeat: repeat-y; background-position: -142% top;
+  background-size: 120% 1032px; opacity: .05; pointer-events: none; z-index: 0;
   /* Requested directly: "the stamp is not showing." Chrome (and most
      browsers) suppress CSS background-image/background-color in
      print output by default unless the user has "Background
