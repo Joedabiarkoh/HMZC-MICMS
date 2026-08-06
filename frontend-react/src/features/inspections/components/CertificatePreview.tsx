@@ -948,10 +948,34 @@ function SignatureGrid({ cert, masterLabel, techLabel }: { cert: InspectionCerti
     // the technician" rather than sit as its own separate block.
     // `stamp` on the technician/engineer SignBox (never Master's)
     // overlays it there — see SignBox's own comment for how.
-    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginTop: 12 }}>
-      <SignBox label={masterLabel} name={cert.captainName} sig={cert.captainSig} />
-      <SignBox label={techLabel} name={cert.engineerName} sig={cert.engineerSig} stamp />
-    </div>
+    //
+    // Requested directly, reviewing a real printed PDF: "when the
+    // service engineer sign or name holder drops, it should come
+    // along with the Master so they stay in the same line, as it
+    // stands the service engineer is above the Master section." On
+    // screen this was already a single row (confirmed directly:
+    // getBoundingClientRect showed identical top for both boxes) — the
+    // drop only happens in print, where Chrome's CSS Grid fragments
+    // each grid item independently across a page break instead of
+    // keeping a row together, the same unreliable-in-print behavior
+    // position: fixed had earlier in this file (see CertPageFrame's
+    // own comment). A <table> row doesn't have that problem — a <tr>
+    // either fits whole on the current page or the whole row moves to
+    // the next one, which is exactly why the letterhead/footer above
+    // and every data table in this file already use a table for
+    // anything that has to survive pagination intact.
+    <table style={{ width: "100%", borderCollapse: "collapse", marginTop: 12, breakInside: "avoid", pageBreakInside: "avoid" } as any}>
+      <tbody>
+        <tr style={{ breakInside: "avoid", pageBreakInside: "avoid" } as any}>
+          <td style={{ width: "50%", verticalAlign: "top", paddingRight: 7 }}>
+            <SignBox label={masterLabel} name={cert.captainName} sig={cert.captainSig} />
+          </td>
+          <td style={{ width: "50%", verticalAlign: "top", paddingLeft: 7 }}>
+            <SignBox label={techLabel} name={cert.engineerName} sig={cert.engineerSig} stamp />
+          </td>
+        </tr>
+      </tbody>
+    </table>
   );
 }
 
