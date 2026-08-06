@@ -135,18 +135,23 @@ table.line-items-table .remove-btn { background: none; border: none; color: var(
 }
 .finance-doc-page::before {
   content: ""; position: absolute; inset: 0; background-image: var(--insp-watermark-url);
-  /* Requested directly, reviewing certificates: "the background water
-     mark is also not consistent on the various pages, make it appear
-     in all pages printed, increase the size... to about 200%" (later
-     150%, now 120%) and "shift the HMZC right, bringing into center
-     the leave like part" — same fix applied here for the same reason.
-     See inspections.css's own comment on .insp-cert-page::before for
-     the full explanation of both the repeat-y/1032px page-height
-     tiling and the -142% horizontal position (the source logo's icon
-     sits left-of-center within the image itself, so centering the
-     image's own midpoint centered the wordmark instead of the icon). */
-  background-repeat: repeat-y; background-position: -142% top;
-  background-size: 120% 1032px; opacity: .05; pointer-events: none; z-index: 0;
+  /* Requested directly, reviewing certificates, across a few rounds:
+     make the watermark repeat on every page (repeat-y), then 200% →
+     150% → 120% sizing, a -142% horizontal shift to center the icon,
+     and finally: "the [logo] is stretched upwards too much, reduce
+     the vertical expansion and reduce the ratio... to 100% but do not
+     stretch too up" — every one of those size steps forced an
+     explicit pixel height onto the wide/short source logo, stretching
+     it taller than its real proportions. background-size: 100% auto
+     keeps its natural aspect ratio (no distortion) at the requested
+     100% width; see inspections.css's own comment on
+     .insp-cert-page::before for the full reasoning, the Pillow
+     simulation used to confirm it before shipping, and the trade-off
+     of losing the horizontal icon-centering once width is exactly
+     100% (no room left to shift it — position value has no effect at
+     that width). */
+  background-repeat: repeat-y; background-position: left top;
+  background-size: 100% auto; opacity: .05; pointer-events: none; z-index: 0;
   /* Requested directly: "the stamp is not showing" — see
      inspections.css's own comment on .insp-cert-page::before for the
      full reasoning (Chrome suppresses background-image in print by

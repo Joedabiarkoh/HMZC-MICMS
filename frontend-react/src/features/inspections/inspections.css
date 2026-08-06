@@ -197,38 +197,43 @@ table.insp-page-frame > tfoot > tr > td {
 .insp-cert-page::before {
   content: ""; position: absolute; inset: 0; background-image: var(--insp-watermark-url);
   /* Requested directly: "the background water mark is also not
-     consistent on the various pages, make it appear in all pages
-     printed, increase the size of the logo in the background to
-     about 200%." One .insp-cert-page can itself span several physical
-     printed pages (a long FFE item register, a big checklist) — with
-     the old no-repeat/center-of-the-whole-box background, the single
-     logo instance only ever landed within whichever one physical page
-     happened to contain the vertical center of the ENTIRE (all-pages-
-     accumulated) box, leaving every other page of that same section
-     blank. background-repeat: repeat-y with the tile height pinned to
-     1032px — the exact same @page content-area height theme.css's own
-     @page rule produces (297mm - 24mm margins, at 96dpi — see
-     useFillToPageMultiple.ts's own PAGE_HEIGHT_PX, the same constant)
-     — makes one full tile land on every physical page instead, since
-     this div's own top coincides with a fresh physical page's top
-     (page-break-after: always on every .insp-cert-page below). Width
-     was 200%, then 150%, now the requested 120%.
+     consistent on the various pages... make it appear in all pages
+     printed." One .insp-cert-page can itself span several physical
+     printed pages (a long FFE item register, a big checklist) —
+     background-repeat: repeat-y makes the watermark a genuinely
+     repeating texture down the whole box instead of one fixed
+     instance, so it's inherently present on every physical page this
+     box spans, with no page-height math needed to keep it aligned.
 
-     Requested directly: "shift the HMZC right, bringing into center
-     the leave [sic, leaf] like part" — the source logo (assets/logo.ts)
-     isn't symmetric: the sail+leaf icon sits in roughly the left 36%
-     of the image (x: 0-390 of 1080px), with the "HMZC,LTD" wordmark
-     filling the rest — so background-position: center (the image's
-     own midpoint) put the icon well left of the page's true center,
-     with the wordmark crowding the right edge. Measured the icon
-     cluster's own center directly from the source image (≈18% across
-     it) and solved for the horizontal position that lands THAT point
-     at the container's center instead of the image's own midpoint:
-     -142%. This pushes the wordmark mostly past the right edge
-     (clipped by this element's overflow: hidden) so the icon reads as
-     the centered watermark. */
-  background-repeat: repeat-y; background-position: -142% top;
-  background-size: 120% 1032px; opacity: .05; pointer-events: none; z-index: 0;
+     Went through a few rounds of size/position tuning (200% → 150% →
+     120%, plus a -142% horizontal shift to center the sail/leaf icon
+     rather than the source logo's own midpoint) that all forced an
+     explicit pixel height onto the background-size — which, since the
+     source logo (assets/logo.ts) is a wide, short image (1080x329),
+     stretched it noticeably taller than its real proportions.
+     Requested directly, reviewing that result: "the [logo] is
+     stretched upwards too much, reduce the vertical expansion and
+     reduce the ratio of the water mark to 100% but do not stretch too
+     up." background-size: 100% auto keeps the logo's real aspect
+     ratio (zero vertical distortion) at the requested 100% width, and
+     repeat-y tiles it at its own natural height instead of stretching
+     one copy to fill a page — confirmed by rendering the exact CSS
+     math in Pillow at the real 5% opacity before shipping (a single
+     stretched copy per page looked distorted; the naturally-proportioned
+     tile repeating several times down each page reads as a normal,
+     subtle watermark texture, not "busy").
+
+     Trade-off worth knowing: at exactly 100% width the image exactly
+     fills the container, which leaves no room to also shift it
+     horizontally — background-position-x has no visible effect at
+     that width, so the earlier "center the icon, not the wordmark"
+     positioning (the -142% above) no longer applies; the tile now
+     sits left-aligned, wordmark visible at the right of each
+     repeat. If centering the icon again matters more than exactly
+     100%, going slightly above 100% (e.g. 110%) restores the room
+     needed to reposition it. */
+  background-repeat: repeat-y; background-position: left top;
+  background-size: 100% auto; opacity: .05; pointer-events: none; z-index: 0;
   /* Requested directly: "the stamp is not showing." Chrome (and most
      browsers) suppress CSS background-image/background-color in
      print output by default unless the user has "Background
