@@ -136,6 +136,11 @@ table.line-items-table .remove-btn { background: none; border: none; color: var(
 .finance-doc-page::before {
   content: ""; position: absolute; inset: 0; background-image: var(--insp-watermark-url);
   background-repeat: no-repeat; background-position: center; background-size: 56%; opacity: .05; pointer-events: none; z-index: 0;
+  /* Requested directly: "the stamp is not showing" — see
+     inspections.css's own comment on .insp-cert-page::before for the
+     full reasoning (Chrome suppresses background-image in print by
+     default unless "Background graphics" is checked). */
+  print-color-adjust: exact; -webkit-print-color-adjust: exact;
 }
 .finance-doc-page > * { position: relative; z-index: 1; }
 
@@ -180,23 +185,14 @@ table.line-items-table .remove-btn { background: none; border: none; color: var(
     border: none !important;
     overflow: visible !important;
   }
-  /* Requested directly, reviewing real printed certificate PDFs: the
-     footer kept landing wherever short content happened to end instead
-     of the true bottom of the page — see inspections.css's own comment
-     on .insp-page-tbody-fill for the full reasoning (including why
-     this targets a plain <div> wrapping the <td>'s content rather than
-     the <td> itself, why the value here is deliberately well under the
-     theoretical maximum rather than flush against it, and why it was
-     since brought back up partway toward that maximum — real print
-     rendering measured a few pixels taller than the same layout on
-     screen, enough to tip a too-tight margin into an extra blank
-     trailing page, but a ~77px margin is very unlikely to be anywhere
-     near that discrepancy). A short invoice/quotation (no line items
-     yet, no bank details, no T&Cs) has the exact same problem, so it
-     gets the same fix: 780px, leaving a ~77px safety margin under the
-     857px theoretical budget (1032px content area minus this frame's
-     own ~82px letterhead and ~93px stamp/issued-by footer). */
-  .finance-doc-page .insp-page-tbody-fill {
-    min-height: 780px;
-  }
+  /* Requested directly, reviewing real printed certificate PDFs: a
+     hand-picked fixed min-height here went through several rounds of
+     recalibration and still couldn't handle a document whose real
+     content spans multiple physical pages on its own (a long Terms
+     and Conditions section) — see inspections.css's own comment on
+     .insp-page-tbody-fill for the full history and why
+     useFillToPageMultiple (src/hooks/useFillToPageMultiple.ts, wired
+     up directly in FinanceDocumentPreview.tsx) replaces it with a
+     value computed per document instead. No CSS rule needed here
+     anymore; the hook sets min-height directly via inline style. */
 }

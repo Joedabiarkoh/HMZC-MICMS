@@ -1,9 +1,11 @@
+import { useRef } from "react";
 import type { ReactNode } from "react";
 import { EquipmentTypeConfig, InspectionCertificate, ChecklistStatus, EquipResult, CalibrationData, FFEData, LooseGearData, LooseGearMultipleItemsData, LooseGearStandardReportData, LooseGearStatutoryAnswers, LooseGearVisualCertData, LooseGearYesNo } from "../types/inspection.types";
 import { getFFEConfig } from "../data/ffeCertTypes";
 import { getCalibrationConfig } from "../data/calibrationCertTypes";
 import { ABS_LOGO_DATA_URI, BUREAU_VERITAS_LOGO_DATA_URI, CRALOG_LOGO_DATA_URI, DNV_LOGO_DATA_URI } from "../assets/approvalLogos";
 import CertificateQR, { buildCertQrPayload } from "./CertificateQR";
+import { useFillToPageMultiple } from "../../../hooks/useFillToPageMultiple";
 // Side-effect only — sets --insp-watermark-url/--insp-stamp-url once
 // on the root element. See cssVars.ts's own comment for why the logo/
 // stamp are referenced via these CSS variables (a single background-
@@ -866,18 +868,32 @@ function MultipleItemsPage({ cert, data }: { cert: InspectionCertificate; data: 
 // prints exactly once, wherever it naturally falls ("do not make the
 // signature section part of the header and footer").
 function CertPageFrame({ cert, children }: { cert: InspectionCertificate; children: ReactNode }) {
+  const theadRef = useRef<HTMLTableSectionElement>(null);
+  const fillRef = useRef<HTMLDivElement>(null);
+  const tfootRef = useRef<HTMLTableSectionElement>(null);
+  // Requested directly: "the FFE page when you create a page and it
+  // breaks and it half filled page should have the header and footer
+  // in the same position as the one which is full." See
+  // useFillToPageMultiple's own comment for the full reasoning — a
+  // fixed min-height only padded a section up to ONE page; this pads
+  // to whatever whole multiple of a page the section's real content
+  // actually needs, so FFE's own item-table pagination (or any other
+  // section long enough to span multiple physical pages on its own)
+  // gets its trailing, partially-filled page pushed down to match
+  // every other page's footer position, not just the very last one.
+  useFillToPageMultiple(fillRef, theadRef, tfootRef);
   return (
     <div className="insp-cert-page">
       <table className="insp-page-frame">
-        <thead><tr><td><Letterhead cert={cert} /></td></tr></thead>
+        <thead ref={theadRef}><tr><td><Letterhead cert={cert} /></td></tr></thead>
         {/* min-height on a <td> itself is unreliable — measured on a
             real page, the browser didn't stretch it — but the exact
             same min-height on a plain <div> inside that <td> does. See
             inspections.css's own comment on .insp-page-tbody-fill for
             the full reasoning (short content now pads out to a full
             page instead of leaving the footer stranded partway down). */}
-        <tbody><tr><td><div className="insp-page-tbody-fill">{children}</div></td></tr></tbody>
-        <tfoot><tr><td><ApprovalLogosRow /></td></tr></tfoot>
+        <tbody><tr><td><div ref={fillRef} className="insp-page-tbody-fill">{children}</div></td></tr></tbody>
+        <tfoot ref={tfootRef}><tr><td><ApprovalLogosRow /></td></tr></tfoot>
       </table>
     </div>
   );
@@ -1003,6 +1019,13 @@ function SignBox({ label, name, sig, stamp }: { label: string; name: string; sig
             backgroundImage: "var(--insp-stamp-url)",
             backgroundSize: "contain",
             backgroundRepeat: "no-repeat",
+            // Requested directly: "the stamp is not showing." Chrome
+            // suppresses background-image in print output by default
+            // unless the user has "Background graphics" checked in
+            // the print dialog — see inspections.css's own comment on
+            // .insp-cert-page::before for the full reasoning.
+            printColorAdjust: "exact",
+            WebkitPrintColorAdjust: "exact",
             opacity: 0.9,
             pointerEvents: "none",
           }}

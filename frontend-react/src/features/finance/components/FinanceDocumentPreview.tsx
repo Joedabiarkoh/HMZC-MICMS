@@ -1,8 +1,9 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import CertificateQR from "../../inspections/components/CertificateQR";
 import { getCompanyInfo } from "../../auth/services/auth.api";
 import { CompanyInfo } from "../../auth/types/auth.types";
 import { LineItem } from "../types/finance.types";
+import { useFillToPageMultiple } from "../../../hooks/useFillToPageMultiple";
 import "../../inspections/inspections.css"; // reuses .insp-letterhead/.insp-print-chk/.insp-badge etc. rather than duplicating them in finance.css
 // Side-effect only — see CertificatePreview.tsx's own import of this
 // and cssVars.ts's own comment for why the logo/stamp are referenced
@@ -78,17 +79,26 @@ export default function FinanceDocumentPreview({
     companyInfo.bank_sort_code, companyInfo.bank_swift_code, companyInfo.bank_iban,
   ].some(Boolean);
 
+  const theadRef = useRef<HTMLTableSectionElement>(null);
+  const fillRef = useRef<HTMLDivElement>(null);
+  const tfootRef = useRef<HTMLTableSectionElement>(null);
+  useFillToPageMultiple(fillRef, theadRef, tfootRef);
+
   // Requested directly: "all the header and footer static adjustment
   // is for all certificate issued, quotation and invoices" — the
   // letterhead/footer here are wrapped in a real <table> (see
   // inspections.css's own comment on table.insp-page-frame for the
   // full reasoning, including the Paged.js attempt that was tried and
   // reverted). <thead>/<tfoot> repeat reliably on every physical page
-  // this document spans.
+  // this document spans; useFillToPageMultiple (see its own comment)
+  // pads the content to a whole multiple of one page so a document
+  // spanning several pages (a long Terms and Conditions section, say)
+  // gets its trailing partial page's footer pushed down to match every
+  // other page's position too, not just a single-page document.
   return (
     <div className="finance-doc-page">
       <table className="insp-page-frame">
-        <thead><tr><td>
+        <thead ref={theadRef}><tr><td>
           <div className="insp-letterhead">
             <div role="img" aria-label="HMZC LTD" className="insp-letterhead-logo" />
             <div className="insp-lh-right" style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
@@ -103,7 +113,7 @@ export default function FinanceDocumentPreview({
             </div>
           </div>
         </td></tr></thead>
-        <tbody><tr><td><div className="insp-page-tbody-fill">
+        <tbody><tr><td><div ref={fillRef} className="insp-page-tbody-fill">
 
       <div className="insp-cert-title-row">
         <h2>{kind === "INVOICE" ? "Invoice" : "Quotation"}</h2>
@@ -205,7 +215,7 @@ export default function FinanceDocumentPreview({
       )}
 
         </div></td></tr></tbody>
-        <tfoot><tr><td>
+        <tfoot ref={tfootRef}><tr><td>
           <div style={{ marginTop: 24, borderTop: "1px solid #B9C0C6", paddingTop: 8, display: "flex", justifyContent: "space-between", alignItems: "flex-end", gap: 16 }}>
             <div style={{ fontSize: 10, color: "var(--insp-muted)" }}>
               {issuedBy && <div>Issued by {issuedBy}{issuedAt ? ` — ${new Date(issuedAt).toLocaleString()}` : ""}</div>}
@@ -224,7 +234,12 @@ export default function FinanceDocumentPreview({
               <div
                 role="img"
                 aria-label="HMZC Official Stamp"
-                style={{ height: 60, width: 189, backgroundImage: "var(--insp-stamp-url)", backgroundSize: "contain", backgroundRepeat: "no-repeat", flexShrink: 0 }}
+                style={{
+                  height: 60, width: 189, backgroundImage: "var(--insp-stamp-url)", backgroundSize: "contain", backgroundRepeat: "no-repeat", flexShrink: 0,
+                  // Requested directly: "the stamp is not showing." See
+                  // inspections.css's own comment on .insp-cert-page::before.
+                  printColorAdjust: "exact", WebkitPrintColorAdjust: "exact",
+                } as any}
               />
             )}
           </div>

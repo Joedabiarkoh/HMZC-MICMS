@@ -198,6 +198,19 @@ table.insp-page-frame > tfoot > tr > td {
   content: ""; position: absolute; inset: 0; background-image: var(--insp-watermark-url);
   background-repeat: no-repeat; background-position: center;
   background-size: 56%; opacity: .05; pointer-events: none; z-index: 0;
+  /* Requested directly: "the stamp is not showing." Chrome (and most
+     browsers) suppress CSS background-image/background-color in
+     print output by default unless the user has "Background
+     graphics" checked in the print dialog — an <img> tag always
+     prints regardless of that setting, but background-image doesn't.
+     This watermark, the letterhead logo below, and the stamp overlay
+     (SignBox in CertificatePreview.tsx) were all converted from <img>
+     to background-image to stop a multi-section certificate carrying
+     several duplicate copies of the same image data — print-color-
+     adjust: exact forces the browser to always render backgrounds
+     for print, independent of that checkbox, restoring what an <img>
+     got for free. */
+  print-color-adjust: exact; -webkit-print-color-adjust: exact;
 }
 .insp-cert-page > * { position: relative; z-index: 1; }
 
@@ -210,10 +223,13 @@ table.insp-page-frame > tfoot > tr > td {
    that. Explicit width (138px) rather than "auto" since a
    background-image has no intrinsic size the way an <img> does —
    preserves the source JPEG's own 1080:329 aspect ratio at this
-   height. */
+   height. print-color-adjust: exact — see .insp-cert-page::before's
+   own comment just above; without it this logo silently didn't print
+   at all. */
 .insp-letterhead-logo {
   height: 42px; width: 138px;
   background-image: var(--insp-watermark-url); background-size: contain; background-repeat: no-repeat;
+  print-color-adjust: exact; -webkit-print-color-adjust: exact;
 }
 .insp-letterhead .insp-lh-right { text-align: right; font-size: 10px; color: var(--insp-muted); line-height: 1.5; }
 .insp-cert-title-row { display: flex; justify-content: space-between; align-items: center; margin: 6px 0 8px; }
@@ -374,25 +390,24 @@ table.insp-print-chk tr.insp-section-row td { background: #EEF1F3; font-weight: 
      was silently not respected (a known table-cell sizing quirk), but
      the identical min-height on an ordinary block-level child of that
      <td> renders exactly as expected.
-     Requested directly, reviewing a real printed PDF: 880px (measured
-     against on-screen rendering: 1032px content area minus this
-     frame's own ~82px letterhead and ~65px approvals, leaving only a
-     5px safety margin) was too tight in practice — actual print/PDF
-     rendering computed a few pixels taller than the same layout looked
-     on screen, enough to tip a "single page" section over into a
-     second, physical page, stranding the footer alone on an otherwise
-     blank trailing page (the exact opposite of the intended fix,
-     repeated on every short section — Statement, a single-page davit
-     checklist, Equipment List — each spilling its own extra blank
-     page). Dropped to 780px (~105px margin) to stop that, then
-     requested directly to bring it back closer to the true bottom
-     edge while keeping the no-blank-page fix — 830px splits the
-     difference: a ~55px margin, roughly half of 780px's, on the
-     reasoning that the screen-vs-print discrepancy that broke 880px's
-     5px margin is very unlikely to be anywhere near 55px (nothing
-     observed so far suggests a double-digit-plus gap), while still
-     leaving real headroom rather than gambling back down near zero. */
-  .insp-page-tbody-fill {
-    min-height: 830px;
-  }
+     A hand-picked fixed value here went through several rounds of
+     recalibration (880px measured on-screen was too tight against
+     real print rendering, spilling an extra blank page; 780px fixed
+     that but sat further from the bottom than wanted; 830px split the
+     difference) and still couldn't handle a section whose real
+     content spans MULTIPLE physical pages on its own (FFE's item
+     table forces its own page breaks every 25 rows) — a single fixed
+     min-height only pads the total up to one page, so a trailing,
+     partially-filled page within a multi-page section still ended
+     wherever its own leftover content stopped. useFillToPageMultiple
+     (src/hooks/useFillToPageMultiple.ts, wired up in CertPageFrame in
+     CertificatePreview.tsx and directly in FinanceDocumentPreview.tsx)
+     replaces this fixed value with one computed per certificate: it
+     measures the real content height and pads to whatever whole
+     multiple of "one page's worth" that content needs, so every
+     page's footer — including a partially-filled trailing page —
+     lands in the same position a fully-packed page's would. No CSS
+     rule needed here anymore; the hook sets min-height directly via
+     inline style, which wins over any stylesheet rule for the same
+     element regardless of specificity. */
 }
