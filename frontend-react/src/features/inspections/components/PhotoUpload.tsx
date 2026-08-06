@@ -12,9 +12,17 @@ interface Props {
  * Photo evidence uploader — same behaviour as the previous standalone
  * tool: attach photos of the equipment/nameplate/defects, stored as
  * base64 data URIs on the certificate (see InspectionCertificate.photos).
- * `capture="environment"` opens the camera directly on phones/tablets.
  * Each photo is resized/re-encoded via compressImage.ts before being
  * added — see that file for why.
+ *
+ * Requested directly: "the picture section only allow live images,
+ * allow it to access photo upload photos already taken." The input
+ * used to carry capture="environment", which on mobile browsers skips
+ * the normal file picker entirely and jumps straight into the camera
+ * — there was never a way to pick an existing photo from the gallery.
+ * Removed; a plain accept="image/*" input still offers "Take Photo" on
+ * phones/tablets (that's not lost), it just also offers "Choose from
+ * Library" alongside it, same as any other file picker.
  *
  * `minRequired`, if set, is enforced (not just displayed) — see
  * missingPhotoRequirements() in InspectionWorkspace.tsx, which blocks
@@ -57,9 +65,9 @@ export default function PhotoUpload({ photos, onAdd, onRemove, minRequired = 0 }
           </div>
         ))}
       </div>
-      <input type="file" accept="image/*" capture="environment" multiple onChange={(e) => handleFiles(e.target.files)} disabled={compressing} />
+      <input type="file" accept="image/*" multiple onChange={(e) => handleFiles(e.target.files)} disabled={compressing} />
       {compressing && <p className="insp-help-note" style={{ color: "var(--insp-amber)" }}>Compressing photo(s)...</p>}
-      <p className="insp-help-note">Attach photos of the equipment, nameplate, and any defects found. On a phone/tablet this opens the camera directly.</p>
+      <p className="insp-help-note">Attach photos of the equipment, nameplate, and any defects found — take a new photo or choose one already on your device.</p>
     </fieldset>
   );
 }
