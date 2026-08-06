@@ -212,9 +212,9 @@ table.insp-page-frame > tfoot > tr > td {
      — makes one full tile land on every physical page instead, since
      this div's own top coincides with a fresh physical page's top
      (page-break-after: always on every .insp-cert-page below). Width
-     is the requested 200%. */
+     was 200%, reduced to the requested 150%. */
   background-repeat: repeat-y; background-position: center top;
-  background-size: 200% 1032px; opacity: .05; pointer-events: none; z-index: 0;
+  background-size: 150% 1032px; opacity: .05; pointer-events: none; z-index: 0;
   /* Requested directly: "the stamp is not showing." Chrome (and most
      browsers) suppress CSS background-image/background-color in
      print output by default unless the user has "Background
