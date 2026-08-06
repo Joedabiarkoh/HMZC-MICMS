@@ -56,6 +56,43 @@ export default function InspectionWorkspace() {
 
   const cfg = INSPECTION_TYPES[type];
 
+  // Requested directly: "the photo is not appearing on the saved Pdf
+  // document, improve it to appear as you save or print document."
+  // Root-caused directly: the Photo Report page's evidence photos are
+  // real network-loaded <img src="/api/photos/..."> elements (see
+  // PhotoReportPage in CertificatePreview.tsx) — the letterhead logo/
+  // stamp/QR code are all pre-loaded data: URIs already in memory by
+  // the time the page renders, but a certificate's uploaded photos
+  // aren't fetched until that <img> actually mounts. Every "Print"
+  // button below used to call window.print() immediately on click —
+  // if that fires before those network requests finish (a click right
+  // after opening the certificate, the common case), Chrome's print
+  // snapshot captures the page as it existed at that instant, with
+  // whichever photos hadn't finished loading yet rendering broken.
+  // This waits for every image inside the certificate preview to
+  // settle (loaded or failed, so one broken photo can't hang printing
+  // forever) before actually invoking print.
+  async function waitForCertImages() {
+    const imgs = Array.from(document.querySelectorAll<HTMLImageElement>(".insp-cert-scroll img"));
+    await Promise.all(
+      imgs.map((img) => {
+        if (img.complete) return Promise.resolve();
+        return new Promise<void>((resolve) => {
+          img.addEventListener("load", () => resolve(), { once: true });
+          img.addEventListener("error", () => resolve(), { once: true });
+          // Safety net — a single unreachable image (e.g. deleted from
+          // disk) shouldn't block printing forever.
+          setTimeout(resolve, 8000);
+        });
+      })
+    );
+  }
+
+  async function handlePrint() {
+    await waitForCertImages();
+    window.print();
+  }
+
   // Requested directly: "let's see if we can give option to print, save
   // in pdf or in word file" — Print already covers PDF (the browser's
   // own print dialog offers "Save as PDF"), so this is the one missing
@@ -439,7 +476,7 @@ export default function InspectionWorkspace() {
               <CertificatePreview cert={current} config={cfg} />
             </div>
             <div className="insp-btn-row">
-              <button className="insp-btn insp-btn-primary" onClick={() => window.print()}>Print / Download</button>
+              <button className="insp-btn insp-btn-primary" onClick={handlePrint}>Print / Download</button>
               <button
                 className="insp-btn insp-btn-outline"
                 onClick={handleExportWord}
@@ -507,7 +544,7 @@ export default function InspectionWorkspace() {
             </button>
           </div>
           <div className="insp-btn-group insp-btn-group--secondary">
-            <button className="insp-btn insp-btn-outline" onClick={() => window.print()}>Print</button>
+            <button className="insp-btn insp-btn-outline" onClick={handlePrint}>Print</button>
             <button
               className="insp-btn insp-btn-outline"
               onClick={handleExportWord}
@@ -571,7 +608,7 @@ export default function InspectionWorkspace() {
             </button>
           </div>
           <div className="insp-btn-group insp-btn-group--secondary">
-            <button className="insp-btn insp-btn-outline" onClick={() => window.print()}>Print</button>
+            <button className="insp-btn insp-btn-outline" onClick={handlePrint}>Print</button>
             <button
               className="insp-btn insp-btn-outline"
               onClick={handleExportWord}
@@ -634,7 +671,7 @@ export default function InspectionWorkspace() {
             </button>
           </div>
           <div className="insp-btn-group insp-btn-group--secondary">
-            <button className="insp-btn insp-btn-outline" onClick={() => window.print()}>Print</button>
+            <button className="insp-btn insp-btn-outline" onClick={handlePrint}>Print</button>
             <button
               className="insp-btn insp-btn-outline"
               onClick={handleExportWord}
@@ -862,7 +899,7 @@ export default function InspectionWorkspace() {
           </button>
         </div>
         <div className="insp-btn-group insp-btn-group--secondary">
-          <button className="insp-btn insp-btn-outline" onClick={() => window.print()}>Print</button>
+          <button className="insp-btn insp-btn-outline" onClick={handlePrint}>Print</button>
           <button
             className="insp-btn insp-btn-outline"
             onClick={handleExportWord}
