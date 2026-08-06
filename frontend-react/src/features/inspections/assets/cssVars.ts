@@ -1,5 +1,6 @@
 import { HMZC_LOGO_DATA_URI } from "./logo";
 import { HMZC_STAMP_DATA_URI } from "./stamp";
+import { HMZC_WATERMARK_ICON_DATA_URI } from "./watermarkIcon";
 
 // Requested directly, reviewing why a multi-section certificate's
 // Paged.js pagination (PagedPreview.tsx) was blocking the browser tab
@@ -23,3 +24,8 @@ import { HMZC_STAMP_DATA_URI } from "./stamp";
 // places import it.
 document.documentElement.style.setProperty("--insp-watermark-url", `url(${HMZC_LOGO_DATA_URI})`);
 document.documentElement.style.setProperty("--insp-stamp-url", `url(${HMZC_STAMP_DATA_URI})`);
+// Requested directly: "use this as the water mark" — a separate
+// variable from --insp-watermark-url above (still used by the
+// letterhead's own small logo) so swapping the big background
+// watermark's image doesn't also change the letterhead.
+document.documentElement.style.setProperty("--insp-watermark-icon-url", `url(${HMZC_WATERMARK_ICON_DATA_URI})`);

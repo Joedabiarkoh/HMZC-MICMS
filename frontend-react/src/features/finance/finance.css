@@ -134,24 +134,21 @@ table.line-items-table .remove-btn { background: none; border: none; color: var(
   border: 1px solid #d7dbdf; box-shadow: 0 2px 10px rgba(0,0,0,.06); position: relative; overflow: hidden;
 }
 .finance-doc-page::before {
-  content: ""; position: absolute; inset: 0; background-image: var(--insp-watermark-url);
-  /* Requested directly, reviewing certificates, across a few rounds:
-     make the watermark repeat on every page (repeat-y), then 200% →
-     150% → 120% sizing, a -142% horizontal shift to center the icon,
-     and finally: "the [logo] is stretched upwards too much, reduce
-     the vertical expansion and reduce the ratio... to 100% but do not
-     stretch too up" — every one of those size steps forced an
-     explicit pixel height onto the wide/short source logo, stretching
-     it taller than its real proportions. background-size: 100% auto
-     keeps its natural aspect ratio (no distortion) at the requested
-     100% width; see inspections.css's own comment on
-     .insp-cert-page::before for the full reasoning, the Pillow
-     simulation used to confirm it before shipping, and the trade-off
-     of losing the horizontal icon-centering once width is exactly
-     100% (no room left to shift it — position value has no effect at
-     that width). */
-  background-repeat: repeat-y; background-position: left top;
-  background-size: 100% auto; opacity: .05; pointer-events: none; z-index: 0;
+  content: ""; position: absolute; inset: 0; background-image: var(--insp-watermark-icon-url);
+  /* Requested directly, reviewing certificates, across a few rounds of
+     size/position tuning against the old watermark image (the full
+     logo, icon+wordmark together), ending with: "use this as the
+     water mark and expand it 150%" — supplying a new, pre-cropped
+     icon-only image (assets/watermarkIcon.ts,
+     --insp-watermark-icon-url — a separate variable from
+     --insp-watermark-url, which the letterhead's own logo still uses)
+     sidesteps the wordmark-vs-icon centering problem entirely; see
+     inspections.css's own comment on .insp-cert-page::before for the
+     full history. background-size stays auto-height (zero vertical
+     distortion, per the still-standing "do not stretch too up"
+     feedback) at the requested 150% width. */
+  background-repeat: repeat-y; background-position: center top;
+  background-size: 150% auto; opacity: .05; pointer-events: none; z-index: 0;
   /* Requested directly: "the stamp is not showing" — see
      inspections.css's own comment on .insp-cert-page::before for the
      full reasoning (Chrome suppresses background-image in print by
