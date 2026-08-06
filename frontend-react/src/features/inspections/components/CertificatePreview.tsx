@@ -1041,9 +1041,30 @@ function SignBox({ label, name, sig, stamp }: { label: string; name: string; sig
           canvas stroke drawn bolder (SignatureCanvas.tsx) — requested
           directly: "the signature also appear too small ... bolder or
           enlarging it." */}
-      {sig && <img src={sig} alt={label} style={{ height: 44 }} />}
-      {!sig && name && <div style={{ fontFamily: "cursive", fontSize: 20, color: "var(--insp-navy)" }}>{name}</div>}
-      {sig && name && <div style={{ fontSize: 10, color: "var(--insp-text)", marginTop: 2 }}>{name}</div>}
+      {/* Requested directly, looking at a real printed PDF where the
+          Master hadn't signed yet: "I want the master signature to
+          drop to same line as service engineer so that when printed
+          and sign after issuance by the service engineer, the master
+          signature can be same as the service engineer." The Master
+          normally has no digital signature at all — they sign the
+          printed PAPER by hand after issuance — so with nothing
+          rendered above it, "CAPTAIN SIGNATURE" sat right at the top
+          of its cell, while "SERVICE ENGINEER" sat ~58px lower, below
+          the technician's image+name. Both boxes were already in the
+          same table row (see SignatureGrid), but the LABELS inside
+          each cell landed at different heights because a blank
+          signature reserved no space at all. This wrapper reserves
+          the same height (44px image + the printed name's own line —
+          64px measured directly in the browser) whether or not
+          there's actually a signature yet, so the label — and the
+          blank space above it where the Master will physically sign —
+          lines up with the Technician's regardless of which box is
+          filled in. */}
+      <div style={{ minHeight: 64 }}>
+        {sig && <img src={sig} alt={label} style={{ height: 44 }} />}
+        {!sig && name && <div style={{ fontFamily: "cursive", fontSize: 20, color: "var(--insp-navy)" }}>{name}</div>}
+        {sig && name && <div style={{ fontSize: 10, color: "var(--insp-text)", marginTop: 2 }}>{name}</div>}
+      </div>
       <div style={{ fontSize: 9.5, color: "var(--insp-muted)", textTransform: "uppercase" }}>{label}</div>
       {/* Requested directly, reviewing why Paged.js pagination on a
           multi-section certificate was blocking the browser for tens
