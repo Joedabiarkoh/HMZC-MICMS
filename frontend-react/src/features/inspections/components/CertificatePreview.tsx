@@ -198,6 +198,7 @@ export default function CertificatePreview({ cert, config }: Props) {
       {!isBoat && cert.checklist && (
         <ChecklistPage title={config.checklistTitle || "Inspection Checklist"} config={config} cert={cert} sections={cert.checklist} outstandingKey="checklist" />
       )}
+      <PhotoReportPage cert={cert} />
     </>
   );
 }
@@ -1142,17 +1143,94 @@ function ChecklistPage({ title, config, cert, sections, outstandingKey }: any) {
           })}
         </tbody>
       </table>
+      {/* Requested directly: "the uploaded photos should be used as
+          photo report attached to the final page all on one page" —
+          the small per-section thumbnails that used to print right
+          here were removed; every photo from every section now prints
+          once, consolidated with its caption, on PhotoReportPage at
+          the very end of the certificate (see the default export's
+          own use of it). */}
       <div className="insp-remarks-box" style={{ borderColor: "var(--insp-red)", background: "#FBEEEC", color: "#7A241B" }}>
         Outstanding Issues / Defects Raised: {(cert.outstanding && cert.outstanding[outstandingKey]) || "None"}
       </div>
-      {cert.photos && cert.photos[outstandingKey] && cert.photos[outstandingKey].length > 0 && (
-        <div style={{ marginTop: 8, display: "flex", flexWrap: "wrap", gap: 4 }}>
-          {cert.photos[outstandingKey].map((p: string, i: number) => (
-            <img key={i} src={p} alt={`Evidence ${i + 1}`} style={{ width: 64, height: 64, objectFit: "cover", borderRadius: 4, border: "1px solid #C9D1D8" }} />
-          ))}
-        </div>
-      )}
       <SignatureGrid cert={cert} masterLabel="Captain Signature" techLabel="Service Engineer" />
+    </CertPageFrame>
+  );
+}
+
+// Human-readable section names for the keys cert.photos is keyed by
+// (boatChecklist/davitChecklist/checklist — see InspectionWorkspace.tsx's
+// OutstandingAndPhotos, the only place that ever writes to cert.photos).
+// Falls back to the raw key for anything not listed, so a future
+// section doesn't silently print a blank label.
+const PHOTO_SECTION_LABELS: Record<string, string> = {
+  boatChecklist: "Boat Checklist",
+  davitChecklist: "Davit Checklist",
+  checklist: "Inspection Checklist",
+};
+
+function chunk2<T>(items: T[]): T[][] {
+  const out: T[][] = [];
+  for (let i = 0; i < items.length; i += 2) out.push(items.slice(i, i + 2));
+  return out;
+}
+
+// Requested directly: "the uploaded photos should be used as photo
+// report attached to the final page all on one page, and should have
+// description." Every photo used to print as a tiny 64x64 thumbnail
+// right on its own checklist page (see ChecklistPage's own comment on
+// why that was removed) — scattered across whichever pages happened
+// to have photos, with no caption at all. This instead walks every
+// section's photos[] (each now a { data, caption } — see
+// PhotoEvidence in inspection.types.ts) into one flat list and prints
+// them all together on a single dedicated page at the very end of the
+// certificate, captioned and labelled with which section they came
+// from.
+//
+// A <table> of 2-per-row image+caption cells, not a CSS grid — the
+// same reliability reason SignatureGrid uses a table (see its own
+// comment): a grid's rows aren't guaranteed to stay together when
+// Chrome paginates print output across physical pages, a <tr> is.
+// "All on one page" is meant the same way every other section in this
+// file is — natural browser pagination decides where it actually
+// needs to spill onto an additional physical page (see
+// FFECertificatePage's own comment on this convention) rather than
+// this trying to force a hard page-count cap; a certificate with only
+// a handful of photos will, in practice, fit on the one page.
+function PhotoReportPage({ cert }: { cert: InspectionCertificate }) {
+  const entries = Object.entries(cert.photos || {}).flatMap(([key, photos]) =>
+    (photos || []).map((photo, index) => ({ key, photo, index }))
+  );
+  if (entries.length === 0) return null;
+
+  return (
+    <CertPageFrame cert={cert}>
+      <div className="insp-cert-title-row">
+        <h2>Photo Report</h2>
+        <span className="insp-badge">EVIDENCE</span>
+      </div>
+      <table style={{ width: "100%", borderCollapse: "collapse" }}>
+        <tbody>
+          {chunk2(entries).map((pair, ri) => (
+            <tr key={ri} style={{ breakInside: "avoid", pageBreakInside: "avoid" } as any}>
+              {pair.map(({ key, photo, index }) => (
+                <td key={index} style={{ width: "50%", verticalAlign: "top", padding: 6 }}>
+                  <img
+                    src={photo.data}
+                    alt={photo.caption || `Evidence ${index + 1}`}
+                    style={{ width: "100%", height: 190, objectFit: "cover", borderRadius: 5, border: "1px solid #C9D1D8", display: "block" }}
+                  />
+                  <div style={{ fontSize: 9, color: "var(--insp-muted)", textTransform: "uppercase", marginTop: 4 }}>
+                    {PHOTO_SECTION_LABELS[key] || key}
+                  </div>
+                  <div style={{ fontSize: 11, marginTop: 2 }}>{photo.caption || "No description provided."}</div>
+                </td>
+              ))}
+              {pair.length === 1 && <td style={{ width: "50%" }} />}
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </CertPageFrame>
   );
 }

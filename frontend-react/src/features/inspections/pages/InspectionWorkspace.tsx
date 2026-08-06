@@ -3,7 +3,7 @@ import { useSearchParams } from "react-router-dom";
 import "../inspections.css";
 import { INSPECTION_TYPES } from "../data/inspectionChecklists";
 import { useInspections } from "../hooks/useInspections";
-import { EquipmentTypeKey, ChecklistSection, EquipResult, InspectionCertificate } from "../types/inspection.types";
+import { EquipmentTypeKey, ChecklistSection, EquipResult, InspectionCertificate, PhotoEvidence } from "../types/inspection.types";
 import ChecklistGroup from "../components/ChecklistGroup";
 import CertificatePreview from "../components/CertificatePreview";
 import SignatureCanvas from "../components/SignatureCanvas";
@@ -236,10 +236,10 @@ export default function InspectionWorkspace() {
     setCurrent((prev) => ({ ...prev, outstanding: { ...prev.outstanding, [key]: value } }));
   }
 
-  function addPhotos(key: string, dataUris: string[]) {
+  function addPhotos(key: string, photos: PhotoEvidence[]) {
     setCurrent((prev) => ({
       ...prev,
-      photos: { ...prev.photos, [key]: [...(prev.photos[key] || []), ...dataUris] },
+      photos: { ...prev.photos, [key]: [...(prev.photos[key] || []), ...photos] },
     }));
   }
 
@@ -247,6 +247,17 @@ export default function InspectionWorkspace() {
     setCurrent((prev) => {
       const list = [...(prev.photos[key] || [])];
       list.splice(index, 1);
+      return { ...prev, photos: { ...prev.photos, [key]: list } };
+    });
+  }
+
+  // Requested directly: photo evidence "should have description" —
+  // one caption per photo, edited in place (see PhotoUpload.tsx).
+  function updatePhotoCaption(key: string, index: number, caption: string) {
+    setCurrent((prev) => {
+      const list = [...(prev.photos[key] || [])];
+      if (!list[index]) return prev;
+      list[index] = { ...list[index], caption };
       return { ...prev, photos: { ...prev.photos, [key]: list } };
     });
   }
@@ -762,6 +773,7 @@ export default function InspectionWorkspace() {
                   onOutstandingChange={updateOutstanding}
                   onAddPhotos={addPhotos}
                   onRemovePhoto={removePhoto}
+                  onCaptionChange={updatePhotoCaption}
                 />
               </>
             )}
@@ -786,6 +798,7 @@ export default function InspectionWorkspace() {
                   onOutstandingChange={updateOutstanding}
                   onAddPhotos={addPhotos}
                   onRemovePhoto={removePhoto}
+                  onCaptionChange={updatePhotoCaption}
                 />
               </>
             )}
@@ -808,6 +821,7 @@ export default function InspectionWorkspace() {
                   onOutstandingChange={updateOutstanding}
                   onAddPhotos={addPhotos}
                   onRemovePhoto={removePhoto}
+                  onCaptionChange={updatePhotoCaption}
                 />
               </>
             )}
@@ -1045,15 +1059,16 @@ function IdBlock({ title, prefix, obj, capacity, onChange, onCapacity, isBoat, c
 }
 
 function OutstandingAndPhotos({
-  checklistKey, outstanding, photos, minRequired, onOutstandingChange, onAddPhotos, onRemovePhoto,
+  checklistKey, outstanding, photos, minRequired, onOutstandingChange, onAddPhotos, onRemovePhoto, onCaptionChange,
 }: {
   checklistKey: string;
   outstanding: string;
-  photos: string[];
+  photos: PhotoEvidence[];
   minRequired?: number;
   onOutstandingChange: (key: string, value: string) => void;
-  onAddPhotos: (key: string, dataUris: string[]) => void;
+  onAddPhotos: (key: string, photos: PhotoEvidence[]) => void;
   onRemovePhoto: (key: string, index: number) => void;
+  onCaptionChange: (key: string, index: number, caption: string) => void;
 }) {
   return (
     <>
@@ -1069,8 +1084,9 @@ function OutstandingAndPhotos({
       <PhotoUpload
         photos={photos}
         minRequired={minRequired}
-        onAdd={(uris) => onAddPhotos(checklistKey, uris)}
+        onAdd={(newPhotos) => onAddPhotos(checklistKey, newPhotos)}
         onRemove={(i) => onRemovePhoto(checklistKey, i)}
+        onCaptionChange={(i, caption) => onCaptionChange(checklistKey, i, caption)}
       />
     </>
   );

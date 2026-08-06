@@ -1,10 +1,12 @@
 import { useState } from "react";
 import { compressImages } from "../utils/compressImage";
+import { PhotoEvidence } from "../types/inspection.types";
 
 interface Props {
-  photos: string[];
-  onAdd: (dataUris: string[]) => void;
+  photos: PhotoEvidence[];
+  onAdd: (photos: PhotoEvidence[]) => void;
   onRemove: (index: number) => void;
+  onCaptionChange: (index: number, caption: string) => void;
   minRequired?: number;
 }
 
@@ -24,18 +26,24 @@ interface Props {
  * phones/tablets (that's not lost), it just also offers "Choose from
  * Library" alongside it, same as any other file picker.
  *
+ * Requested directly: "the uploaded photos should be used as photo
+ * report attached to the final page... and should have description."
+ * Each photo now carries its own caption (see PhotoEvidence) — entered
+ * right under its thumbnail here, printed alongside the photo on the
+ * certificate's consolidated Photo Report page (CertificatePreview.tsx).
+ *
  * `minRequired`, if set, is enforced (not just displayed) — see
  * missingPhotoRequirements() in InspectionWorkspace.tsx, which blocks
  * Finalize until every section's minimum is met.
  */
-export default function PhotoUpload({ photos, onAdd, onRemove, minRequired = 0 }: Props) {
+export default function PhotoUpload({ photos, onAdd, onRemove, onCaptionChange, minRequired = 0 }: Props) {
   const [compressing, setCompressing] = useState(false);
 
   function handleFiles(files: FileList | null) {
     if (!files || files.length === 0) return;
     setCompressing(true);
     compressImages(files)
-      .then((dataUris) => onAdd(dataUris.filter(Boolean)))
+      .then((dataUris) => onAdd(dataUris.filter(Boolean).map((data) => ({ data, caption: "" }))))
       .finally(() => setCompressing(false));
   }
 
@@ -50,11 +58,11 @@ export default function PhotoUpload({ photos, onAdd, onRemove, minRequired = 0 }
           </span>
         )}
       </legend>
-      <div style={{ marginBottom: 8, display: "flex", flexWrap: "wrap", gap: 6 }}>
+      <div style={{ marginBottom: 8, display: "flex", flexWrap: "wrap", gap: 10 }}>
         {photos.length === 0 && <span style={{ fontSize: 11, color: "var(--insp-muted)" }}>No photos attached yet.</span>}
         {photos.map((p, i) => (
-          <div key={i} style={{ position: "relative" }}>
-            <img src={p} alt={`Evidence ${i + 1}`} style={{ width: 70, height: 70, objectFit: "cover", borderRadius: 5, border: "1px solid #C9D1D8" }} />
+          <div key={i} style={{ position: "relative", width: 90 }}>
+            <img src={p.data} alt={p.caption || `Evidence ${i + 1}`} style={{ width: 90, height: 90, objectFit: "cover", borderRadius: 5, border: "1px solid #C9D1D8", display: "block" }} />
             <button
               type="button"
               onClick={() => onRemove(i)}
@@ -62,12 +70,19 @@ export default function PhotoUpload({ photos, onAdd, onRemove, minRequired = 0 }
             >
               ×
             </button>
+            <input
+              type="text"
+              value={p.caption}
+              onChange={(e) => onCaptionChange(i, e.target.value)}
+              placeholder="Description"
+              style={{ width: "100%", marginTop: 4, padding: "3px 5px", fontSize: 10.5, border: "1px solid #C9D1D8", borderRadius: 4 }}
+            />
           </div>
         ))}
       </div>
       <input type="file" accept="image/*" multiple onChange={(e) => handleFiles(e.target.files)} disabled={compressing} />
       {compressing && <p className="insp-help-note" style={{ color: "var(--insp-amber)" }}>Compressing photo(s)...</p>}
-      <p className="insp-help-note">Attach photos of the equipment, nameplate, and any defects found — take a new photo or choose one already on your device.</p>
+      <p className="insp-help-note">Attach photos of the equipment, nameplate, and any defects found — take a new photo or choose one already on your device, then describe what it shows.</p>
     </fieldset>
   );
 }

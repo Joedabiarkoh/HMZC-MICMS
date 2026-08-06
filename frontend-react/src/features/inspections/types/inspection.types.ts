@@ -47,6 +47,19 @@ export interface ChecklistSection {
   special: SpecialChecklistItem[];
 }
 
+// One attached photo of evidence (equipment, nameplate, a defect) plus
+// a caption saying what it shows — requested directly: photos "should
+// have description." `data` is a base64 data URI locally; the backend
+// externalizes it to a real /api/photos/... URL once saved (see
+// core/photo_storage.py's externalize_photos, which recurses through
+// whatever's under the certificate's `photos` field looking for
+// data: URIs — it doesn't care that this is now an object instead of
+// a bare string, as long as the URI itself lives under its own key).
+export interface PhotoEvidence {
+  data: string;
+  caption: string;
+}
+
 export type EquipResult = "ok" | "expired" | "missing" | "damaged";
 
 export interface EquipmentListItem {
@@ -122,7 +135,16 @@ export interface InspectionCertificate {
   remarks: string;
   remarksAuto: boolean;
   outstanding: Record<string, string>;
-  photos: Record<string, string[]>;
+  // Requested directly: "the uploaded photos should be used as photo
+  // report attached to the final page all on one page, and should
+  // have description." Was Record<string, string[]> (each entry a
+  // bare base64 data URI, no way to say what a photo actually showed)
+  // — now each photo carries its own caption alongside the image data,
+  // still keyed by the same section ids (boatChecklist, davitChecklist,
+  // checklist) so getFinalizeBlockers' per-section minimum-photo count
+  // in InspectionWorkspace.tsx keeps working unchanged (it only reads
+  // .length, which doesn't care what the array elements are).
+  photos: Record<string, PhotoEvidence[]>;
 
   captainName: string;
   engineerName: string;
