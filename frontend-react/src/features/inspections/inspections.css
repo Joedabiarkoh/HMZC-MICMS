@@ -196,8 +196,25 @@ table.insp-page-frame > tfoot > tr > td {
 }
 .insp-cert-page::before {
   content: ""; position: absolute; inset: 0; background-image: var(--insp-watermark-url);
-  background-repeat: no-repeat; background-position: center;
-  background-size: 56%; opacity: .05; pointer-events: none; z-index: 0;
+  /* Requested directly: "the background water mark is also not
+     consistent on the various pages, make it appear in all pages
+     printed, increase the size of the logo in the background to
+     about 200%." One .insp-cert-page can itself span several physical
+     printed pages (a long FFE item register, a big checklist) — with
+     the old no-repeat/center-of-the-whole-box background, the single
+     logo instance only ever landed within whichever one physical page
+     happened to contain the vertical center of the ENTIRE (all-pages-
+     accumulated) box, leaving every other page of that same section
+     blank. background-repeat: repeat-y with the tile height pinned to
+     1032px — the exact same @page content-area height theme.css's own
+     @page rule produces (297mm - 24mm margins, at 96dpi — see
+     useFillToPageMultiple.ts's own PAGE_HEIGHT_PX, the same constant)
+     — makes one full tile land on every physical page instead, since
+     this div's own top coincides with a fresh physical page's top
+     (page-break-after: always on every .insp-cert-page below). Width
+     is the requested 200%. */
+  background-repeat: repeat-y; background-position: center top;
+  background-size: 200% 1032px; opacity: .05; pointer-events: none; z-index: 0;
   /* Requested directly: "the stamp is not showing." Chrome (and most
      browsers) suppress CSS background-image/background-color in
      print output by default unless the user has "Background

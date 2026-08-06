@@ -62,7 +62,21 @@ export default function InspectionWorkspace() {
   // option. See certificateDocxExport.ts for how the .docx itself is
   // built; this just triggers it and surfaces a failure if the browser
   // couldn't generate/download the file.
+  //
+  // Requested directly: "the docx feature should only be available
+  // after finalized, because if it comes at draft stage then the
+  // purpose of QR code will be defeated, to be able to track all
+  // files or certificate generated... if it's taken out or created
+  // from the system with the old QR code of another vessel then we
+  // cannot trace it." A draft isn't a permanent, traceable record yet
+  // (its certNo/content can still change before finalizing) — letting
+  // it leave the system as an editable Word file at that stage would
+  // undermine that traceability. Print stays available at every
+  // stage (unchanged) since this concern is specifically about a file
+  // leaving the system, not about viewing/printing a working draft.
+  const canExportWord = current.status === "final";
   async function handleExportWord() {
+    if (!canExportWord) return;
     try {
       await exportCertificateDocx(current, cfg);
     } catch (err) {
@@ -415,7 +429,14 @@ export default function InspectionWorkspace() {
             </div>
             <div className="insp-btn-row">
               <button className="insp-btn insp-btn-primary" onClick={() => window.print()}>Print / Download</button>
-              <button className="insp-btn insp-btn-outline" onClick={handleExportWord}>Save as Word</button>
+              <button
+                className="insp-btn insp-btn-outline"
+                onClick={handleExportWord}
+                disabled={!canExportWord}
+                title={canExportWord ? undefined : "Available once this certificate is finalized"}
+              >
+                Save as Word
+              </button>
             </div>
           </>
         ) : (
@@ -476,7 +497,14 @@ export default function InspectionWorkspace() {
           </div>
           <div className="insp-btn-group insp-btn-group--secondary">
             <button className="insp-btn insp-btn-outline" onClick={() => window.print()}>Print</button>
-            <button className="insp-btn insp-btn-outline" onClick={handleExportWord}>Save as Word</button>
+            <button
+              className="insp-btn insp-btn-outline"
+              onClick={handleExportWord}
+              disabled={!canExportWord}
+              title={canExportWord ? undefined : "Available once this certificate is finalized"}
+            >
+              Save as Word
+            </button>
             <button className="insp-btn insp-btn-outline" onClick={() => startNew(type)}>New Certificate</button>
           </div>
         </div>
@@ -533,7 +561,14 @@ export default function InspectionWorkspace() {
           </div>
           <div className="insp-btn-group insp-btn-group--secondary">
             <button className="insp-btn insp-btn-outline" onClick={() => window.print()}>Print</button>
-            <button className="insp-btn insp-btn-outline" onClick={handleExportWord}>Save as Word</button>
+            <button
+              className="insp-btn insp-btn-outline"
+              onClick={handleExportWord}
+              disabled={!canExportWord}
+              title={canExportWord ? undefined : "Available once this certificate is finalized"}
+            >
+              Save as Word
+            </button>
             <button className="insp-btn insp-btn-outline" onClick={() => startNew(type)}>New Certificate</button>
           </div>
         </div>
@@ -589,7 +624,14 @@ export default function InspectionWorkspace() {
           </div>
           <div className="insp-btn-group insp-btn-group--secondary">
             <button className="insp-btn insp-btn-outline" onClick={() => window.print()}>Print</button>
-            <button className="insp-btn insp-btn-outline" onClick={handleExportWord}>Save as Word</button>
+            <button
+              className="insp-btn insp-btn-outline"
+              onClick={handleExportWord}
+              disabled={!canExportWord}
+              title={canExportWord ? undefined : "Available once this certificate is finalized"}
+            >
+              Save as Word
+            </button>
             <button className="insp-btn insp-btn-outline" onClick={() => startNew(type)}>New Certificate</button>
           </div>
         </div>
@@ -807,7 +849,14 @@ export default function InspectionWorkspace() {
         </div>
         <div className="insp-btn-group insp-btn-group--secondary">
           <button className="insp-btn insp-btn-outline" onClick={() => window.print()}>Print</button>
-          <button className="insp-btn insp-btn-outline" onClick={handleExportWord}>Save as Word</button>
+          <button
+            className="insp-btn insp-btn-outline"
+            onClick={handleExportWord}
+            disabled={!canExportWord}
+            title={canExportWord ? undefined : "Available once this certificate is finalized"}
+          >
+            Save as Word
+          </button>
           <button className="insp-btn insp-btn-outline" onClick={() => startNew(type)}>New Certificate</button>
         </div>
       </div>
