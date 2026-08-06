@@ -216,11 +216,23 @@ table.insp-page-frame > tfoot > tr > td {
      variable from --insp-watermark-url, which the letterhead's own
      logo still uses) sidesteps that whole problem: there's no wordmark
      to crowd out or re-center, so background-position can just be
-     center, and background-size stays auto-height (still zero
-     vertical distortion, per the still-standing "do not stretch too
-     up" feedback) at the requested 150% width. */
+     center. background-size was width-driven at first (150% auto) —
+     that sized each tile shorter than a full page (~760px of a
+     1032px page), so every page showed one full icon plus a second,
+     partially-cropped one right after it. Requested directly: "keep
+     the water mark consistant, it appears like twice on the same
+     page." Flipped to height-driven instead — auto width, height
+     pinned to exactly 1032px (one @page's content height, the same
+     PAGE_HEIGHT_PX useFillToPageMultiple.ts uses) — so each repeat-y
+     tile is exactly one page tall: one full, undistorted icon per
+     page, never a partial second copy. Confirmed by rendering the
+     exact CSS math in Pillow before shipping. Works out to roughly
+     203% of the page's width at this image's aspect ratio — bigger
+     than the 150% originally asked for, but hitting that exact width
+     is what was producing the double-image artifact in the first
+     place; consistency (and no stretching) took priority. */
   background-repeat: repeat-y; background-position: center top;
-  background-size: 150% auto; opacity: .05; pointer-events: none; z-index: 0;
+  background-size: auto 1032px; opacity: .05; pointer-events: none; z-index: 0;
   /* Requested directly: "the stamp is not showing." Chrome (and most
      browsers) suppress CSS background-image/background-color in
      print output by default unless the user has "Background

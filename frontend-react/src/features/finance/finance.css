@@ -136,19 +136,18 @@ table.line-items-table .remove-btn { background: none; border: none; color: var(
 .finance-doc-page::before {
   content: ""; position: absolute; inset: 0; background-image: var(--insp-watermark-icon-url);
   /* Requested directly, reviewing certificates, across a few rounds of
-     size/position tuning against the old watermark image (the full
-     logo, icon+wordmark together), ending with: "use this as the
-     water mark and expand it 150%" — supplying a new, pre-cropped
-     icon-only image (assets/watermarkIcon.ts,
-     --insp-watermark-icon-url — a separate variable from
-     --insp-watermark-url, which the letterhead's own logo still uses)
-     sidesteps the wordmark-vs-icon centering problem entirely; see
-     inspections.css's own comment on .insp-cert-page::before for the
-     full history. background-size stays auto-height (zero vertical
-     distortion, per the still-standing "do not stretch too up"
-     feedback) at the requested 150% width. */
+     size/position tuning: "use this as the water mark and expand it
+     150%", then "keep the water mark consistant, it appears like
+     twice on the same page" once a width-driven size (150% auto) left
+     each repeat-y tile shorter than a full page, so a second,
+     partially-cropped copy showed right after the first one on every
+     page. See inspections.css's own comment on .insp-cert-page::before
+     for the full history and the fix: background-size is now
+     height-driven instead (auto 1032px, one @page's content height)
+     so every repeat-y tile is exactly one page tall — one full,
+     undistorted icon per page, never a partial second one. */
   background-repeat: repeat-y; background-position: center top;
-  background-size: 150% auto; opacity: .05; pointer-events: none; z-index: 0;
+  background-size: auto 1032px; opacity: .05; pointer-events: none; z-index: 0;
   /* Requested directly: "the stamp is not showing" — see
      inspections.css's own comment on .insp-cert-page::before for the
      full reasoning (Chrome suppresses background-image in print by
