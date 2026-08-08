@@ -382,7 +382,10 @@ export const INSPECTION_TYPES: Record<EquipmentTypeKey, EquipmentTypeConfig> = {
     remarksTemplate: (loc) => `${(loc || "").toUpperCase()} DECK CRANE INSPECTION CARRIED OUT AND FOUND SATISFACTORY. LIFTING APPLIANCE FOUND IN GOOD WORKING ORDER AND FIT FOR PURPOSE.`,
     sideOptions: ["Port Crane", "Stbd Crane", "Provision Crane", "Engine Room Crane", "Deck Crane No.1", "Deck Crane No.2"],
     checklistTitle: "Deck Crane Inspection Report", checklistSections: CRANE_SECTIONS,
-    minPhotos: { checklist: 2 },
+    // Requested directly: "for the lifting gear crane report can be
+    // like the lifeboat, but do not put limit on the photo required" —
+    // photos stay per-inspection (already wired via the "checklist"
+    // key, same as every boat type), just with no enforced minimum.
   },
   firefighting: {
     kind: "ffe", typeName: "Firefighting Equipment", label: "Firefighting Equipment",
@@ -400,5 +403,18 @@ export const INSPECTION_TYPES: Record<EquipmentTypeKey, EquipmentTypeConfig> = {
   // comment for the source documents and archetype this reuses.
   calibration: {
     kind: "calibration", typeName: "Calibration", label: "Calibration",
+  },
+  // Requested directly: "photo report for FFE and Calibration should
+  // be all together for the vessel but not for each inspection, make
+  // a section for photo report that the technician can select..." —
+  // one combined report per vessel/visit, not tied to any single FFE
+  // or Calibration sub-type certificate. No checklist at all — see
+  // InspectionWorkspace.tsx's own "photoreport" branch for the form
+  // (vessel info + photos + sign-off only) and CertificatePreview.tsx
+  // for how it prints (PhotoReportPage IS the certificate here, not
+  // an appendix to one).
+  photo_report: {
+    kind: "photoreport", typeName: "FFE & Calibration Photo Report", label: "Photo Report",
+    statementIntro: "This report consolidates photographic evidence from the firefighting equipment and/or calibration inspections carried out for this vessel.",
   },
 };

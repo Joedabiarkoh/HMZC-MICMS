@@ -12,6 +12,7 @@ import VesselLookupPanel from "../components/VesselLookupPanel";
 import FFEForm from "../components/FFEForm";
 import LooseGearForm from "../components/LooseGearForm";
 import CalibrationForm from "../components/CalibrationForm";
+import PhotoReportForm from "../components/PhotoReportForm";
 import { getFFEConfig } from "../data/ffeCertTypes";
 import { getCalibrationConfig } from "../data/calibrationCertTypes";
 import { exportCertificateDocx } from "../utils/certificateDocxExport";
@@ -25,6 +26,9 @@ const TYPE_GROUPS: { label: string; keys: EquipmentTypeKey[] }[] = [
   { label: "Lifting Appliances", keys: ["crane", "loosegear"] },
   { label: "Fire Safety", keys: ["firefighting"] },
   { label: "Calibration", keys: ["calibration"] },
+  // Requested directly: a selectable section for the combined FFE/
+  // Calibration vessel Photo Report (see PhotoReportForm.tsx).
+  { label: "Photo Reports", keys: ["photo_report"] },
 ];
 
 type SubTab = "statement" | "boat" | "davit" | "equip" | "checklist" | "loadtest";
@@ -386,6 +390,21 @@ export default function InspectionWorkspace() {
       return problems;
     }
 
+    // Requested directly: the combined FFE/Calibration vessel Photo
+    // Report — vessel identity (checked above) and a sign-off, same as
+    // every other type, but deliberately no minimum photo count (see
+    // PhotoUpload below, no minRequired passed) and no item/checklist
+    // requirement, since it has neither.
+    if (cfg.kind === "photoreport") {
+      if (!current.engineerName.trim()) {
+        problems.push("Technician name is required");
+      }
+      if (!current.engineerSig) {
+        problems.push("Technician signature is required");
+      }
+      return problems;
+    }
+
     if (!current.engineerName.trim()) {
       problems.push("Service Engineer name is required");
     }
@@ -644,6 +663,72 @@ export default function InspectionWorkspace() {
             <div className="insp-panel-header">Calibration Certificate</div>
             <div className="insp-panel-body">
               <CalibrationForm current={current} updateField={updateField} openCertificate={openCertificate} />
+            </div>
+          </div>
+          <div className="insp-panel">
+            <div className="insp-panel-header">Certificate Preview</div>
+            <div className="insp-cert-scroll">
+              <CertificatePreview cert={current} config={cfg} />
+            </div>
+          </div>
+        </div>
+        {getFinalizeBlockers().length > 0 && (
+          <div className="no-print" style={{ margin: "0 20px 10px", background: "#FBF0E2", border: "1px solid #B4690E", borderRadius: 6, padding: "8px 12px", fontSize: 12, color: "#7A4A08" }}>
+            <strong>Not ready to finalize yet:</strong> {getFinalizeBlockers().join(" · ")}
+          </div>
+        )}
+        <div className="insp-btn-row">
+          <div className="insp-btn-group">
+            <button className="insp-btn insp-btn-outline" onClick={() => handleSave("draft")}>Save Draft</button>
+            <button
+              className="insp-btn insp-btn-primary"
+              onClick={() => handleSave("final")}
+              disabled={getFinalizeBlockers().length > 0}
+              title={getFinalizeBlockers().length > 0 ? `Not ready to finalize: ${getFinalizeBlockers().join("; ")}` : undefined}
+            >
+              Finalize &amp; Save
+            </button>
+          </div>
+          <div className="insp-btn-group insp-btn-group--secondary">
+            <button className="insp-btn insp-btn-outline" onClick={handlePrint}>Print</button>
+            <button
+              className="insp-btn insp-btn-outline"
+              onClick={handleExportWord}
+              disabled={!canExportWord}
+              title={canExportWord ? undefined : "Available once this certificate is finalized"}
+            >
+              Save as Word
+            </button>
+            <button className="insp-btn insp-btn-outline" onClick={() => startNew(type)}>New Certificate</button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Requested directly: "photo report for FFE and Calibration should
+  // be all together for the vessel but not for each inspection, make
+  // a section for photo report that the technician can select..." —
+  // same reasoning as the FFE/Loose Gear/Calibration branches above:
+  // its own form (PhotoReportForm.tsx — vessel info + photos + sign-
+  // off, no checklist), rendered as its own branch.
+  if (cfg.kind === "photoreport") {
+    return (
+      <div className="inspections-page" data-type={type}>
+        <TopBar type={type} onTypeChange={handleTypeChange} />
+        {syncError && (
+          <div style={{ margin: "10px 20px 0", background: "#FBF0E2", border: "1px solid #B4690E", color: "#7A4A08", borderRadius: 6, padding: "8px 12px", fontSize: 12, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+            <span>{syncError}</span>
+            {pendingSyncCount > 0 && (
+              <button className="insp-btn insp-btn-outline" style={{ padding: "3px 10px", fontSize: 11 }} onClick={retrySync}>Retry Now</button>
+            )}
+          </div>
+        )}
+        <div className="insp-layout">
+          <div className="insp-panel">
+            <div className="insp-panel-header">FFE &amp; Calibration Photo Report</div>
+            <div className="insp-panel-body">
+              <PhotoReportForm current={current} updateField={updateField} openCertificate={openCertificate} />
             </div>
           </div>
           <div className="insp-panel">

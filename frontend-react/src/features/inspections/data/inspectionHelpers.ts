@@ -88,6 +88,7 @@ export function generateCertNo(type: EquipmentTypeKey, existingNumbers: Set<stri
   const tags: Record<EquipmentTypeKey, string> = {
     lifeboat: "LB", rescueboat: "RB", freefall_dry: "FFD", freefall_tanker: "FFT",
     crane: "CR", firefighting: "FF", loosegear: "LG", calibration: "CAL",
+    photo_report: "PR",
   };
   const tag = tags[type];
   const count = Array.from(existingNumbers).filter((k) => k.includes(ymd) && k.includes(tag)).length + 1;

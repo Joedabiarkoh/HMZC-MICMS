@@ -16,6 +16,16 @@ import {
 } from "../types/inspection.types";
 import VesselLookupPanel from "./VesselLookupPanel";
 import SignatureCanvas from "./SignatureCanvas";
+import PhotoUpload from "./PhotoUpload";
+import { PhotoEvidence } from "../types/inspection.types";
+
+// Requested directly: "for the lifting gear crane report can be like
+// the lifeboat, but do not put limit on the photo required" — photo
+// evidence for Loose Gear, same as the boat types' own per-section
+// key (see PhotoReportPage in CertificatePreview.tsx, which reads
+// every key generically), just with no minRequired passed to
+// PhotoUpload below (unlike boat, which sets one per section).
+const PHOTO_KEY = "looseGear";
 
 interface Props {
   current: InspectionCertificate;
@@ -115,6 +125,21 @@ function YesNoField({ id, label, value, onChange }: { id: string; label: string;
 }
 
 function VesselLookupAndSignatures({ current, updateField, openCertificate }: Props) {
+  function addPhotos(newPhotos: PhotoEvidence[]) {
+    updateField("photos", { ...current.photos, [PHOTO_KEY]: [...(current.photos[PHOTO_KEY] || []), ...newPhotos] });
+  }
+  function removePhoto(index: number) {
+    const list = [...(current.photos[PHOTO_KEY] || [])];
+    list.splice(index, 1);
+    updateField("photos", { ...current.photos, [PHOTO_KEY]: list });
+  }
+  function updateCaption(index: number, caption: string) {
+    const list = [...(current.photos[PHOTO_KEY] || [])];
+    if (!list[index]) return;
+    list[index] = { ...list[index], caption };
+    updateField("photos", { ...current.photos, [PHOTO_KEY]: list });
+  }
+
   return (
     <>
       <VesselLookupPanel
@@ -124,6 +149,12 @@ function VesselLookupAndSignatures({ current, updateField, openCertificate }: Pr
           if (equipmentType === current.type) openCertificate(certNo);
           else window.location.href = `/inspections?type=${equipmentType}&open=${encodeURIComponent(certNo)}`;
         }}
+      />
+      <PhotoUpload
+        photos={current.photos[PHOTO_KEY] || []}
+        onAdd={addPhotos}
+        onRemove={removePhoto}
+        onCaptionChange={updateCaption}
       />
       <fieldset className="insp-fieldset">
         <legend className="insp-legend">Signatures</legend>

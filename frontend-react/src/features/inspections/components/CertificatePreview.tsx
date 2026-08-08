@@ -45,6 +45,10 @@ export default function CertificatePreview({ cert, config }: Props) {
     return <CalibrationCertificatePage cert={cert} calibration={cert.calibration} />;
   }
 
+  if (config.kind === "photoreport") {
+    return <PhotoReportCertificatePage cert={cert} config={config} />;
+  }
+
   const isBoat = config.kind === "boat";
 
   return (
@@ -205,6 +209,49 @@ export default function CertificatePreview({ cert, config }: Props) {
 
 function checklistResultLabel(r: string) {
   return { done: "Carried Out", not_done: "Not Carried Out", na: "N/A", "": "—" }[r] || r;
+}
+
+// The combined FFE/Calibration vessel Photo Report — see
+// inspectionChecklists.ts's photo_report entry and
+// PhotoReportForm.tsx's own comment for why this is its own
+// certificate type rather than an appendix to one FFE/Calibration
+// sub-type certificate. No checklist/item register at all: just the
+// same vessel/certificate identity table every other type has, then
+// PhotoReportPage IS the certificate's real content here (rather than
+// an appendix at the end of a longer certificate), followed by
+// sign-off.
+function PhotoReportCertificatePage({ cert, config }: { cert: InspectionCertificate; config: EquipmentTypeConfig }) {
+  return (
+    <>
+      <CertPageFrame cert={cert}>
+        <div className="insp-cert-title-row">
+          <h2>Photo Report</h2>
+          <span className="insp-badge">{config.typeName.toUpperCase()}</span>
+        </div>
+        <p style={{ fontSize: 11.5, lineHeight: 1.6 }}>{config.statementIntro}</p>
+        <table className="insp-id-table">
+          <tbody>
+            <tr>
+              <td className="insp-label-cell">Certificate No</td><td>{cert.certNo}</td>
+              <td className="insp-label-cell">Date</td><td>{fmtDate(cert.dateOfServicing)}</td>
+            </tr>
+            <tr>
+              <td className="insp-label-cell">Name of Ship</td><td>{cert.vesselName || "—"}</td>
+              <td className="insp-label-cell">IMO No.</td><td>{cert.imoNo || "—"}</td>
+            </tr>
+          </tbody>
+        </table>
+        <div className="insp-remarks-box">Comments: {cert.remarks || "None"}</div>
+        {cert.issuedBy && (
+          <div style={{ fontSize: 10, color: "var(--insp-muted)", marginTop: 8 }}>
+            Issued by {cert.issuedBy}{cert.issuedAt ? ` — ${new Date(cert.issuedAt).toLocaleString()}` : ""}
+          </div>
+        )}
+        <SignatureGrid cert={cert} masterLabel="Captain Signature" techLabel="Service Engineer" />
+      </CertPageFrame>
+      <PhotoReportPage cert={cert} />
+    </>
+  );
 }
 
 // Requested directly: the certificate number should appear on every
@@ -616,6 +663,7 @@ function StatutoryAnswersRows({ data }: { data: LooseGearStatutoryAnswers }) {
 
 function VisualCertPage({ cert, data }: { cert: InspectionCertificate; data: LooseGearVisualCertData }) {
   return (
+    <>
     <CertPageFrame cert={cert}>
       <div className="insp-cert-title-row">
         <h2>Visual Certificate of Thorough Examination</h2>
@@ -699,11 +747,14 @@ function VisualCertPage({ cert, data }: { cert: InspectionCertificate; data: Loo
       )}
       <SignatureGrid cert={cert} masterLabel="Master" techLabel="Inspector" />
     </CertPageFrame>
+    <PhotoReportPage cert={cert} />
+    </>
   );
 }
 
 function StandardReportPage({ cert, data }: { cert: InspectionCertificate; data: LooseGearStandardReportData }) {
   return (
+    <>
     <CertPageFrame cert={cert}>
       <div className="insp-cert-title-row">
         <h2>Report of Thorough Examination</h2>
@@ -768,6 +819,8 @@ function StandardReportPage({ cert, data }: { cert: InspectionCertificate; data:
       )}
       <SignatureGrid cert={cert} masterLabel="Master" techLabel="Inspector" />
     </CertPageFrame>
+    <PhotoReportPage cert={cert} />
+    </>
   );
 }
 
@@ -782,6 +835,7 @@ const REASON_PRINT_LABELS: Record<string, string> = {
 
 function MultipleItemsPage({ cert, data }: { cert: InspectionCertificate; data: LooseGearMultipleItemsData }) {
   return (
+    <>
     <CertPageFrame cert={cert}>
       <div className="insp-cert-title-row">
         <h2>Report of Thorough Examination (Multiple Items)</h2>
@@ -847,6 +901,8 @@ function MultipleItemsPage({ cert, data }: { cert: InspectionCertificate; data: 
       )}
       <SignatureGrid cert={cert} masterLabel="Master" techLabel="Inspector" />
     </CertPageFrame>
+    <PhotoReportPage cert={cert} />
+    </>
   );
 }
 
@@ -1167,6 +1223,8 @@ const PHOTO_SECTION_LABELS: Record<string, string> = {
   boatChecklist: "Boat Checklist",
   davitChecklist: "Davit Checklist",
   checklist: "Inspection Checklist",
+  looseGear: "Loose Gear Inspection",
+  general: "Photo Report",
 };
 
 function chunk2<T>(items: T[]): T[][] {

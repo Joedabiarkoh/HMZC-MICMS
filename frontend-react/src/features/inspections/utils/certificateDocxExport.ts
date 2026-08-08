@@ -106,28 +106,80 @@ function docxImageType(dataUri: string): "jpg" | "png" | "gif" | "bmp" | null {
   return null;
 }
 
-function loadImageSize(dataUri: string): Promise<{ width: number; height: number }> {
+function loadImageSize(src: string): Promise<{ width: number; height: number }> {
   return new Promise((resolve, reject) => {
     const img = new Image();
     img.onload = () => resolve({ width: img.naturalWidth || 1, height: img.naturalHeight || 1 });
     img.onerror = () => reject(new Error("image load failed"));
-    img.src = dataUri;
+    img.src = src;
   });
+}
+
+function docxImageTypeFromExtension(url: string): "jpg" | "png" | "gif" | "bmp" | null {
+  const ext = url.split(/[?#]/)[0].split(".").pop()?.toLowerCase();
+  if (ext === "jpg" || ext === "jpeg") return "jpg";
+  if (ext === "png" || ext === "gif" || ext === "bmp") return ext as "png" | "gif" | "bmp";
+  return null;
+}
+
+// Photo evidence (PhotoEvidence.data — see inspection.types.ts) is a
+// data: URI only until the certificate has been saved at least once;
+// core/photo_storage.py's externalize_photos then replaces it with a
+// real /api/photos/... URL, which is what a *finalized* certificate
+// (the only state Save as Word is available for — see
+// InspectionWorkspace.tsx's canExportWord) actually has. The
+// signature/stamp/logo helpers below only ever dealt with data: URIs
+// before photos existed here, so this fetches bytes over the network
+// for anything that isn't one, rather than assuming every image src
+// is inline.
+async function loadImageBytes(src: string): Promise<{ bytes: Uint8Array; type: "jpg" | "png" | "gif" | "bmp" } | null> {
+  if (src.startsWith("data:")) {
+    const type = docxImageType(src);
+    if (!type) return null;
+    return { bytes: dataUriToBytes(src), type };
+  }
+  const type = docxImageTypeFromExtension(src);
+  if (!type) return null;
+  try {
+    const resp = await fetch(src);
+    if (!resp.ok) return null;
+    return { bytes: new Uint8Array(await resp.arrayBuffer()), type };
+  } catch {
+    return null;
+  }
 }
 
 // Signature/upload images can be any aspect ratio the user drew or
 // uploaded (unlike the fixed logo/stamp assets) — scaled to a fixed
 // display height, matching SignBox's own 44px-tall <img> in print.
-async function imageRunAtHeight(dataUri: string, targetHeight: number): Promise<ImageRun | null> {
-  const type = docxImageType(dataUri);
-  if (!type) return null;
+async function imageRunAtHeight(src: string, targetHeight: number): Promise<ImageRun | null> {
   try {
-    const { width, height } = await loadImageSize(dataUri);
+    const [{ width, height }, loaded] = await Promise.all([loadImageSize(src), loadImageBytes(src)]);
+    if (!loaded) return null;
     const scale = targetHeight / height;
     return new ImageRun({
-      type,
-      data: dataUriToBytes(dataUri),
+      type: loaded.type,
+      data: loaded.bytes,
       transformation: { width: Math.max(1, Math.round(width * scale)), height: targetHeight },
+    } as ConstructorParameters<typeof ImageRun>[0]);
+  } catch {
+    return null;
+  }
+}
+
+// Same idea as imageRunAtHeight but scaled to fit within a fixed
+// width instead — used for the Photo Report's evidence photos, which
+// (unlike a signature) should fill their table cell width rather than
+// a fixed height regardless of how tall/wide the source photo is.
+async function imageRunAtWidth(src: string, targetWidth: number): Promise<ImageRun | null> {
+  try {
+    const [{ width, height }, loaded] = await Promise.all([loadImageSize(src), loadImageBytes(src)]);
+    if (!loaded) return null;
+    const scale = targetWidth / width;
+    return new ImageRun({
+      type: loaded.type,
+      data: loaded.bytes,
+      transformation: { width: targetWidth, height: Math.max(1, Math.round(height * scale)) },
     } as ConstructorParameters<typeof ImageRun>[0]);
   } catch {
     return null;
@@ -552,6 +604,69 @@ async function buildLooseGearSection(cert: InspectionCertificate, looseGear: Loo
   return [];
 }
 
+const PHOTO_SECTION_LABELS: Record<string, string> = {
+  boatChecklist: "Boat Checklist",
+  davitChecklist: "Davit Checklist",
+  checklist: "Inspection Checklist",
+  looseGear: "Loose Gear Inspection",
+  general: "Photo Report",
+};
+
+// The combined FFE/Calibration vessel Photo Report (kind: "photoreport"
+// — see inspectionChecklists.ts's photo_report entry and
+// PhotoReportForm.tsx's own comment for why it's a standalone
+// certificate type). Unlike every other Word section above, this
+// one's whole point IS the photos, so — unlike the print/PDF path's
+// own scope cut on embedding arbitrary evidence photos — these are
+// embedded for real: fetched via imageRunAtWidth (photo.data is a
+// data: URI only until first save; a finalized certificate — the
+// only state Save as Word is even available for — has it as a real
+// /api/photos/... URL by then, see that function's own comment).
+async function buildPhotoReportSection(cert: InspectionCertificate, config: EquipmentTypeConfig): Promise<Block[]> {
+  const blocks: Block[] = [
+    badgeLine("Photo Report", config.typeName.toUpperCase()),
+    kvTable([
+      ["Certificate No", cert.certNo],
+      ["Name of Ship", cert.vesselName || "—"],
+      ["IMO No.", cert.imoNo || "—"],
+      ["Date", fmtDate(cert.dateOfServicing)],
+    ]),
+    new Paragraph({ text: "" }),
+    remarksBox("Comments", cert.remarks || "None"),
+    new Paragraph({ text: "" }),
+  ];
+
+  const entries = Object.entries(cert.photos || {}).flatMap(([key, photos]) => (photos || []).map((photo) => ({ key, photo })));
+  if (entries.length > 0) {
+    blocks.push(heading("Photo Evidence"));
+    const photoRuns = await Promise.all(entries.map((e) => imageRunAtWidth(e.photo.data, 260)));
+    const rows: TableRow[] = [];
+    for (let i = 0; i < entries.length; i += 2) {
+      const pair = [entries[i], entries[i + 1]];
+      const cells = pair.map((entry, ci) => {
+        if (!entry) return new TableCell({ width: { size: 50, type: WidthType.PERCENTAGE }, children: [new Paragraph({ text: "" })] });
+        const run = photoRuns[i + ci];
+        return new TableCell({
+          width: { size: 50, type: WidthType.PERCENTAGE },
+          margins: { top: 100, bottom: 100, left: 100, right: 100 },
+          children: [
+            new Paragraph({ alignment: AlignmentType.CENTER, children: run ? [run] : [new TextRun({ text: "[Photo unavailable]", italics: true, color: MUTED, size: 16 })] }),
+            textP(PHOTO_SECTION_LABELS[entry.key] || entry.key, { color: MUTED, size: 14 }),
+            textP(entry.photo.caption || "No description provided.", { size: 16 }),
+          ],
+        });
+      });
+      rows.push(new TableRow({ children: cells }));
+    }
+    blocks.push(new Table({ width: { size: 100, type: WidthType.PERCENTAGE }, borders: TABLE_BORDERS, rows }));
+    blocks.push(new Paragraph({ text: "" }));
+  }
+
+  blocks.push(...issuedByLine(cert));
+  blocks.push(await signatureBlock(cert, "Captain Signature", "Service Engineer"));
+  return blocks;
+}
+
 // ---- document assembly ----
 
 async function buildHeader(): Promise<Header> {
@@ -614,6 +729,8 @@ export async function exportCertificateDocx(cert: InspectionCertificate, config:
     children.push(...(await buildLooseGearSection(cert, cert.looseGear)));
   } else if (config.kind === "calibration" && cert.calibration) {
     children.push(...(await buildCalibrationSection(cert, cert.calibration)));
+  } else if (config.kind === "photoreport") {
+    children.push(...(await buildPhotoReportSection(cert, config)));
   } else {
     const isBoat = config.kind === "boat";
     children.push(...(await buildStatementSection(cert, config)));

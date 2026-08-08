@@ -15,7 +15,19 @@ export type EquipmentTypeKey =
   | "crane"
   | "firefighting"
   | "loosegear"
-  | "calibration";
+  | "calibration"
+  // Requested directly: "photo report for FFE and Calibration should
+  // be all together for the vessel but not for each inspection, make
+  // a section for photo report that the technician can select and
+  // make a photo report for the inspection done for the vessel." FFE
+  // and Calibration certificates are split into many narrow sub-type
+  // certificates per vessel visit (Fire Extinguisher, CO2 System,
+  // Pressure Gauge, ...) — tying photo evidence to one of those would
+  // fragment it across however many sub-type certs happened to be
+  // issued that visit. This is its own selectable type instead: no
+  // checklist, just vessel info + photos + sign-off, one combined
+  // report per vessel/visit covering both FFE and Calibration work.
+  | "photo_report";
 
 export type ChecklistStatus = "good" | "part" | "repair" | "na" | "";
 
@@ -352,7 +364,7 @@ export interface LooseGearData {
 }
 
 export interface EquipmentTypeConfig {
-  kind: "boat" | "crane" | "ffe" | "loosegear" | "calibration";
+  kind: "boat" | "crane" | "ffe" | "loosegear" | "calibration" | "photoreport";
   typeName: string;
   label: string;
   statementIntro?: string;
