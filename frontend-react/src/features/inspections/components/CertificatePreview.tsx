@@ -822,110 +822,140 @@ const EXAMINATION_TYPE_PRINT_LABELS: Record<string, string> = {
 // template only, see LooseGearStandardReportData's own comment in
 // inspection.types.ts). "Do not imbed the photo" — no
 // LooseGearItemPhoto here either now.
+// Requested directly: "make the whole document layout just as the pdf
+// loaded do not change the style" (Exam-Report-Sheet-1.pdf, the "Test
+// & Tag" branded reference) — rebuilt as a plain black-bordered form
+// grid matching that reference's own field grouping, in place of the
+// app's usual soft-card .insp-id-table/.insp-remarks-box/.insp-pill
+// styling (see .tt-report in inspections.css for why this is its own
+// scoped style rather than a change to those shared rules). HMZC's own
+// letterhead — already rendered above by CertPageFrame — is kept
+// as-is; the reference's OWN company letterhead ("TEST & TAG",
+// Certificate of Incorporation Number, LEEA accreditation logo) is
+// intentionally not reproduced, matching the same "style, not literal
+// branding" call made when this report was first redesigned. "Page 1
+// of 1" (the reference's own pagination footer, meaningless for this
+// app's single-certificate model) is swapped for a Vessel field this
+// business actually needs and the reference has no field for.
+//
+// "remove the previous examiner sign and master sign section" — the
+// reference has only ONE signer block ("Examination Carried Out By /
+// Examiner Details": Name, Position, Signature, LEEA ID Number), not
+// the app's usual Master+Technician pair, so the shared SignatureGrid
+// (see MultipleItemsPage and every other certificate kind) is dropped
+// here in favor of a bespoke table matching that exact grouping — no
+// Master/Captain name or signature field renders for this report type
+// at all now (see the same exclusion in VesselLookupAndSignatures,
+// LooseGearForm.tsx).
 function StandardReportPage({ cert, data }: { cert: InspectionCertificate; data: LooseGearStandardReportData }) {
   return (
     <CertPageFrame cert={cert}>
-      <div className="lg-compact">
-      <div className="insp-cert-title-row">
-        <h2>Report of Thorough Examination</h2>
-        <span className="insp-badge">LOOSE GEAR &amp; LIFTING EQUIPMENT</span>
-      </div>
-      <p style={{ fontSize: 10, color: "var(--insp-muted)", margin: "0 0 6px" }}>
-        This report complies with the requirements of the Lifting Operations and Lifting Equipment Regulations 1998.
-      </p>
-      <table className="insp-id-table">
+      <div className="lg-compact tt-report">
+      <div className="tt-title">Report of Thorough Examination of Lifting Equipment</div>
+      <div className="tt-subtitle">This report complies with the requirements of the Lifting Operations and Lifting Equipment Regulations 1998</div>
+
+      <table className="tt-grid">
         <tbody>
           <tr>
-            <td className="insp-label-cell">Customer Details</td><td>{data.customerDetails || "—"}</td>
-            <td className="insp-label-cell">Site Address</td><td>{data.siteAddress || "—"}</td>
+            <td rowSpan={2} style={{ width: "27%" }}><span className="tt-label">Customer Details</span>{data.customerDetails || "—"}</td>
+            <td rowSpan={2} style={{ width: "27%" }}><span className="tt-label">Site Address</span>{data.siteAddress || "—"}</td>
+            <td style={{ width: "23%" }}><span className="tt-label">Report No.</span>{cert.certNo}</td>
+            <td style={{ width: "23%" }}><span className="tt-label">Date of Examination</span>{fmtDate(data.dateOfExamination)}</td>
           </tr>
           <tr>
-            <td className="insp-label-cell">Report No.</td><td>{cert.certNo}</td>
-            <td className="insp-label-cell">Date of Examination</td><td>{fmtDate(data.dateOfExamination)}</td>
+            <td colSpan={2}>
+              <span className="tt-label">Examination Type</span>{EXAMINATION_TYPE_PRINT_LABELS[data.examinationType] || "—"}
+              <div className="tt-note">Types: Initial, Standard, Under A Scheme, After Exceptional Circumstances</div>
+            </td>
           </tr>
           <tr>
-            <td className="insp-label-cell">Examination Type</td><td>{EXAMINATION_TYPE_PRINT_LABELS[data.examinationType] || "—"}</td>
-            <td className="insp-label-cell">Job No</td><td>{data.jobNo || "—"}</td>
-          </tr>
-          <tr>
-            <td className="insp-label-cell">Prev. Exam Date</td><td>{fmtDate(data.prevExamDate)}</td>
-            <td className="insp-label-cell">Next Exam Date</td><td>{fmtDate(data.nextExamDate)}</td>
-          </tr>
-          <tr>
-            <td className="insp-label-cell">Vessel</td><td colSpan={3}>{cert.vesselName || "—"}</td>
+            <td><span className="tt-label">Job No</span>{data.jobNo || "—"}</td>
+            <td><span className="tt-label">Prev. Exam Date</span>{fmtDate(data.prevExamDate)}</td>
+            <td><span className="tt-label">Next Exam Date</span>{fmtDate(data.nextExamDate)}</td>
+            <td><span className="tt-label">Vessel</span>{cert.vesselName || "—"}</td>
           </tr>
         </tbody>
       </table>
 
-      <div style={{ fontWeight: 700, fontSize: 11.5, color: "var(--insp-navy)", margin: "8px 0 4px" }}>Description and Identification of the Equipment Item Examined</div>
-      <table className="insp-id-table">
+      <table className="tt-grid">
         <tbody>
+          <tr><td className="tt-section-header" colSpan={3}>Description and Identification of the Equipment Item Examined</td></tr>
           <tr>
-            <td className="insp-label-cell">I.D. No</td><td>{data.idNo || "—"}</td>
-            <td className="insp-label-cell">Description</td><td>{data.description || "—"}</td>
+            <td><span className="tt-label">I.D. No</span>{data.idNo || "—"}</td>
+            <td><span className="tt-label">Description</span>{data.description || "—"}</td>
+            <td><span className="tt-label">Model Details</span>{data.modelDetails || "—"}</td>
           </tr>
           <tr>
-            <td className="insp-label-cell">Serial No</td><td>{data.serialNo || "—"}</td>
-            <td className="insp-label-cell">Model Details</td><td>{data.modelDetails || "—"}</td>
+            <td><span className="tt-label">Serial No</span>{data.serialNo || "—"}</td>
+            <td><span className="tt-label">Manufacturer</span>{data.manufacturer || "—"}</td>
+            <td><span className="tt-label">P.R.V. Fitted</span>{yesNoCheckboxes(data.prvFitted)}</td>
           </tr>
           <tr>
-            <td className="insp-label-cell">Manufacturer</td><td>{data.manufacturer || "—"}</td>
-            <td className="insp-label-cell">P.R.V. Fitted</td><td>{yesNoCheckboxes(data.prvFitted)}</td>
-          </tr>
-          <tr>
-            <td className="insp-label-cell">Mfg. Date</td><td>{fmtDate(data.mfgDate)}</td>
-            <td className="insp-label-cell">Location</td><td>{data.itemLocation || "—"}</td>
-          </tr>
-          <tr>
-            <td className="insp-label-cell">S.W.L</td><td>{data.swl || "—"}</td>
-            <td className="insp-label-cell">E.W.L</td><td>{data.ewl || "—"}</td>
+            <td><span className="tt-label">Mfg. Date</span>{fmtDate(data.mfgDate)}</td>
+            <td><span className="tt-label">Location</span>{data.itemLocation || "—"}</td>
+            <td><span className="tt-label">S.W.L</span>{data.swl || "—"}</td>
+            <td><span className="tt-label">E.W.L</span>{data.ewl || "—"}</td>
           </tr>
         </tbody>
       </table>
 
-      <div style={{ fontWeight: 700, fontSize: 11.5, color: "var(--insp-navy)", margin: "8px 0 4px" }}>Examination Details</div>
-      <table className="insp-id-table">
+      <table className="tt-grid">
         <tbody>
+          <tr><td className="tt-section-header" colSpan={3}>Examination Details</td></tr>
           <tr>
-            <td className="insp-label-cell">Type of Examination/Test Carried Out</td><td>{data.examinationCarriedOut || "—"}</td>
-            <td className="insp-label-cell">Examination Result / Equipment Status</td><td>{data.examinationResult || "—"}</td>
+            <td><span className="tt-label">Type of Examination/Test Carried Out</span>{data.examinationCarriedOut || "—"}</td>
+            <td><span className="tt-label">Examination Result / Equipment Status</span>{data.examinationResult || "—"}</td>
+            <td><span className="tt-label">Safe For Use</span>{yesNoCheckboxes(data.safeForUse)}</td>
           </tr>
           <tr>
-            <td className="insp-label-cell">Safe For Use</td><td colSpan={3}>{yesNoCheckboxes(data.safeForUse)}</td>
+            <td colSpan={2}><span className="tt-label">(A) Defects In Need of Attention To Prevent Immediate Failure &amp; Details of Action Required</span>{data.defectsImmediate || "NONE"}</td>
+            <td colSpan={1}><span className="tt-label">(B) Defects to be Kept Under Observation, Date When Must Be Rectified By and Parts Required</span>{data.defectsObservation || "NONE"}</td>
+          </tr>
+          <tr>
+            <td colSpan={2}><span className="tt-label">Particulars of Any Tests Carried Out as Part of the Examination</span>{data.testsCarriedOut || "NONE"}</td>
+            <td colSpan={1}><span className="tt-label">Additional Comments Made As Part of This Examination</span>{data.additionalComments || "None"}</td>
           </tr>
         </tbody>
       </table>
-      <div className="insp-remarks-box">(A) Defects Needing Immediate Attention: {data.defectsImmediate || "NONE"}</div>
-      <div className="insp-remarks-box">(B) Defects Under Observation / Parts Required: {data.defectsObservation || "NONE"}</div>
-      <div className="insp-remarks-box">Particulars of Any Tests Carried Out: {data.testsCarriedOut || "NONE"}</div>
-      <div className="insp-remarks-box">Additional Comments: {data.additionalComments || "None"}</div>
 
-      <div style={{ display: "flex", alignItems: "center", gap: 8, margin: "10px 0" }}>
-        <span style={{ fontWeight: 700, fontSize: 11.5, color: "var(--insp-navy)" }}>RESULT:</span>
-        {data.result ? (
-          <span className={`insp-pill ${data.result === "pass" ? "good" : "repair"}`} style={{ fontSize: 11, padding: "3px 12px" }}>
-            {data.result.toUpperCase()}
-          </span>
-        ) : (
-          <span style={{ fontSize: 11, color: "var(--insp-muted)" }}>—</span>
-        )}
-      </div>
-
-      <table className="insp-id-table">
+      <table className="tt-grid tt-result-grid">
         <tbody>
           <tr>
-            <td className="insp-label-cell">Examiner Position</td><td>{data.examinerPosition || "—"}</td>
-            <td className="insp-label-cell">LEEA ID Number</td><td>{data.leeaIdNumber || "—"}</td>
+            <td style={{ width: "34%" }}>RESULT</td>
+            <td className={`tt-result-pass ${data.result === "pass" ? "" : "tt-result-dim"}`}>PASS</td>
+            <td className={`tt-result-fail ${data.result === "fail" ? "" : "tt-result-dim"}`}>FAIL</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <table className="tt-grid">
+        <tbody>
+          <tr>
+            <td rowSpan={3} style={{ width: "24%" }}><span className="tt-label">Examination Carried Out By</span></td>
+            <td><span className="tt-label">Name</span>{cert.engineerName || "—"}</td>
+            <td rowSpan={3} style={{ width: "26%" }}><span className="tt-label">LEEA ID Number</span>{data.leeaIdNumber || "—"}</td>
+          </tr>
+          <tr>
+            <td><span className="tt-label">Position</span>{data.examinerPosition || "—"}</td>
+          </tr>
+          <tr>
+            <td>
+              <span className="tt-label">Signature</span>
+              {cert.engineerSig ? (
+                <img src={cert.engineerSig} alt="Examiner signature" style={{ height: 30 }} />
+              ) : cert.engineerName ? (
+                <span style={{ fontFamily: "cursive", fontSize: 16 }}>{cert.engineerName}</span>
+              ) : "—"}
+            </td>
           </tr>
         </tbody>
       </table>
 
       {cert.issuedBy && (
-        <div style={{ fontSize: 9, color: "var(--insp-muted)", marginTop: 8 }}>
+        <div style={{ fontSize: 9, color: "#555", marginTop: 4 }}>
           Issued by {cert.issuedBy}{cert.issuedAt ? ` — ${new Date(cert.issuedAt).toLocaleString()}` : ""}
         </div>
       )}
-      <SignatureGrid cert={cert} masterLabel="Master" techLabel="Examiner" />
       </div>
     </CertPageFrame>
   );

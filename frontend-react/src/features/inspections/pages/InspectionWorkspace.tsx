@@ -364,11 +364,12 @@ export default function InspectionWorkspace() {
           if (!row.safeToUse) problems.push(`Row ${i + 1}: "Safe to use" must be answered`);
         });
       }
+      const lgSignerLabel = lg?.subType === "standard_report" ? "Examiner" : "Inspector";
       if (!current.engineerName.trim()) {
-        problems.push("Inspector name is required");
+        problems.push(`${lgSignerLabel} name is required`);
       }
       if (!current.engineerSig) {
-        problems.push("Inspector signature is required");
+        problems.push(`${lgSignerLabel} signature is required`);
       }
       return problems;
     }

@@ -189,18 +189,34 @@ function VesselLookupAndSignatures({ current, updateField, openCertificate }: Pr
           "Examiner Details" section and the reference template's own
           wording), "Inspector" for Multiple Items/the legacy Visual
           Certificate — same shared cert.engineerName/engineerSig
-          field either way, just the label shown. */}
+          field either way, just the label shown.
+          Requested directly: "remove the previous examiner sign and
+          master sign section on the lose gear[,] make the whole
+          document layout just as the pdf loaded" — the reference has
+          only one signer block ("Examination Carried Out By /
+          Examiner Details"), no separate Master/Captain row, so that
+          field pair is hidden for standard_report only (Multiple
+          Items and the legacy Visual Certificate still use both —
+          see the print-side StandardReportPage/SignatureGrid in
+          CertificatePreview.tsx for the matching change). */}
       <fieldset className="insp-fieldset">
         <legend className="insp-legend">Signatures</legend>
-        <div className="insp-row2">
-          <div className="insp-field"><label htmlFor="lg-master-name">Master Name (optional)</label><input id="lg-master-name" value={current.captainName} onChange={(e) => updateField("captainName", e.target.value)} /></div>
-          <div className="insp-field">
-            <label htmlFor="lg-technician-name">{current.looseGear?.subType === "standard_report" ? "Examiner Name" : "Inspector Name"}</label>
-            <input id="lg-technician-name" value={current.engineerName} onChange={(e) => updateField("engineerName", e.target.value)} />
+        {current.looseGear?.subType !== "standard_report" && (
+          <div className="insp-row2">
+            <div className="insp-field"><label htmlFor="lg-master-name">Master Name (optional)</label><input id="lg-master-name" value={current.captainName} onChange={(e) => updateField("captainName", e.target.value)} /></div>
+            <div className="insp-field">
+              <label htmlFor="lg-technician-name">Inspector Name</label>
+              <input id="lg-technician-name" value={current.engineerName} onChange={(e) => updateField("engineerName", e.target.value)} />
+            </div>
           </div>
-        </div>
+        )}
+        {current.looseGear?.subType === "standard_report" && (
+          <div className="insp-field"><label htmlFor="lg-technician-name">Examiner Name</label><input id="lg-technician-name" value={current.engineerName} onChange={(e) => updateField("engineerName", e.target.value)} /></div>
+        )}
         <div className="insp-row2">
-          <SignatureCanvas label="Master Signature" value={current.captainSig} onChange={(v) => updateField("captainSig", v)} />
+          {current.looseGear?.subType !== "standard_report" && (
+            <SignatureCanvas label="Master Signature" value={current.captainSig} onChange={(v) => updateField("captainSig", v)} />
+          )}
           <SignatureCanvas
             label={current.looseGear?.subType === "standard_report" ? "Examiner Signature" : "Inspector Signature"}
             value={current.engineerSig}

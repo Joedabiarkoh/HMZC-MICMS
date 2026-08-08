@@ -299,6 +299,29 @@ table.insp-id-table td.insp-label-cell { background: #F4F6F7; font-weight: 700; 
 .lg-compact .insp-remarks-box { margin: 5px 0; padding: 4px 8px; }
 .lg-compact .insp-cert-title-row { margin: 2px 0 5px; }
 
+/* Requested directly: "make the whole document layout just as the pdf
+   loaded do not change the style" (the attached Test & Tag reference,
+   Exam-Report-Sheet-1.pdf) — the app's usual card-style tables
+   (.insp-id-table: light grey borders, shaded label cells, rounded
+   .insp-remarks-box/.insp-pill) don't match that reference's plain
+   black-bordered form-grid look, so this is its own style scoped to
+   .tt-report (only ever rendered by StandardReportPage below) rather
+   than changing the shared rules every other certificate type relies
+   on. */
+.tt-report { font-family: Arial, Helvetica, sans-serif; color: #000; }
+.tt-report .tt-title { text-align: center; font-size: 14.5px; font-weight: 700; margin: 4px 0 2px; }
+.tt-report .tt-subtitle { text-align: center; font-size: 9px; margin: 0 0 8px; }
+.tt-report table.tt-grid { width: 100%; border-collapse: collapse; margin-bottom: 8px; }
+.tt-report table.tt-grid td { border: 1px solid #000; padding: 3px 6px; vertical-align: top; font-size: 9.5px; overflow-wrap: break-word; }
+.tt-report table.tt-grid td .tt-label { display: block; font-weight: 700; font-size: 8px; text-transform: uppercase; margin-bottom: 1px; }
+.tt-report table.tt-grid td .tt-note { font-size: 7.5px; font-style: italic; margin-top: 2px; }
+.tt-report table.tt-grid td.tt-section-header { font-weight: 700; font-size: 9.5px; text-transform: uppercase; }
+.tt-report .tt-result-grid td { text-align: center; font-weight: 700; font-size: 12px; }
+.tt-report .tt-result-grid td:first-child { text-align: left; }
+.tt-report .tt-result-pass { color: var(--insp-green); text-decoration: underline; }
+.tt-report .tt-result-fail { color: var(--insp-red); text-decoration: underline; }
+.tt-report .tt-result-dim { opacity: .3; text-decoration: none; }
+
 table.insp-print-chk { width: 100%; border-collapse: collapse; font-size: 10px; margin-bottom: 10px; }
 /* Requested directly: "make lifeboat certificate 2 page, davit
    certificate 1 page, equipment 1 page[,] same for FRC and free
@@ -321,7 +344,7 @@ table.insp-print-chk tr.insp-section-row td { background: #EEF1F3; font-weight: 
    hardcoded row-per-page count needed; a table's own <thead> already
    repeats its column headers natively on whichever page it continues to. */
 @media print {
-  table.insp-print-chk tr, table.insp-id-table tr {
+  table.insp-print-chk tr, table.insp-id-table tr, .tt-report table.tt-grid tr {
     break-inside: avoid;
     page-break-inside: avoid;
   }

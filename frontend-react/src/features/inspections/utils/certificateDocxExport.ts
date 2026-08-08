@@ -326,6 +326,49 @@ async function signatureBlock(cert: InspectionCertificate, masterLabel: string, 
   });
 }
 
+// Requested directly: "make the examiner sign of section just as in
+// the pdf loaded... remove the previous examiner sign and master sign
+// section on the lose gear" — matches the reference's own
+// "Examination Carried Out By / Examiner Details" grid (Name,
+// Position, Signature, LEEA ID Number) rather than the shared
+// Master+Technician signatureBlock() every other certificate kind
+// uses; there is no Master/Captain row here at all, matching
+// StandardReportPage's print layout in CertificatePreview.tsx.
+async function examinerDetailsTable(cert: InspectionCertificate, position: string, leeaId: string): Promise<Table> {
+  const sigRun = cert.engineerSig ? await imageRunAtHeight(cert.engineerSig, 40) : null;
+  const sigContent: Paragraph[] = sigRun
+    ? [new Paragraph({ children: [sigRun] })]
+    : cert.engineerName
+    ? [new Paragraph({ children: [new TextRun({ text: cert.engineerName, italics: true, color: NAVY, size: 22 })] })]
+    : [textP("—")];
+
+  function fieldCell(label: string, content: string | Paragraph[], opts: { rowSpan?: number; widthPct?: number } = {}): TableCell {
+    const body = Array.isArray(content) ? content : [textP(content || "—", { size: 18 })];
+    return new TableCell({
+      rowSpan: opts.rowSpan,
+      width: opts.widthPct ? { size: opts.widthPct, type: WidthType.PERCENTAGE } : undefined,
+      margins: { top: 60, bottom: 60, left: 100, right: 100 },
+      children: [textP(label.toUpperCase(), { bold: true, size: 14, color: MUTED }), ...body],
+    });
+  }
+
+  return new Table({
+    width: { size: 100, type: WidthType.PERCENTAGE },
+    borders: TABLE_BORDERS,
+    rows: [
+      new TableRow({
+        children: [
+          fieldCell("Examination Carried Out By", "", { rowSpan: 3, widthPct: 28 }),
+          fieldCell("Name", cert.engineerName || "—", { widthPct: 46 }),
+          fieldCell("LEEA ID Number", leeaId || "—", { rowSpan: 3, widthPct: 26 }),
+        ],
+      }),
+      new TableRow({ children: [fieldCell("Position", position || "—")] }),
+      new TableRow({ children: [fieldCell("Signature", sigContent)] }),
+    ],
+  });
+}
+
 function issuedByLine(cert: InspectionCertificate): Paragraph[] {
   if (!cert.issuedBy) return [];
   const when = cert.issuedAt ? ` — ${new Date(cert.issuedAt).toLocaleString()}` : "";
@@ -628,14 +671,8 @@ async function buildLooseGearSection(cert: InspectionCertificate, looseGear: Loo
       }),
       new Paragraph({ text: "" })
     );
-    blocks.push(
-      kvTable([
-        ["Examiner Position", d.examinerPosition || "—"],
-        ["LEEA ID Number", d.leeaIdNumber || "—"],
-      ])
-    );
     blocks.push(new Paragraph({ text: "" }), ...issuedByLine(cert));
-    blocks.push(await signatureBlock(cert, "Master", "Examiner"));
+    blocks.push(await examinerDetailsTable(cert, d.examinerPosition, d.leeaIdNumber));
     return blocks;
   }
 
