@@ -157,13 +157,23 @@ function VesselLookupAndSignatures({ current, updateField, openCertificate }: Pr
           else window.location.href = `/inspections?type=${equipmentType}&open=${encodeURIComponent(certNo)}`;
         }}
       />
-      <PhotoUpload
-        photos={current.photos[PHOTO_KEY] || []}
-        onAdd={addPhotos}
-        onRemove={removePhoto}
-        onCaptionChange={updateCaption}
-        maxPhotos={1}
-      />
+      {/* Requested directly: "remove the photo from the multiple items
+          report" — Multiple Items covers a register of several
+          different items, not one single item being inspected, so
+          "photo of item inspected" never quite fit there the way it
+          does for the other two templates (see LooseGearItemPhoto's
+          own comment in CertificatePreview.tsx). Hidden here too
+          rather than just left out of print/Word — an upload control
+          that silently went nowhere would be confusing. */}
+      {current.looseGear?.subType !== "multiple_items" && (
+        <PhotoUpload
+          photos={current.photos[PHOTO_KEY] || []}
+          onAdd={addPhotos}
+          onRemove={removePhoto}
+          onCaptionChange={updateCaption}
+          maxPhotos={1}
+        />
+      )}
       <fieldset className="insp-fieldset">
         <legend className="insp-legend">Signatures</legend>
         <div className="insp-row2">

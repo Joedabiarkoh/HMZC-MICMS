@@ -645,6 +645,13 @@ function LooseGearCertificatePage({ cert, looseGear }: { cert: InspectionCertifi
 // single biggest lever available without touching the shared
 // .insp-id-table/.insp-remarks-box styling every other certificate
 // type also relies on.
+//
+// Requested directly: "remove the photo from the multiple items
+// report." Only rendered from VisualCertPage/StandardReportPage now —
+// Multiple Items covers a register of several different items, not
+// one single item being inspected, so "photo of item inspected"
+// (singular) never quite made sense there the way it does for the
+// other two templates.
 function LooseGearItemPhoto({ cert }: { cert: InspectionCertificate }) {
   const photo = cert.photos?.looseGear?.[0];
   if (!photo) return null;
@@ -908,7 +915,6 @@ function MultipleItemsPage({ cert, data }: { cert: InspectionCertificate; data: 
           </tr>
         </tbody>
       </table>
-      <LooseGearItemPhoto cert={cert} />
 
       <table className="insp-print-chk">
         <thead>

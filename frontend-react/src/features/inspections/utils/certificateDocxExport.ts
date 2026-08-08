@@ -483,6 +483,10 @@ function statutoryPairs(data: LooseGearStatutoryAnswers): Array<[string, string]
 // one photo." Matches LooseGearItemPhoto in CertificatePreview.tsx —
 // a single inline photo (never more; see PhotoUpload's maxPhotos in
 // LooseGearForm.tsx) rather than a separate Photo Report section.
+// Only called from the visual_certificate/standard_report branches
+// below — requested directly: "remove the photo from the multiple
+// items report" (a register of several different items, not one
+// single item the way the other two templates are).
 async function buildLooseGearItemPhotoBlocks(cert: InspectionCertificate): Promise<Block[]> {
   const photo = cert.photos?.looseGear?.[0];
   if (!photo) return [];
@@ -604,7 +608,6 @@ async function buildLooseGearSection(cert: InspectionCertificate, looseGear: Loo
         ["Reason for Inspection", reasonLabels[d.reasonForInspection] || "—"],
       ])
     );
-    blocks.push(...(await buildLooseGearItemPhotoBlocks(cert)));
     blocks.push(
       dataTable(
         ["Serial No.", "Description", "SWL", "Manufacturer", "Result", "Cert No./Test Date", "Location", "Type of Inspection", "Next Inspection", "Safe to Use"],
