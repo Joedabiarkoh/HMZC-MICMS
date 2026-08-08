@@ -398,6 +398,13 @@ function StandardReportForm({
           <div className="insp-field"><label htmlFor="sr-certno">Report No.</label><input id="sr-certno" value={current.certNo} readOnly /></div>
           <div className="insp-field"><label htmlFor="sr-date-exam">Date of Examination</label><input id="sr-date-exam" type="date" value={data.dateOfExamination} onChange={(e) => onChange({ dateOfExamination: e.target.value })} /></div>
         </div>
+        {/* Requested directly: "look at this [BDA Technical Guide] at
+            the report section and include section where needed" —
+            LOLER Schedule 1 item 11 requires its own "date of the
+            report", distinct from the date the examination itself was
+            carried out above (the BDA's own example RTE shows these
+            as two separate fields). */}
+        <div className="insp-field"><label htmlFor="sr-date-report">Date of Report</label><input id="sr-date-report" type="date" value={data.dateOfReport} onChange={(e) => onChange({ dateOfReport: e.target.value })} /></div>
         <div className="insp-row2">
           <div className="insp-field">
             <label htmlFor="sr-exam-type">Examination Type</label>
@@ -410,6 +417,15 @@ function StandardReportForm({
           </div>
           <div className="insp-field"><label htmlFor="sr-jobno">Job No</label><input id="sr-jobno" value={data.jobNo} onChange={(e) => onChange({ jobNo: e.target.value })} /></div>
         </div>
+        {/* LOLER Schedule 1 item 6(b) — only applies "in relation to
+            the first thorough examination... after installation or
+            after assembly at a new site", i.e. when Examination Type
+            above is "Initial"; shown only then rather than as an
+            always-visible field that's meaningless the rest of the
+            time. */}
+        {data.examinationType === "initial" && (
+          <YesNoField id="sr-installed-correctly" label="Installed Correctly (and safe to operate)?" value={data.installedCorrectly} onChange={(v) => onChange({ installedCorrectly: v })} />
+        )}
         <div className="insp-row2">
           <div className="insp-field"><label htmlFor="sr-prev-exam">Prev. Exam Date</label><input id="sr-prev-exam" type="date" value={data.prevExamDate} onChange={(e) => onChange({ prevExamDate: e.target.value })} /></div>
           <div className="insp-field"><label htmlFor="sr-next-exam">Next Exam Date</label><input id="sr-next-exam" type="date" value={data.nextExamDate} onChange={(e) => onChange({ nextExamDate: e.target.value })} /></div>
@@ -480,6 +496,18 @@ function StandardReportForm({
           <div className="insp-field"><label htmlFor="sr-swl">S.W.L</label><input id="sr-swl" value={data.swl} onChange={(e) => onChange({ swl: e.target.value })} /></div>
           <div className="insp-field"><label htmlFor="sr-ewl">E.W.L</label><input id="sr-ewl" value={data.ewl} onChange={(e) => onChange({ ewl: e.target.value })} /></div>
         </div>
+        {/* Requested directly, from the BDA Technical Guide (Thorough
+            Examinations: Steel wire ropes, lifting accessories and
+            certification): "The BDA further recommends that the
+            Factor of Safety used to calculate WLLs... is added to the
+            certificate" — MBL (Minimum Breaking Load) is the figure
+            SWL/WLL is calculated FROM (WLL = MBL / FoS), and the
+            guide's own example RTE records both alongside SWL for
+            that reason. */}
+        <div className="insp-row2">
+          <div className="insp-field"><label htmlFor="sr-mbl">MBL (Minimum Breaking Load)</label><input id="sr-mbl" value={data.mbl} onChange={(e) => onChange({ mbl: e.target.value })} placeholder="e.g. 7.12t" /></div>
+          <div className="insp-field"><label htmlFor="sr-fos">Factor of Safety</label><input id="sr-fos" value={data.factorOfSafety} onChange={(e) => onChange({ factorOfSafety: e.target.value })} placeholder="e.g. 5:1" /></div>
+        </div>
       </fieldset>
 
       <fieldset className="insp-fieldset">
@@ -499,6 +527,14 @@ function StandardReportForm({
             <textarea id="sr-defects-b" rows={3} value={data.defectsObservation} onChange={(e) => onChange({ defectsObservation: e.target.value })} placeholder="If none, state NONE" />
           </div>
         </div>
+        {/* LOLER Schedule 1 item 8(a)'s own sub-question, flagged
+            explicitly in the BDA guide: a defect that IS an immediate
+            danger to persons has a materially different consequence
+            (must be reported to the enforcing authority) than one
+            merely kept under observation — needs its own explicit
+            Yes/No rather than being inferred from the free text
+            above. */}
+        <YesNoField id="sr-defect-danger" label="Is defect (A) an immediate danger to persons?" value={data.defectImmediateDanger} onChange={(v) => onChange({ defectImmediateDanger: v })} />
         <div className="insp-row2">
           <div className="insp-field">
             <label htmlFor="sr-tests">Particulars of Any Tests Carried Out as Part of the Examination</label>

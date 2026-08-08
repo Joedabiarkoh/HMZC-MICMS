@@ -317,10 +317,24 @@ export interface LooseGearStandardReportData {
   customerDetails: string;
   siteAddress: string;
   dateOfExamination: string;
+  // Requested directly: "look at this [BDA Technical Guide] at the
+  // report section and include section where needed" — LOLER Schedule
+  // 1 item 11 requires its own "date of the report", distinct from the
+  // date the examination itself was carried out (items 4/8f) — the
+  // BDA's own example RTE (Appendix 05) shows these as two separate
+  // date fields.
+  dateOfReport: string;
   examinationType: LooseGearExaminationType;
   jobNo: string;
   prevExamDate: string;
   nextExamDate: string;
+  // LOLER Schedule 1 item 6(b): "(if such be the case) that it has
+  // been installed correctly and would be safe to operate" — only
+  // meaningful when examinationType is "initial" (item 6 only applies
+  // "in relation to the first thorough examination... after
+  // installation or after assembly at a new site"); see
+  // StandardReportForm/StandardReportPage for the conditional display.
+  installedCorrectly: LooseGearYesNo;
 
   idNo: string;
   description: string;
@@ -339,11 +353,27 @@ export interface LooseGearStandardReportData {
   itemLocation: string;
   swl: string;
   ewl: string; // Excess Working Load, as printed on the reference form
+  // Requested directly, from the BDA guide: WLL (Working Load Limit)
+  // is established as MBL/FoS — the guide's own example RTE records
+  // the Minimum Breaking Load alongside SWL for exactly this reason
+  // (it's the figure SWL/WLL was calculated FROM), and repeatedly
+  // recommends recording the Factor of Safety used on the certificate
+  // itself ("The BDA further recommends that the Factor of Safety
+  // used to calculate WLLs... is added to the certificate").
+  mbl: string; // Minimum Breaking Load
+  factorOfSafety: string; // e.g. "5:1" or "3:1" — see BS EN 16228's own FoS guidance
 
   examinationCarriedOut: string; // "Type of Examination/Test Carried Out" — e.g. "Thorough Examination"
   examinationResult: string; // "Examination Result / Equipment Status" — free text, e.g. "Satisfactory"
   safeForUse: LooseGearYesNo;
   defectsImmediate: string; // (A) defects needing attention to prevent immediate failure
+  // LOLER Schedule 1 item 8(a)'s own sub-question — the BDA guide flags
+  // this explicitly: a defect that IS an immediate danger to persons
+  // must be reported to the enforcing authority, a materially
+  // different consequence than one merely "kept under observation"
+  // (defectsObservation below), so this needs its own explicit
+  // Yes/No rather than being inferred from free text.
+  defectImmediateDanger: LooseGearYesNo;
   defectsObservation: string; // (B) defects to keep under observation / parts required
   testsCarriedOut: string;
   additionalComments: string;

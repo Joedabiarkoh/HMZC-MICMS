@@ -867,6 +867,19 @@ function StandardReportPage({ cert, data }: { cert: InspectionCertificate; data:
               <span className="tt-label">Examination Type</span>{EXAMINATION_TYPE_PRINT_LABELS[data.examinationType] || "—"}
               <div className="tt-note">Types: Initial, Standard, Under A Scheme, After Exceptional Circumstances</div>
             </td>
+            {/* Requested directly: "look at this [BDA Technical Guide]
+                at the report section and include section where
+                needed" — LOLER Schedule 1 item 11's own "date of the
+                report", and item 6(b)'s "installed correctly" answer
+                (only meaningful when Examination Type is "Initial" —
+                see the type definition's own comment). Date of Report
+                spans both remaining columns when there's no Installed
+                Correctly cell to sit beside, so the row always fills
+                the table's width. */}
+            <td colSpan={data.examinationType === "initial" ? 1 : 2}><span className="tt-label">Date of Report</span>{fmtDate(data.dateOfReport)}</td>
+            {data.examinationType === "initial" && (
+              <td><span className="tt-label">Installed Correctly?</span>{yesNoCheckboxes(data.installedCorrectly)}</td>
+            )}
           </tr>
           <tr>
             <td><span className="tt-label">Job No</span>{data.jobNo || "—"}</td>
@@ -896,6 +909,14 @@ function StandardReportPage({ cert, data }: { cert: InspectionCertificate; data:
             <td><span className="tt-label">S.W.L</span>{data.swl || "—"}</td>
             <td><span className="tt-label">E.W.L</span>{data.ewl || "—"}</td>
           </tr>
+          {/* Requested directly, from the BDA Technical Guide: MBL is
+              the figure SWL/WLL is calculated FROM (WLL = MBL/FoS),
+              and the guide repeatedly recommends recording the Factor
+              of Safety used on the certificate itself. */}
+          <tr>
+            <td colSpan={2}><span className="tt-label">MBL (Minimum Breaking Load)</span>{data.mbl || "—"}</td>
+            <td colSpan={2}><span className="tt-label">Factor of Safety</span>{data.factorOfSafety || "—"}</td>
+          </tr>
         </tbody>
       </table>
 
@@ -910,6 +931,14 @@ function StandardReportPage({ cert, data }: { cert: InspectionCertificate; data:
           <tr>
             <td colSpan={2}><span className="tt-label">(A) Defects In Need of Attention To Prevent Immediate Failure &amp; Details of Action Required</span>{data.defectsImmediate || "NONE"}</td>
             <td colSpan={1}><span className="tt-label">(B) Defects to be Kept Under Observation, Date When Must Be Rectified By and Parts Required</span>{data.defectsObservation || "NONE"}</td>
+          </tr>
+          {/* LOLER Schedule 1 item 8(a)'s own sub-question, flagged
+              explicitly in the BDA guide: a defect that IS an
+              immediate danger to persons must be reported to the
+              enforcing authority, a materially different consequence
+              than one merely kept under observation above. */}
+          <tr>
+            <td colSpan={3}><span className="tt-label">Is Defect (A) an Immediate Danger to Persons?</span>{yesNoCheckboxes(data.defectImmediateDanger)}</td>
           </tr>
           <tr>
             <td colSpan={2}><span className="tt-label">Particulars of Any Tests Carried Out as Part of the Examination</span>{data.testsCarriedOut || "NONE"}</td>

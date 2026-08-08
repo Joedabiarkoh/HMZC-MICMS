@@ -626,8 +626,10 @@ async function buildLooseGearSection(cert: InspectionCertificate, looseGear: Loo
         ["Site Address", d.siteAddress || "—"],
         ["Report No.", cert.certNo],
         ["Date of Examination", fmtDate(d.dateOfExamination)],
+        ["Date of Report", fmtDate(d.dateOfReport)],
         ["Examination Type", examinationTypeLabels[d.examinationType] || "—"],
         ["Job No", d.jobNo || "—"],
+        ...(d.examinationType === "initial" ? [["Installed Correctly?", yesNoLabel(d.installedCorrectly)] as [string, string]] : []),
         ["Prev. Exam Date", fmtDate(d.prevExamDate)],
         ["Next Exam Date", fmtDate(d.nextExamDate)],
         ["Vessel", cert.vesselName || "—"],
@@ -646,6 +648,8 @@ async function buildLooseGearSection(cert: InspectionCertificate, looseGear: Loo
         ["Location", d.itemLocation || "—"],
         ["S.W.L", d.swl || "—"],
         ["E.W.L", d.ewl || "—"],
+        ["MBL (Minimum Breaking Load)", d.mbl || "—"],
+        ["Factor of Safety", d.factorOfSafety || "—"],
       ])
     );
     blocks.push(
@@ -659,6 +663,8 @@ async function buildLooseGearSection(cert: InspectionCertificate, looseGear: Loo
     blocks.push(
       new Paragraph({ text: "" }),
       remarksBox("(A) Defects Needing Immediate Attention", d.defectsImmediate || "NONE"),
+      new Paragraph({ text: "" }),
+      remarksBox("Is Defect (A) an Immediate Danger to Persons?", yesNoLabel(d.defectImmediateDanger)),
       new Paragraph({ text: "" }),
       remarksBox("(B) Defects Under Observation / Parts Required", d.defectsObservation || "NONE"),
       new Paragraph({ text: "" }),
