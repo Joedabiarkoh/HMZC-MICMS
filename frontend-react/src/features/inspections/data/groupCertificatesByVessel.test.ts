@@ -155,9 +155,9 @@ describe("groupCertificatesByVessel", () => {
 
   it("groups a Loose Gear Standard Report type group further by Job No", () => {
     const jobA = freshLooseGearState("standard_report");
-    jobA.standardReport!.jobNo = "LG-JOB-A";
+    jobA.jobRef = "LG-JOB-A";
     const jobB = freshLooseGearState("standard_report");
-    jobB.standardReport!.jobNo = "LG-JOB-B";
+    jobB.jobRef = "LG-JOB-B";
     const certs = {
       a1: cert({ certNo: "a1", vesselName: "MV Long Server", imoNo: "1", type: "loosegear", looseGear: jobA }),
       a2: cert({ certNo: "a2", vesselName: "MV Long Server", imoNo: "1", type: "loosegear", looseGear: jobA }),
@@ -172,6 +172,20 @@ describe("groupCertificatesByVessel", () => {
     expect(byJob).toHaveLength(2);
     const jobAGroup = byJob.find((j) => j.jobNo === "LG-JOB-A")!;
     expect(jobAGroup.certs.map((c) => c.certNo).sort()).toEqual(["a1", "a2"]);
+  });
+
+  it("groups a Loose Gear Multiple Items type group by Job No too", () => {
+    const job = freshLooseGearState("multiple_items");
+    job.jobRef = "LG-JOB-C";
+    const certs = {
+      m1: cert({ certNo: "m1", vesselName: "MV Long Server", imoNo: "1", type: "loosegear", looseGear: job }),
+    };
+
+    const groups = groupCertificatesByVessel(certs, "");
+    const typeGroup = groups[0].certsByType[0];
+
+    expect(typeGroup.jobGroups).toBeDefined();
+    expect(typeGroup.jobGroups![0].jobNo).toBe("LG-JOB-C");
   });
 
   it("does not attach jobGroups to non-Loose-Gear type groups", () => {

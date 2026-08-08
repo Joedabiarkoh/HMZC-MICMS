@@ -8,6 +8,7 @@ import { groupCertificatesByVessel, reportTypeLabel, VesselGroup } from "../data
 import { hasPermission, PERM } from "../../auth/types/auth.types";
 import { confirmAction } from "../../../components/ConfirmDialog";
 import { exportRowsToCsv } from "../../../utils/exportCsv";
+import { closeLooseGearJob } from "../services/looseGearJobs.api";
 
 /**
  * The previous standalone tool had a "Certificate Log" tab for exactly
@@ -40,6 +41,29 @@ export default function CertificateLog() {
   // vessels' same-named type or job group don't share expanded state.
   const [expandedTypes, setExpandedTypes] = useState<Set<string>>(new Set());
   const [expandedJobs, setExpandedJobs] = useState<Set<string>>(new Set());
+  const [closingJob, setClosingJob] = useState("");
+
+  // Requested directly: "once the job is completed that job number
+  // can be closed and no other certificate can be created using that
+  // job number." Certificates already issued under it stay fully
+  // editable either way (see backend-fastapi's reserve_cert_no/
+  // close_job) — this only ever blocks NEW items being added.
+  async function handleCloseJob(jobNo: string) {
+    const ok = await confirmAction({
+      title: "Close this job?",
+      message: `No new certificates can be created under ${jobNo} once it's closed. Certificates already issued under it stay fully editable.`,
+      confirmLabel: "Close Job",
+    });
+    if (!ok) return;
+    setClosingJob(jobNo);
+    try {
+      await closeLooseGearJob(jobNo);
+    } catch {
+      window.alert(`Couldn't close ${jobNo} — check your connection and try again.`);
+    } finally {
+      setClosingJob("");
+    }
+  }
 
   const groups = useMemo<VesselGroup[]>(
     () => groupCertificatesByVessel(certificates, search),
@@ -255,7 +279,20 @@ export default function CertificateLog() {
                                           style={{ padding: "6px 12px", fontSize: 11, fontWeight: 600, color: "var(--insp-text)", cursor: "pointer", display: "flex", justifyContent: "space-between", alignItems: "center" }}
                                         >
                                           <span>Job: {jobGroup.jobNo} ({jobGroup.certs.length} item{jobGroup.certs.length === 1 ? "" : "s"})</span>
-                                          <span style={{ fontSize: 10, color: "var(--insp-muted)", fontWeight: 600 }}>{jobOpen ? "Hide" : "Show"}</span>
+                                          <span style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                                            {jobGroup.jobNo !== "(no job)" && hasPermission(user, PERM.CERT_EDIT) && (
+                                              <button
+                                                type="button"
+                                                className="insp-btn insp-btn-outline"
+                                                style={{ padding: "2px 8px", fontSize: 10 }}
+                                                onClick={(e) => { e.stopPropagation(); handleCloseJob(jobGroup.jobNo); }}
+                                                disabled={closingJob === jobGroup.jobNo}
+                                              >
+                                                {closingJob === jobGroup.jobNo ? "Closing..." : "Close Job"}
+                                              </button>
+                                            )}
+                                            <span style={{ fontSize: 10, color: "var(--insp-muted)", fontWeight: 600 }}>{jobOpen ? "Hide" : "Show"}</span>
+                                          </span>
                                         </div>
                                         {jobOpen && renderCertTable(jobGroup.certs)}
                                       </div>

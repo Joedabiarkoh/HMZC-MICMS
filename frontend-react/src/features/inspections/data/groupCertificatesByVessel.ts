@@ -34,15 +34,19 @@ export interface TypeGroup {
   certs: InspectionCertificate[];
   // Requested directly: "sometimes the items for lifting gear can be
   // over 300 report for the various lifting items on board the vessel
-  // ... find a creative way of ... grouping these." A vessel's Loose
-  // Gear "Report of Thorough Examination" certs (one full statutory
-  // exam per item, see StandardReportForm's own comment for why these
-  // can't just be merged into one record) are further grouped by Job
-  // No — see suggestLooseGearJobNo (looseGearJobNo.ts) for how that's
-  // auto-filled per vessel visit — so 300 individual item reports
-  // collapse into a handful of "one visit = one job" batches instead
-  // of one flat list. Only ever populated for that one report type;
-  // every other type group leaves this undefined.
+  // ... find a creative way of ... grouping these" — then, later:
+  // "before you create a certificate job number must be created for
+  // you and all the certificate that will be created within that job
+  // number will be grouped under that job number." Every Standard
+  // Report and Multiple Items certificate is now tied to a real
+  // backend Job (see looseGear.jobRef, LooseGearJobPicker.tsx,
+  // backend-fastapi's LooseGearJob model) — grouped here by that
+  // shared job_no so a whole vessel visit's certificates collapse
+  // into one batch instead of a flat list. Legacy certificates that
+  // predate the Job feature (empty jobRef) fall into a "(no job)"
+  // bucket rather than being silently dropped. Only populated for
+  // these two report types; every other type group leaves this
+  // undefined.
   jobGroups?: JobGroup[];
 }
 
@@ -64,7 +68,7 @@ function latestTimestamp(certs: InspectionCertificate[]): string {
 function groupByJobNo(certs: InspectionCertificate[]): JobGroup[] {
   const byJob = new Map<string, InspectionCertificate[]>();
   for (const c of certs) {
-    const jobNo = c.looseGear?.standardReport?.jobNo?.trim() || "(no job no.)";
+    const jobNo = c.looseGear?.jobRef?.trim() || "(no job)";
     const bucket = byJob.get(jobNo);
     if (bucket) bucket.push(c);
     else byJob.set(jobNo, [c]);
@@ -87,7 +91,7 @@ function groupByType(certs: InspectionCertificate[]): TypeGroup[] {
   }
   for (const group of byType.values()) {
     const first = group.certs[0];
-    if (first?.type === "loosegear" && first.looseGear?.subType === "standard_report") {
+    if (first?.type === "loosegear" && (first.looseGear?.subType === "standard_report" || first.looseGear?.subType === "multiple_items")) {
       group.jobGroups = groupByJobNo(group.certs);
     }
   }

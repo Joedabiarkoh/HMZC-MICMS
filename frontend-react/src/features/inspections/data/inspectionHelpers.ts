@@ -330,7 +330,7 @@ export function freshLooseGearMultipleItemsData(): LooseGearMultipleItemsData {
 // needs a completely different data shape, not the old sub-type's
 // leftover fields — same reasoning as freshFFEState above).
 export function freshLooseGearState(subTypeId: LooseGearData["subType"] = "standard_report"): LooseGearData {
-  const base: LooseGearData = { subType: subTypeId };
+  const base: LooseGearData = { subType: subTypeId, jobRef: "" };
   if (subTypeId === "visual_certificate") base.visualCert = freshLooseGearVisualCertData();
   else if (subTypeId === "standard_report") base.standardReport = freshLooseGearStandardReportData();
   else if (subTypeId === "multiple_items") base.multipleItems = freshLooseGearMultipleItemsData();

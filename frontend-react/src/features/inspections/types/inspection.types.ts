@@ -425,6 +425,16 @@ export interface LooseGearData {
   visualCert?: LooseGearVisualCertData;
   standardReport?: LooseGearStandardReportData;
   multipleItems?: LooseGearMultipleItemsData;
+  // Requested directly: "before you create a certificate job number
+  // must be created for you and all the certificate that will be
+  // created within that job number will be grouped under that job
+  // number... job number will be associated to a vessel" — the real,
+  // backend-enforced Job (see backend-fastapi's LooseGearJob model)
+  // this certificate was issued under. Empty for certificates that
+  // predate this feature (opened before a Job was required) — see
+  // LooseGearJobPicker.tsx for where this gets set, once, when a new
+  // standard_report/multiple_items certificate is first created.
+  jobRef: string;
 }
 
 export interface EquipmentTypeConfig {

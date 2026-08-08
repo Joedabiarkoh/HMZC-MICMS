@@ -3,7 +3,7 @@ import {
   freshLooseGearRegisterRow,
   freshLooseGearState,
 } from "../data/inspectionHelpers";
-import { suggestLooseGearJobNo } from "../data/looseGearJobNo";
+import LooseGearJobPicker from "./LooseGearJobPicker";
 import {
   InspectionCertificate,
   LooseGearData,
@@ -40,11 +40,9 @@ interface Props {
   current: InspectionCertificate;
   updateField: <K extends keyof InspectionCertificate>(key: K, value: InspectionCertificate[K]) => void;
   openCertificate: (certNo: string) => void;
-  // Requested directly: auto-generated Job No, reused across every
-  // item examined on the same vessel visit (see suggestLooseGearJobNo,
-  // looseGearJobNo.ts) — needs the already-loaded certificate set to
-  // check for an existing job to join, hence threading it all the way
-  // down from useInspections() in InspectionWorkspace.tsx.
+  // Used to tell a brand-new, never-saved certificate apart from one
+  // reopened for editing (see needsJobPicker below) — threaded down
+  // from useInspections() in InspectionWorkspace.tsx.
   certificates: Record<string, InspectionCertificate>;
 }
 
@@ -90,6 +88,26 @@ export default function LooseGearForm({ current, updateField, openCertificate, c
     updateField("looseGear", { ...looseGear, multipleItems: { ...data, ...patch } });
   }
 
+  // Requested directly: "before you create a certificate job number
+  // must be created for you" — a brand-new (never-saved) Standard
+  // Report or Multiple Items certificate with no Job attached yet
+  // shows the Job Picker instead of the normal form; certificates
+  // already saved (existing in `certificates`, including ones that
+  // predate this feature and so have no jobRef at all) skip it
+  // entirely — this only ever gates the moment a NEW item is created,
+  // never re-blocks an already-issued one.
+  const needsJobPicker =
+    (looseGear.subType === "standard_report" || looseGear.subType === "multiple_items") &&
+    !looseGear.jobRef &&
+    !certificates[current.certNo];
+
+  function handleJobSelected({ jobNo, certNo }: { jobNo: string; certNo: string }) {
+    updateField("certNo", certNo);
+    const nextLooseGear = { ...looseGear, jobRef: jobNo };
+    if (nextLooseGear.standardReport) nextLooseGear.standardReport = { ...nextLooseGear.standardReport, jobNo };
+    updateField("looseGear", nextLooseGear);
+  }
+
   return (
     <>
       <fieldset className="insp-fieldset">
@@ -102,14 +120,26 @@ export default function LooseGearForm({ current, updateField, openCertificate, c
         </div>
       </fieldset>
 
-      {looseGear.subType === "visual_certificate" && looseGear.visualCert && (
-        <VisualCertForm data={looseGear.visualCert} onChange={updateVisualCert} current={current} updateField={updateField} openCertificate={openCertificate} certificates={certificates} />
-      )}
-      {looseGear.subType === "standard_report" && looseGear.standardReport && (
-        <StandardReportForm data={looseGear.standardReport} onChange={updateStandardReport} current={current} updateField={updateField} openCertificate={openCertificate} certificates={certificates} />
-      )}
-      {looseGear.subType === "multiple_items" && looseGear.multipleItems && (
-        <MultipleItemsForm data={looseGear.multipleItems} onChange={updateMultipleItems} current={current} updateField={updateField} openCertificate={openCertificate} certificates={certificates} />
+      {needsJobPicker ? (
+        <LooseGearJobPicker
+          vesselName={current.vesselName}
+          imoNo={current.imoNo}
+          onVesselChange={(v) => updateField("vesselName", v)}
+          onImoChange={(v) => updateField("imoNo", v)}
+          onJobSelected={handleJobSelected}
+        />
+      ) : (
+        <>
+          {looseGear.subType === "visual_certificate" && looseGear.visualCert && (
+            <VisualCertForm data={looseGear.visualCert} onChange={updateVisualCert} current={current} updateField={updateField} openCertificate={openCertificate} certificates={certificates} />
+          )}
+          {looseGear.subType === "standard_report" && looseGear.standardReport && (
+            <StandardReportForm data={looseGear.standardReport} onChange={updateStandardReport} current={current} updateField={updateField} openCertificate={openCertificate} certificates={certificates} />
+          )}
+          {looseGear.subType === "multiple_items" && looseGear.multipleItems && (
+            <MultipleItemsForm data={looseGear.multipleItems} onChange={updateMultipleItems} current={current} updateField={updateField} openCertificate={openCertificate} certificates={certificates} />
+          )}
+        </>
       )}
     </>
   );
@@ -370,22 +400,8 @@ const EXAMINATION_TYPE_LABELS: Record<Exclude<LooseGearExaminationType, "">, str
 // not imbed the photo" — no PhotoUpload rendered for this sub-type
 // either now (see the exclusion in VesselLookupAndSignatures below).
 function StandardReportForm({
-  data, onChange, current, updateField, openCertificate, certificates,
+  data, onChange, current, updateField, openCertificate,
 }: { data: LooseGearStandardReportData; onChange: (patch: Partial<LooseGearStandardReportData>) => void } & Props) {
-  // Requested directly: auto-generate Job No so every item examined on
-  // one vessel visit shares the same job (see suggestLooseGearJobNo) —
-  // triggered off the Vessel field itself, since that's normally the
-  // last piece of information available before a technician starts
-  // filling in item details. Never overwrites a Job No already present
-  // (typed by the technician, or carried over from switching sub-types)
-  // — this only ever fills a currently-empty field.
-  function handleVesselChange(vesselName: string) {
-    updateField("vesselName", vesselName);
-    if (!data.jobNo.trim()) {
-      const suggested = suggestLooseGearJobNo(certificates, vesselName, current.certNo);
-      if (suggested) onChange({ jobNo: suggested });
-    }
-  }
   return (
     <>
       <fieldset className="insp-fieldset">
@@ -415,7 +431,7 @@ function StandardReportForm({
               ))}
             </select>
           </div>
-          <div className="insp-field"><label htmlFor="sr-jobno">Job No</label><input id="sr-jobno" value={data.jobNo} onChange={(e) => onChange({ jobNo: e.target.value })} /></div>
+          <div className="insp-field"><label htmlFor="sr-jobno">Job No</label><input id="sr-jobno" value={data.jobNo} readOnly /></div>
         </div>
         {/* LOLER Schedule 1 item 6(b) — only applies "in relation to
             the first thorough examination... after installation or
@@ -430,7 +446,11 @@ function StandardReportForm({
           <div className="insp-field"><label htmlFor="sr-prev-exam">Prev. Exam Date</label><input id="sr-prev-exam" type="date" value={data.prevExamDate} onChange={(e) => onChange({ prevExamDate: e.target.value })} /></div>
           <div className="insp-field"><label htmlFor="sr-next-exam">Next Exam Date</label><input id="sr-next-exam" type="date" value={data.nextExamDate} onChange={(e) => onChange({ nextExamDate: e.target.value })} /></div>
         </div>
-        <div className="insp-field"><label htmlFor="sr-vessel">Vessel</label><input id="sr-vessel" value={current.vesselName} onChange={(e) => handleVesselChange(e.target.value)} /></div>
+        {/* Read-only — set once, by the Job Picker, when this
+            certificate was first created (see LooseGearForm.tsx's
+            handleJobSelected). Every item under the same Job must
+            share its vessel, so this can't drift from it mid-form. */}
+        <div className="insp-field"><label htmlFor="sr-vessel">Vessel</label><input id="sr-vessel" value={current.vesselName} readOnly /></div>
       </fieldset>
 
       <fieldset className="insp-fieldset">
@@ -614,12 +634,18 @@ function MultipleItemsForm({
     <>
       <fieldset className="insp-fieldset">
         <legend className="insp-legend">Report of Thorough Examination (Multiple Items)</legend>
+        {/* Read-only — set once, by the Job Picker, when this
+            certificate was first created (see LooseGearForm.tsx's
+            handleJobSelected). Distinct from Job/PO No. below, which
+            is the CLIENT's own PO reference, not HMZC's internal job
+            grouping. */}
+        <div className="insp-field"><label htmlFor="mi-hmzc-job">HMZC Job No</label><input id="mi-hmzc-job" value={current.looseGear?.jobRef || "—"} readOnly /></div>
         <div className="insp-row2">
           <div className="insp-field"><label htmlFor="mi-jobpo">Job/PO No.</label><input id="mi-jobpo" value={data.jobPoNo} onChange={(e) => onChange({ jobPoNo: e.target.value })} /></div>
           <div className="insp-field"><label htmlFor="mi-inspectedby">Inspected By</label><input id="mi-inspectedby" value={data.inspectedBy} onChange={(e) => onChange({ inspectedBy: e.target.value })} /></div>
         </div>
         <div className="insp-row2">
-          <div className="insp-field"><label htmlFor="mi-vessel">Vessel Name</label><input id="mi-vessel" value={current.vesselName} onChange={(e) => updateField("vesselName", e.target.value)} /></div>
+          <div className="insp-field"><label htmlFor="mi-vessel">Vessel Name</label><input id="mi-vessel" value={current.vesselName} readOnly /></div>
           <div className="insp-field"><label htmlFor="mi-colour">Colour Code</label><input id="mi-colour" value={data.colourCode} onChange={(e) => onChange({ colourCode: e.target.value })} placeholder="e.g. Blue" /></div>
         </div>
         <div className="insp-row2">
