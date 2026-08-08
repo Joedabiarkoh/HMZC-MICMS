@@ -476,6 +476,25 @@ function statutoryPairs(data: LooseGearStatutoryAnswers): Array<[string, string]
   ];
 }
 
+// Requested directly: "the lose gear report appears to be two pages,
+// make it one, and create a section inside the report where we can
+// put a picture of the item inspected, instead of the photo report
+// section imbed the photo inside the report for the lose gear, just
+// one photo." Matches LooseGearItemPhoto in CertificatePreview.tsx —
+// a single inline photo (never more; see PhotoUpload's maxPhotos in
+// LooseGearForm.tsx) rather than a separate Photo Report section.
+async function buildLooseGearItemPhotoBlocks(cert: InspectionCertificate): Promise<Block[]> {
+  const photo = cert.photos?.looseGear?.[0];
+  if (!photo) return [];
+  const run = await imageRunAtWidth(photo.data, 260);
+  if (!run) return [];
+  return [
+    heading("Photo of Item Inspected"),
+    new Paragraph({ children: [run] }),
+    ...(photo.caption ? [textP(photo.caption, { size: 16, color: MUTED })] : []),
+  ];
+}
+
 async function buildLooseGearSection(cert: InspectionCertificate, looseGear: LooseGearData): Promise<Block[]> {
   if (looseGear.subType === "visual_certificate" && looseGear.visualCert) {
     const d = looseGear.visualCert;
@@ -510,6 +529,7 @@ async function buildLooseGearSection(cert: InspectionCertificate, looseGear: Loo
         ["CE Mark Visible", yesNoLabel(d.ceMarkVisible)],
       ])
     );
+    blocks.push(...(await buildLooseGearItemPhotoBlocks(cert)));
     blocks.push(heading("LOLER 1998 Statutory Declaration"), kvTable(statutoryPairs(d.statutory)));
     blocks.push(
       kvTable([
@@ -542,6 +562,7 @@ async function buildLooseGearSection(cert: InspectionCertificate, looseGear: Loo
         ["Date of Last Examination", fmtDate(d.dateOfLastExamination)],
       ])
     );
+    blocks.push(...(await buildLooseGearItemPhotoBlocks(cert)));
     blocks.push(heading("LOLER 1998 Statutory Declaration"), kvTable(statutoryPairs(d.statutory)));
     blocks.push(
       kvTable([
@@ -579,6 +600,7 @@ async function buildLooseGearSection(cert: InspectionCertificate, looseGear: Loo
         ["Reason for Inspection", reasonLabels[d.reasonForInspection] || "—"],
       ])
     );
+    blocks.push(...(await buildLooseGearItemPhotoBlocks(cert)));
     blocks.push(
       dataTable(
         ["Serial No.", "Description", "SWL", "Manufacturer", "Result", "Cert No./Test Date", "Location", "Type of Inspection", "Next Inspection", "Safe to Use"],

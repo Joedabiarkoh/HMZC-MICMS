@@ -618,6 +618,35 @@ function LooseGearCertificatePage({ cert, looseGear }: { cert: InspectionCertifi
   return null;
 }
 
+// Requested directly: "the lose gear report appears to be two pages,
+// make it one, and create a section inside the report where we can
+// put a picture of the item inspected, instead of the photo report
+// section imbed the photo inside the report for the lose gear, just
+// one photo." The separate PhotoReportPage (a whole extra physical
+// page whenever any photo existed at all) is what pushed this to two
+// pages — removed for Loose Gear specifically (see the three page
+// components below) and replaced with a single photo shown inline, in
+// the flow of the report itself, right after the item's own identity
+// details. "Just one" is enforced where the photo is actually
+// attached — see PhotoUpload's maxPhotos prop, wired to 1 in
+// LooseGearForm.tsx — so there's never more than the first entry here
+// to show.
+function LooseGearItemPhoto({ cert }: { cert: InspectionCertificate }) {
+  const photo = cert.photos?.looseGear?.[0];
+  if (!photo) return null;
+  return (
+    <div style={{ margin: "8px 0" }}>
+      <div style={{ fontWeight: 700, fontSize: 11.5, color: "var(--insp-navy)", marginBottom: 4 }}>Photo of Item Inspected</div>
+      <img
+        src={photo.data}
+        alt="Item inspected"
+        style={{ maxWidth: 220, maxHeight: 150, objectFit: "contain", border: "1px solid #C9D1D8", borderRadius: 4, display: "block" }}
+      />
+      {photo.caption && <div style={{ fontSize: 9.5, color: "var(--insp-muted)", marginTop: 3 }}>{photo.caption}</div>}
+    </div>
+  );
+}
+
 function StatutoryAnswersRows({ data }: { data: LooseGearStatutoryAnswers }) {
   return (
     <>
@@ -663,7 +692,6 @@ function StatutoryAnswersRows({ data }: { data: LooseGearStatutoryAnswers }) {
 
 function VisualCertPage({ cert, data }: { cert: InspectionCertificate; data: LooseGearVisualCertData }) {
   return (
-    <>
     <CertPageFrame cert={cert}>
       <div className="insp-cert-title-row">
         <h2>Visual Certificate of Thorough Examination</h2>
@@ -722,6 +750,7 @@ function VisualCertPage({ cert, data }: { cert: InspectionCertificate; data: Loo
           </tr>
         </tbody>
       </table>
+      <LooseGearItemPhoto cert={cert} />
 
       <div style={{ fontWeight: 700, fontSize: 11.5, color: "var(--insp-navy)", margin: "10px 0 4px" }}>LOLER 1998 Statutory Declaration</div>
       <StatutoryAnswersRows data={data.statutory} />
@@ -747,14 +776,11 @@ function VisualCertPage({ cert, data }: { cert: InspectionCertificate; data: Loo
       )}
       <SignatureGrid cert={cert} masterLabel="Master" techLabel="Inspector" />
     </CertPageFrame>
-    <PhotoReportPage cert={cert} />
-    </>
   );
 }
 
 function StandardReportPage({ cert, data }: { cert: InspectionCertificate; data: LooseGearStandardReportData }) {
   return (
-    <>
     <CertPageFrame cert={cert}>
       <div className="insp-cert-title-row">
         <h2>Report of Thorough Examination</h2>
@@ -794,6 +820,7 @@ function StandardReportPage({ cert, data }: { cert: InspectionCertificate; data:
           </tr>
         </tbody>
       </table>
+      <LooseGearItemPhoto cert={cert} />
 
       <div style={{ fontWeight: 700, fontSize: 11.5, color: "var(--insp-navy)", margin: "10px 0 4px" }}>LOLER 1998 Statutory Declaration</div>
       <StatutoryAnswersRows data={data.statutory} />
@@ -819,8 +846,6 @@ function StandardReportPage({ cert, data }: { cert: InspectionCertificate; data:
       )}
       <SignatureGrid cert={cert} masterLabel="Master" techLabel="Inspector" />
     </CertPageFrame>
-    <PhotoReportPage cert={cert} />
-    </>
   );
 }
 
@@ -835,7 +860,6 @@ const REASON_PRINT_LABELS: Record<string, string> = {
 
 function MultipleItemsPage({ cert, data }: { cert: InspectionCertificate; data: LooseGearMultipleItemsData }) {
   return (
-    <>
     <CertPageFrame cert={cert}>
       <div className="insp-cert-title-row">
         <h2>Report of Thorough Examination (Multiple Items)</h2>
@@ -863,6 +887,7 @@ function MultipleItemsPage({ cert, data }: { cert: InspectionCertificate; data: 
           </tr>
         </tbody>
       </table>
+      <LooseGearItemPhoto cert={cert} />
 
       <table className="insp-print-chk">
         <thead>
@@ -901,8 +926,6 @@ function MultipleItemsPage({ cert, data }: { cert: InspectionCertificate; data: 
       )}
       <SignatureGrid cert={cert} masterLabel="Master" techLabel="Inspector" />
     </CertPageFrame>
-    <PhotoReportPage cert={cert} />
-    </>
   );
 }
 

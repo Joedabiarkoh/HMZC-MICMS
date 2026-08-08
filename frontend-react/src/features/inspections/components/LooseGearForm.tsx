@@ -20,11 +20,18 @@ import PhotoUpload from "./PhotoUpload";
 import { PhotoEvidence } from "../types/inspection.types";
 
 // Requested directly: "for the lifting gear crane report can be like
-// the lifeboat, but do not put limit on the photo required" — photo
-// evidence for Loose Gear, same as the boat types' own per-section
-// key (see PhotoReportPage in CertificatePreview.tsx, which reads
-// every key generically), just with no minRequired passed to
-// PhotoUpload below (unlike boat, which sets one per section).
+// the lifeboat, but do not put limit on the photo required" — no
+// minimum (no minRequired passed to PhotoUpload below, unlike boat's
+// per-section minimums).
+//
+// Requested directly, next round: "the lose gear report appears to be
+// two pages, make it one... just one photo." A dedicated Photo Report
+// page (see CertificatePreview.tsx's own history) added a whole extra
+// physical page whenever any photo existed — replaced with a single
+// photo shown inline in the certificate's own content instead (see
+// LooseGearItemPhoto in CertificatePreview.tsx), so a MAXIMUM of 1 is
+// what's actually enforced now (maxPhotos below) — the "no limit" from
+// the first request was about the minimum, not an unbounded count.
 const PHOTO_KEY = "looseGear";
 
 interface Props {
@@ -155,6 +162,7 @@ function VesselLookupAndSignatures({ current, updateField, openCertificate }: Pr
         onAdd={addPhotos}
         onRemove={removePhoto}
         onCaptionChange={updateCaption}
+        maxPhotos={1}
       />
       <fieldset className="insp-fieldset">
         <legend className="insp-legend">Signatures</legend>

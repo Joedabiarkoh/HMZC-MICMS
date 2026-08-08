@@ -8,6 +8,10 @@ interface Props {
   onRemove: (index: number) => void;
   onCaptionChange: (index: number, caption: string) => void;
   minRequired?: number;
+  // Requested directly, for Loose Gear specifically: "just one photo."
+  // Unset (the default) everywhere else — boat/crane sections and the
+  // FFE/Calibration Photo Report still take as many as needed.
+  maxPhotos?: number;
 }
 
 /**
@@ -36,13 +40,16 @@ interface Props {
  * missingPhotoRequirements() in InspectionWorkspace.tsx, which blocks
  * Finalize until every section's minimum is met.
  */
-export default function PhotoUpload({ photos, onAdd, onRemove, onCaptionChange, minRequired = 0 }: Props) {
+export default function PhotoUpload({ photos, onAdd, onRemove, onCaptionChange, minRequired = 0, maxPhotos }: Props) {
   const [compressing, setCompressing] = useState(false);
+  const atMax = maxPhotos !== undefined && photos.length >= maxPhotos;
 
   function handleFiles(files: FileList | null) {
     if (!files || files.length === 0) return;
+    const remaining = maxPhotos !== undefined ? Math.max(0, maxPhotos - photos.length) : files.length;
+    if (remaining === 0) return;
     setCompressing(true);
-    compressImages(files)
+    compressImages(Array.from(files).slice(0, remaining))
       .then((dataUris) => onAdd(dataUris.filter(Boolean).map((data) => ({ data, caption: "" }))))
       .finally(() => setCompressing(false));
   }
@@ -80,9 +87,15 @@ export default function PhotoUpload({ photos, onAdd, onRemove, onCaptionChange, 
           </div>
         ))}
       </div>
-      <input type="file" accept="image/*" multiple onChange={(e) => handleFiles(e.target.files)} disabled={compressing} />
-      {compressing && <p className="insp-help-note" style={{ color: "var(--insp-amber)" }}>Compressing photo(s)...</p>}
-      <p className="insp-help-note">Attach photos of the equipment, nameplate, and any defects found — take a new photo or choose one already on your device, then describe what it shows.</p>
+      {atMax ? (
+        <p className="insp-help-note">Maximum {maxPhotos} photo{maxPhotos === 1 ? "" : "s"} reached — remove {maxPhotos === 1 ? "it" : "one"} to add another.</p>
+      ) : (
+        <>
+          <input type="file" accept="image/*" multiple={maxPhotos === undefined || maxPhotos > 1} onChange={(e) => handleFiles(e.target.files)} disabled={compressing} />
+          {compressing && <p className="insp-help-note" style={{ color: "var(--insp-amber)" }}>Compressing photo(s)...</p>}
+          <p className="insp-help-note">Attach photos of the equipment, nameplate, and any defects found — take a new photo or choose one already on your device, then describe what it shows.</p>
+        </>
+      )}
     </fieldset>
   );
 }
