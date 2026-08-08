@@ -3,9 +3,8 @@ import { useNavigate } from "react-router-dom";
 import "../inspections.css";
 import { useInspections } from "../hooks/useInspections";
 import { useAuth } from "../../../context/AuthContext";
-import { INSPECTION_TYPES } from "../data/inspectionChecklists";
 import { EquipmentTypeKey } from "../types/inspection.types";
-import { groupCertificatesByVessel, VesselGroup } from "../data/groupCertificatesByVessel";
+import { groupCertificatesByVessel, reportTypeLabel, VesselGroup } from "../data/groupCertificatesByVessel";
 import { hasPermission, PERM } from "../../auth/types/auth.types";
 import { confirmAction } from "../../../components/ConfirmDialog";
 import { exportRowsToCsv } from "../../../utils/exportCsv";
@@ -33,6 +32,14 @@ export default function CertificateLog() {
   const navigate = useNavigate();
   const [search, setSearch] = useState("");
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  // Requested directly: "I want it to be grouped based on the report
+  // type" — a vessel's type groups (see certsByType, jobGroups a level
+  // further down for Loose Gear Standard Report) both collapse/expand
+  // independently of the other, keyed by "<vesselKey>::<typeLabel>" and
+  // "<vesselKey>::<typeLabel>::<jobNo>" respectively so two different
+  // vessels' same-named type or job group don't share expanded state.
+  const [expandedTypes, setExpandedTypes] = useState<Set<string>>(new Set());
+  const [expandedJobs, setExpandedJobs] = useState<Set<string>>(new Set());
 
   const groups = useMemo<VesselGroup[]>(
     () => groupCertificatesByVessel(certificates, search),
@@ -48,6 +55,73 @@ export default function CertificateLog() {
     });
   }
 
+  function toggleType(key: string) {
+    setExpandedTypes((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  }
+
+  function toggleJob(key: string) {
+    setExpandedJobs((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  }
+
+  // Extracted so both a type group with no jobGroups and each individual
+  // job sub-group (see certsByType/jobGroups, groupCertificatesByVessel.ts)
+  // can render the same certificate table without duplicating it.
+  function renderCertTable(certs: VesselGroup["certs"]) {
+    return (
+      <table style={{ width: "100%", borderCollapse: "collapse" }}>
+        <thead>
+          <tr style={{ fontSize: 11, color: "var(--insp-muted)" }}>
+            <th style={{ padding: "6px 12px", textAlign: "left" }}>Cert No.</th>
+            <th style={{ padding: "6px 12px", textAlign: "left" }}>Status</th>
+            <th style={{ padding: "6px 12px", textAlign: "left" }}>Issued By</th>
+            <th style={{ padding: "6px 12px", textAlign: "left" }}>Issued At</th>
+            <th style={{ padding: "6px 12px", textAlign: "left" }}>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {certs.map((c) => (
+            <tr key={c.certNo} style={{ borderTop: "1px solid #E4E8EB" }}>
+              <td style={{ padding: "6px 12px" }}>{c.certNo}</td>
+              <td style={{ padding: "6px 12px" }}>{(c.status || "draft").toUpperCase()}</td>
+              <td style={{ padding: "6px 12px" }}>{c.issuedBy || c.savedBy || "—"}{!c.issuedBy && c.savedBy ? " (not yet synced)" : ""}</td>
+              <td style={{ padding: "6px 12px" }}>{c.issuedAt ? new Date(c.issuedAt).toLocaleString() : c.savedAt ? new Date(c.savedAt).toLocaleString() : "—"}</td>
+              <td style={{ padding: "6px 12px" }}>
+                <button className="insp-btn insp-btn-outline" style={{ marginRight: 6 }} onClick={() => handleOpen(c.certNo, c.type)}>Open</button>
+                {hasPermission(user, PERM.CERT_DELETE) && (
+                  <button
+                    className="insp-btn"
+                    style={{ background: "#B3382C", color: "#fff" }}
+                    onClick={async () => {
+                      const ok = await confirmAction({
+                        title: "Delete certificate?",
+                        message: `Certificate ${c.certNo} will be permanently deleted. This cannot be undone.`,
+                        confirmLabel: "Delete",
+                        danger: true,
+                      });
+                      if (ok) deleteCertificate(c.certNo);
+                    }}
+                  >
+                    Delete
+                  </button>
+                )}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    );
+  }
+
   function handleOpen(certNo: string, type: EquipmentTypeKey) {
     navigate(`/inspections?type=${type}&open=${encodeURIComponent(certNo)}`);
   }
@@ -56,7 +130,8 @@ export default function CertificateLog() {
     const rows = groups.flatMap((group) => group.certs);
     exportRowsToCsv(`certificate-log-${new Date().toISOString().slice(0, 10)}`, rows, [
       { header: "Certificate No", value: (c) => c.certNo },
-      { header: "Type", value: (c) => INSPECTION_TYPES[c.type]?.typeName || c.type },
+      { header: "Type", value: (c) => reportTypeLabel(c) },
+      { header: "Job No", value: (c) => c.looseGear?.standardReport?.jobNo || "" },
       { header: "Vessel", value: (c) => c.vesselName },
       { header: "IMO No", value: (c) => c.imoNo },
       { header: "Status", value: (c) => c.status },
@@ -140,62 +215,59 @@ export default function CertificateLog() {
                   {isOpen && (
                     <tr>
                       <td colSpan={6} style={{ padding: 0, background: "#F8F9FA" }}>
-                        {/* Sub-grouped by the year the servicing happened, newest
-                            first — a vessel with several years of history under
-                            it stops being one long flat list to scroll through
-                            (requested directly, since that's exactly what
-                            happens as a long-serviced vessel accumulates more
-                            certificates over time). */}
-                        {group.certsByYear.map((yearGroup) => (
-                          <div key={yearGroup.year}>
-                            <div style={{ padding: "8px 12px 4px", fontSize: 11, fontWeight: 700, color: "var(--insp-navy)", textTransform: "uppercase", letterSpacing: ".04em" }}>
-                              {yearGroup.year === "Unknown" ? "No Service Date Recorded" : yearGroup.year} ({yearGroup.certs.length})
-                            </div>
-                            <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                              <thead>
-                                <tr style={{ fontSize: 11, color: "var(--insp-muted)" }}>
-                                  <th style={{ padding: "6px 12px", textAlign: "left" }}>Cert No.</th>
-                                  <th style={{ padding: "6px 12px", textAlign: "left" }}>Type</th>
-                                  <th style={{ padding: "6px 12px", textAlign: "left" }}>Status</th>
-                                  <th style={{ padding: "6px 12px", textAlign: "left" }}>Issued By</th>
-                                  <th style={{ padding: "6px 12px", textAlign: "left" }}>Issued At</th>
-                                  <th style={{ padding: "6px 12px", textAlign: "left" }}>Actions</th>
-                                </tr>
-                              </thead>
-                              <tbody>
-                                {yearGroup.certs.map((c) => (
-                                  <tr key={c.certNo} style={{ borderTop: "1px solid #E4E8EB" }}>
-                                    <td style={{ padding: "6px 12px" }}>{c.certNo}</td>
-                                    <td style={{ padding: "6px 12px" }}><span className="insp-badge" style={{ background: "#455A73" }}>{INSPECTION_TYPES[c.type]?.typeName || c.type}</span></td>
-                                    <td style={{ padding: "6px 12px" }}>{(c.status || "draft").toUpperCase()}</td>
-                                    <td style={{ padding: "6px 12px" }}>{c.issuedBy || c.savedBy || "—"}{!c.issuedBy && c.savedBy ? " (not yet synced)" : ""}</td>
-                                    <td style={{ padding: "6px 12px" }}>{c.issuedAt ? new Date(c.issuedAt).toLocaleString() : c.savedAt ? new Date(c.savedAt).toLocaleString() : "—"}</td>
-                                    <td style={{ padding: "6px 12px" }}>
-                                      <button className="insp-btn insp-btn-outline" style={{ marginRight: 6 }} onClick={() => handleOpen(c.certNo, c.type)}>Open</button>
-                                      {hasPermission(user, PERM.CERT_DELETE) && (
-                                        <button
-                                          className="insp-btn"
-                                          style={{ background: "#B3382C", color: "#fff" }}
-                                          onClick={async () => {
-                                            const ok = await confirmAction({
-                                              title: "Delete certificate?",
-                                              message: `Certificate ${c.certNo} will be permanently deleted. This cannot be undone.`,
-                                              confirmLabel: "Delete",
-                                              danger: true,
-                                            });
-                                            if (ok) deleteCertificate(c.certNo);
-                                          }}
+                        {/* Requested directly: "I want it to be grouped based
+                            on the report type" — a vessel's certificates are
+                            grouped by report type (see reportTypeLabel,
+                            groupCertificatesByVessel.ts) rather than by year,
+                            since a technician looking for "the crane reports"
+                            or "the loose gear thorough examinations" thinks in
+                            terms of what kind of report it is, not when it was
+                            filed. */}
+                        {group.certsByType.map((typeGroup) => {
+                          const typeKey = `${group.key}::${typeGroup.key}`;
+                          const typeOpen = expandedTypes.has(typeKey);
+                          return (
+                            <div key={typeGroup.key}>
+                              <div
+                                onClick={() => toggleType(typeKey)}
+                                style={{ padding: "8px 12px", fontSize: 11.5, fontWeight: 700, color: "var(--insp-navy)", cursor: "pointer", display: "flex", justifyContent: "space-between", alignItems: "center", borderTop: "1px solid #E4E8EB" }}
+                              >
+                                <span>{typeGroup.label} ({typeGroup.certs.length})</span>
+                                <span style={{ fontSize: 10, color: "var(--insp-muted)", fontWeight: 600 }}>{typeOpen ? "Hide" : "Show"}</span>
+                              </div>
+                              {typeOpen && (
+                                typeGroup.jobGroups ? (
+                                  // Requested directly: "sometimes the items for
+                                  // lifting gear can be over 300 report for the
+                                  // various lifting items on board the vessel for
+                                  // just one vessel ... find a creative way of
+                                  // making [grouping] possible" — a further,
+                                  // independently-collapsible level by Job No, so
+                                  // one vessel visit's worth of item reports reads
+                                  // as one batch instead of 300 flat rows.
+                                  typeGroup.jobGroups.map((jobGroup) => {
+                                    const jobKey = `${typeKey}::${jobGroup.jobNo}`;
+                                    const jobOpen = expandedJobs.has(jobKey);
+                                    return (
+                                      <div key={jobGroup.jobNo} style={{ marginLeft: 16 }}>
+                                        <div
+                                          onClick={() => toggleJob(jobKey)}
+                                          style={{ padding: "6px 12px", fontSize: 11, fontWeight: 600, color: "var(--insp-text)", cursor: "pointer", display: "flex", justifyContent: "space-between", alignItems: "center" }}
                                         >
-                                          Delete
-                                        </button>
-                                      )}
-                                    </td>
-                                  </tr>
-                                ))}
-                              </tbody>
-                            </table>
-                          </div>
-                        ))}
+                                          <span>Job: {jobGroup.jobNo} ({jobGroup.certs.length} item{jobGroup.certs.length === 1 ? "" : "s"})</span>
+                                          <span style={{ fontSize: 10, color: "var(--insp-muted)", fontWeight: 600 }}>{jobOpen ? "Hide" : "Show"}</span>
+                                        </div>
+                                        {jobOpen && renderCertTable(jobGroup.certs)}
+                                      </div>
+                                    );
+                                  })
+                                ) : (
+                                  renderCertTable(typeGroup.certs)
+                                )
+                              )}
+                            </div>
+                          );
+                        })}
                       </td>
                     </tr>
                   )}

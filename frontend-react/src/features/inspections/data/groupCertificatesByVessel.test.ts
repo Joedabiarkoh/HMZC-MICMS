@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { groupCertificatesByVessel } from "./groupCertificatesByVessel";
-import { InspectionCertificate } from "../types/inspection.types";
+import { groupCertificatesByVessel, reportTypeLabel } from "./groupCertificatesByVessel";
+import { InspectionCertificate, LooseGearData } from "../types/inspection.types";
+import { freshLooseGearState } from "./inspectionHelpers";
 
 function cert(overrides: Partial<InspectionCertificate> & { certNo: string }): InspectionCertificate {
   return {
@@ -118,34 +119,81 @@ describe("groupCertificatesByVessel", () => {
     expect(groupCertificatesByVessel({}, "")).toEqual([]);
   });
 
-  it("sub-groups a vessel's certificates by the year of date_of_servicing, newest year first", () => {
+  it("sub-groups a vessel's certificates by report type", () => {
     const certs = {
-      y2024: cert({ certNo: "y2024", vesselName: "MV Long Server", imoNo: "1", dateOfServicing: "2024-03-01" }),
-      y2026a: cert({ certNo: "y2026a", vesselName: "MV Long Server", imoNo: "1", dateOfServicing: "2026-01-01" }),
-      y2026b: cert({ certNo: "y2026b", vesselName: "MV Long Server", imoNo: "1", dateOfServicing: "2026-06-01" }),
-      y2025: cert({ certNo: "y2025", vesselName: "MV Long Server", imoNo: "1", dateOfServicing: "2025-05-01" }),
+      lb1: cert({ certNo: "lb1", vesselName: "MV Long Server", imoNo: "1", type: "lifeboat" }),
+      ff1: cert({ certNo: "ff1", vesselName: "MV Long Server", imoNo: "1", type: "firefighting" }),
+      lb2: cert({ certNo: "lb2", vesselName: "MV Long Server", imoNo: "1", type: "lifeboat" }),
     };
 
     const groups = groupCertificatesByVessel(certs, "");
 
     expect(groups).toHaveLength(1);
-    const byYear = groups[0].certsByYear;
-    expect(byYear.map((g) => g.year)).toEqual(["2026", "2025", "2024"]);
-    expect(byYear[0].certs.map((c) => c.certNo).sort()).toEqual(["y2026a", "y2026b"]);
-    expect(byYear[1].certs).toHaveLength(1);
-    expect(byYear[2].certs).toHaveLength(1);
+    const byType = groups[0].certsByType;
+    expect(byType).toHaveLength(2);
+    const lifeboatGroup = byType.find((g) => g.certs[0].type === "lifeboat")!;
+    expect(lifeboatGroup.certs.map((c) => c.certNo).sort()).toEqual(["lb1", "lb2"]);
   });
 
-  it("falls into an 'Unknown' year group, sorted last, when date_of_servicing is missing", () => {
+  it("splits Loose Gear's report sub-types into their own groups", () => {
+    const standard = freshLooseGearState("standard_report");
+    const multiple = freshLooseGearState("multiple_items");
     const certs = {
-      dated: cert({ certNo: "dated", vesselName: "MV Test", imoNo: "1", dateOfServicing: "2026-01-01" }),
-      undated: cert({ certNo: "undated", vesselName: "MV Test", imoNo: "1", dateOfServicing: "" }),
+      s1: cert({ certNo: "s1", vesselName: "MV Long Server", imoNo: "1", type: "loosegear", looseGear: standard }),
+      m1: cert({ certNo: "m1", vesselName: "MV Long Server", imoNo: "1", type: "loosegear", looseGear: multiple }),
+    };
+
+    const groups = groupCertificatesByVessel(certs, "");
+    const byType = groups[0].certsByType;
+
+    expect(byType).toHaveLength(2);
+    expect(byType.map((g) => g.label).sort()).toEqual([
+      "Loose Gear & Lifting Equipment — Report of Thorough Examination",
+      "Loose Gear & Lifting Equipment — Report of Thorough Examination (Multiple Items)",
+    ]);
+  });
+
+  it("groups a Loose Gear Standard Report type group further by Job No", () => {
+    const jobA = freshLooseGearState("standard_report");
+    jobA.standardReport!.jobNo = "LG-JOB-A";
+    const jobB = freshLooseGearState("standard_report");
+    jobB.standardReport!.jobNo = "LG-JOB-B";
+    const certs = {
+      a1: cert({ certNo: "a1", vesselName: "MV Long Server", imoNo: "1", type: "loosegear", looseGear: jobA }),
+      a2: cert({ certNo: "a2", vesselName: "MV Long Server", imoNo: "1", type: "loosegear", looseGear: jobA }),
+      b1: cert({ certNo: "b1", vesselName: "MV Long Server", imoNo: "1", type: "loosegear", looseGear: jobB }),
+    };
+
+    const groups = groupCertificatesByVessel(certs, "");
+    const typeGroup = groups[0].certsByType[0];
+
+    expect(typeGroup.jobGroups).toBeDefined();
+    const byJob = typeGroup.jobGroups!;
+    expect(byJob).toHaveLength(2);
+    const jobAGroup = byJob.find((j) => j.jobNo === "LG-JOB-A")!;
+    expect(jobAGroup.certs.map((c) => c.certNo).sort()).toEqual(["a1", "a2"]);
+  });
+
+  it("does not attach jobGroups to non-Loose-Gear type groups", () => {
+    const certs = {
+      lb1: cert({ certNo: "lb1", vesselName: "MV Test", imoNo: "1", type: "lifeboat" }),
     };
 
     const groups = groupCertificatesByVessel(certs, "");
 
-    const byYear = groups[0].certsByYear;
-    expect(byYear.map((g) => g.year)).toEqual(["2026", "Unknown"]);
-    expect(byYear[1].certs[0].certNo).toBe("undated");
+    expect(groups[0].certsByType[0].jobGroups).toBeUndefined();
+  });
+});
+
+describe("reportTypeLabel", () => {
+  it("returns the plain type name for non-Loose-Gear certificates", () => {
+    const c = cert({ certNo: "c1", type: "firefighting" });
+    expect(reportTypeLabel(c)).toBe("Firefighting Equipment");
+  });
+
+  it("appends the sub-type label for Loose Gear certificates", () => {
+    const lg: LooseGearData = freshLooseGearState("standard_report");
+    const c = cert({ certNo: "c1", type: "loosegear", looseGear: lg });
+    expect(reportTypeLabel(c)).toBe("Loose Gear & Lifting Equipment — Report of Thorough Examination");
   });
 });

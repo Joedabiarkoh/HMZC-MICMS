@@ -3,6 +3,7 @@ import {
   freshLooseGearRegisterRow,
   freshLooseGearState,
 } from "../data/inspectionHelpers";
+import { suggestLooseGearJobNo } from "../data/looseGearJobNo";
 import {
   InspectionCertificate,
   LooseGearData,
@@ -39,6 +40,12 @@ interface Props {
   current: InspectionCertificate;
   updateField: <K extends keyof InspectionCertificate>(key: K, value: InspectionCertificate[K]) => void;
   openCertificate: (certNo: string) => void;
+  // Requested directly: auto-generated Job No, reused across every
+  // item examined on the same vessel visit (see suggestLooseGearJobNo,
+  // looseGearJobNo.ts) — needs the already-loaded certificate set to
+  // check for an existing job to join, hence threading it all the way
+  // down from useInspections() in InspectionWorkspace.tsx.
+  certificates: Record<string, InspectionCertificate>;
 }
 
 /**
@@ -58,7 +65,7 @@ interface Props {
  * in place — not deleted — purely so a certificate already saved with
  * it still opens and edits correctly.
  */
-export default function LooseGearForm({ current, updateField, openCertificate }: Props) {
+export default function LooseGearForm({ current, updateField, openCertificate, certificates }: Props) {
   const looseGear = current.looseGear || freshLooseGearState();
 
   function changeSubType(id: LooseGearData["subType"]) {
@@ -96,13 +103,13 @@ export default function LooseGearForm({ current, updateField, openCertificate }:
       </fieldset>
 
       {looseGear.subType === "visual_certificate" && looseGear.visualCert && (
-        <VisualCertForm data={looseGear.visualCert} onChange={updateVisualCert} current={current} updateField={updateField} openCertificate={openCertificate} />
+        <VisualCertForm data={looseGear.visualCert} onChange={updateVisualCert} current={current} updateField={updateField} openCertificate={openCertificate} certificates={certificates} />
       )}
       {looseGear.subType === "standard_report" && looseGear.standardReport && (
-        <StandardReportForm data={looseGear.standardReport} onChange={updateStandardReport} current={current} updateField={updateField} openCertificate={openCertificate} />
+        <StandardReportForm data={looseGear.standardReport} onChange={updateStandardReport} current={current} updateField={updateField} openCertificate={openCertificate} certificates={certificates} />
       )}
       {looseGear.subType === "multiple_items" && looseGear.multipleItems && (
-        <MultipleItemsForm data={looseGear.multipleItems} onChange={updateMultipleItems} current={current} updateField={updateField} openCertificate={openCertificate} />
+        <MultipleItemsForm data={looseGear.multipleItems} onChange={updateMultipleItems} current={current} updateField={updateField} openCertificate={openCertificate} certificates={certificates} />
       )}
     </>
   );
@@ -141,7 +148,7 @@ function YesNoField({ id, label, value, onChange }: { id: string; label: string;
   );
 }
 
-function VesselLookupAndSignatures({ current, updateField, openCertificate }: Props) {
+function VesselLookupAndSignatures({ current, updateField, openCertificate }: Pick<Props, "current" | "updateField" | "openCertificate">) {
   function addPhotos(newPhotos: PhotoEvidence[]) {
     updateField("photos", { ...current.photos, [PHOTO_KEY]: [...(current.photos[PHOTO_KEY] || []), ...newPhotos] });
   }
@@ -363,8 +370,22 @@ const EXAMINATION_TYPE_LABELS: Record<Exclude<LooseGearExaminationType, "">, str
 // not imbed the photo" — no PhotoUpload rendered for this sub-type
 // either now (see the exclusion in VesselLookupAndSignatures below).
 function StandardReportForm({
-  data, onChange, current, updateField, openCertificate,
+  data, onChange, current, updateField, openCertificate, certificates,
 }: { data: LooseGearStandardReportData; onChange: (patch: Partial<LooseGearStandardReportData>) => void } & Props) {
+  // Requested directly: auto-generate Job No so every item examined on
+  // one vessel visit shares the same job (see suggestLooseGearJobNo) —
+  // triggered off the Vessel field itself, since that's normally the
+  // last piece of information available before a technician starts
+  // filling in item details. Never overwrites a Job No already present
+  // (typed by the technician, or carried over from switching sub-types)
+  // — this only ever fills a currently-empty field.
+  function handleVesselChange(vesselName: string) {
+    updateField("vesselName", vesselName);
+    if (!data.jobNo.trim()) {
+      const suggested = suggestLooseGearJobNo(certificates, vesselName, current.certNo);
+      if (suggested) onChange({ jobNo: suggested });
+    }
+  }
   return (
     <>
       <fieldset className="insp-fieldset">
@@ -393,7 +414,7 @@ function StandardReportForm({
           <div className="insp-field"><label htmlFor="sr-prev-exam">Prev. Exam Date</label><input id="sr-prev-exam" type="date" value={data.prevExamDate} onChange={(e) => onChange({ prevExamDate: e.target.value })} /></div>
           <div className="insp-field"><label htmlFor="sr-next-exam">Next Exam Date</label><input id="sr-next-exam" type="date" value={data.nextExamDate} onChange={(e) => onChange({ nextExamDate: e.target.value })} /></div>
         </div>
-        <div className="insp-field"><label htmlFor="sr-vessel">Vessel</label><input id="sr-vessel" value={current.vesselName} onChange={(e) => updateField("vesselName", e.target.value)} /></div>
+        <div className="insp-field"><label htmlFor="sr-vessel">Vessel</label><input id="sr-vessel" value={current.vesselName} onChange={(e) => handleVesselChange(e.target.value)} /></div>
       </fieldset>
 
       <fieldset className="insp-fieldset">

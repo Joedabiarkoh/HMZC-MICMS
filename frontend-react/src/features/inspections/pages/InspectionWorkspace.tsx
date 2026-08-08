@@ -600,7 +600,7 @@ export default function InspectionWorkspace() {
           <div className="insp-panel">
             <div className="insp-panel-header">Loose Gear &amp; Lifting Equipment</div>
             <div className="insp-panel-body">
-              <LooseGearForm current={current} updateField={updateField} openCertificate={openCertificate} />
+              <LooseGearForm current={current} updateField={updateField} openCertificate={openCertificate} certificates={certificates} />
             </div>
           </div>
           <div className="insp-panel">
