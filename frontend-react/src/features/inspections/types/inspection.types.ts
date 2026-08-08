@@ -250,10 +250,14 @@ export type LooseGearYesNo = "yes" | "no" | "";
 
 export type LooseGearSubTypeId = "visual_certificate" | "standard_report" | "multiple_items";
 
-// The LOLER 1998 statutory yes/no questions and defect/sign-off block —
-// word-for-word identical between the "Visual Certificate" and
-// "Standard Report" templates (only their header fields above this
-// block differ), so it's shared rather than duplicated twice.
+// The LOLER 1998 statutory yes/no questions and defect/sign-off block
+// — still used by the legacy Visual Certificate template below
+// (kept renderable for any certificate already saved with it, but no
+// longer selectable for new ones — see LOOSE_GEAR_SUB_TYPES in
+// inspectionHelpers.ts). Standard Report used to share this block
+// word-for-word; requested directly, it now has its own simpler
+// free-text examination-details/pass-fail shape instead (see
+// LooseGearStandardReportData's own comment).
 export interface LooseGearStatutoryAnswers {
   firstExaminationAfterInstall: LooseGearYesNo;
   installedCorrectly: LooseGearYesNo; // only meaningful if firstExaminationAfterInstall is "yes"
@@ -298,26 +302,49 @@ export interface LooseGearVisualCertData {
   employerNameAddress: string;
 }
 
-// Template 2 — "Report of Thorough Examination", the plainer/generic
-// LOLER wording variant (Downloads/Report of Thorough Inspection -Unsafe.docx),
-// a different single-item header from the Visual Certificate above —
-// examination/report dates, the CLIENT's employer details, and the
-// premises address, rather than HMZC's own Client/Site/Job-No fields.
+// Template 2 — "Report of Thorough Examination". Requested directly:
+// "change the thorough examination report to this type and style" —
+// an attached reference ("Test & Tag" branded "Report of Thorough
+// Examination of Lifting Equipment", LOLER 1998) replaced the previous
+// LOLER-statutory-questions layout (still used by the legacy Visual
+// Certificate template below) with this simpler customer/site/
+// examination-type header, an equipment ID block, free-text
+// examination details (rather than yes/no statutory questions), and a
+// single PASS/FAIL result — no statutory declaration section at all.
+export type LooseGearExaminationType = "" | "initial" | "standard" | "under_scheme" | "exceptional";
+
 export interface LooseGearStandardReportData {
+  customerDetails: string;
+  siteAddress: string;
   dateOfExamination: string;
-  dateOfReport: string;
-  reportNumber: string;
-  clientEmployerNameAddress: string; // "employer for whom the thorough examination was made"
-  premisesAddress: string;
-  equipmentDescription: string;
+  examinationType: LooseGearExaminationType;
+  jobNo: string;
+  prevExamDate: string;
+  nextExamDate: string;
+
+  idNo: string;
+  description: string;
+  modelDetails: string;
+  serialNo: string;
+  manufacturer: string;
+  prvFitted: LooseGearYesNo; // Pressure/Proof Relief Valve fitted, as printed on the reference form
+  mfgDate: string;
+  itemLocation: string;
   swl: string;
-  dateOfManufacture: string;
-  dateOfLastExamination: string;
-  statutory: LooseGearStatutoryAnswers;
-  reportedByNameAndQualifications: string;
-  authenticatedByName: string;
-  nextExaminationDue: string;
-  authenticatingEmployerNameAddress: string; // "employer OF the person making/authenticating this report" — the inspection company, distinct from clientEmployerNameAddress above
+  ewl: string; // Excess Working Load, as printed on the reference form
+
+  examinationCarriedOut: string; // "Type of Examination/Test Carried Out" — e.g. "Thorough Examination"
+  examinationResult: string; // "Examination Result / Equipment Status" — free text, e.g. "Satisfactory"
+  safeForUse: LooseGearYesNo;
+  defectsImmediate: string; // (A) defects needing attention to prevent immediate failure
+  defectsObservation: string; // (B) defects to keep under observation / parts required
+  testsCarriedOut: string;
+  additionalComments: string;
+
+  result: "" | "pass" | "fail";
+
+  examinerPosition: string; // Name/Signature reuse cert.engineerName/engineerSig (see SignatureGrid) — Position has no existing equivalent field
+  leeaIdNumber: string;
 }
 
 // Template 3 — "Report of Thorough Examination (Multiple Items)", the

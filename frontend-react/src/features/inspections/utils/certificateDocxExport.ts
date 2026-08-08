@@ -554,34 +554,88 @@ async function buildLooseGearSection(cert: InspectionCertificate, looseGear: Loo
 
   if (looseGear.subType === "standard_report" && looseGear.standardReport) {
     const d = looseGear.standardReport;
+    // Requested directly: "change the thorough examination report to
+    // this type and style" — matches StandardReportPage's own print
+    // layout (CertificatePreview.tsx) and its own comment for the
+    // full reasoning: restructured to the attached Test & Tag
+    // reference's simpler customer/site/examination-type header,
+    // equipment ID block, free-text examination details, and a
+    // PASS/FAIL result — no LOLER statutory declaration, no photo
+    // ("do not imbed the photo" — no buildLooseGearItemPhotoBlocks
+    // call here either now).
+    const examinationTypeLabels: Record<string, string> = {
+      initial: "Initial", standard: "Standard", under_scheme: "Under A Scheme", exceptional: "After Exceptional Circumstances", "": "—",
+    };
     const blocks: Block[] = [badgeLine("Report of Thorough Examination", "LOOSE GEAR & LIFTING EQUIPMENT")];
     blocks.push(
       kvTable([
-        ["Certificate No", cert.certNo],
-        ["Vessel", cert.vesselName || "—"],
+        ["Customer Details", d.customerDetails || "—"],
+        ["Site Address", d.siteAddress || "—"],
+        ["Report No.", cert.certNo],
         ["Date of Examination", fmtDate(d.dateOfExamination)],
-        ["Date of Report", fmtDate(d.dateOfReport)],
-        ["Report Number", d.reportNumber || "—"],
-        ["Employer (for whom exam made)", d.clientEmployerNameAddress || "—"],
-        ["Premises Address", d.premisesAddress || "—"],
-        ["Equipment Description", d.equipmentDescription || "—"],
-        ["SWL", d.swl || "—"],
-        ["Date of Manufacture", fmtDate(d.dateOfManufacture)],
-        ["Date of Last Examination", fmtDate(d.dateOfLastExamination)],
+        ["Examination Type", examinationTypeLabels[d.examinationType] || "—"],
+        ["Job No", d.jobNo || "—"],
+        ["Prev. Exam Date", fmtDate(d.prevExamDate)],
+        ["Next Exam Date", fmtDate(d.nextExamDate)],
+        ["Vessel", cert.vesselName || "—"],
       ])
     );
-    blocks.push(...(await buildLooseGearItemPhotoBlocks(cert)));
-    blocks.push(heading("LOLER 1998 Statutory Declaration"), kvTable(statutoryPairs(d.statutory)));
+    blocks.push(
+      heading("Description and Identification of the Equipment Item Examined"),
+      kvTable([
+        ["I.D. No", d.idNo || "—"],
+        ["Description", d.description || "—"],
+        ["Serial No", d.serialNo || "—"],
+        ["Model Details", d.modelDetails || "—"],
+        ["Manufacturer", d.manufacturer || "—"],
+        ["P.R.V. Fitted", yesNoLabel(d.prvFitted)],
+        ["Mfg. Date", fmtDate(d.mfgDate)],
+        ["Location", d.itemLocation || "—"],
+        ["S.W.L", d.swl || "—"],
+        ["E.W.L", d.ewl || "—"],
+      ])
+    );
+    blocks.push(
+      heading("Examination Details"),
+      kvTable([
+        ["Type of Examination/Test Carried Out", d.examinationCarriedOut || "—"],
+        ["Examination Result / Equipment Status", d.examinationResult || "—"],
+        ["Safe For Use", yesNoLabel(d.safeForUse)],
+      ])
+    );
+    blocks.push(
+      new Paragraph({ text: "" }),
+      remarksBox("(A) Defects Needing Immediate Attention", d.defectsImmediate || "NONE"),
+      new Paragraph({ text: "" }),
+      remarksBox("(B) Defects Under Observation / Parts Required", d.defectsObservation || "NONE"),
+      new Paragraph({ text: "" }),
+      remarksBox("Particulars of Any Tests Carried Out", d.testsCarriedOut || "NONE"),
+      new Paragraph({ text: "" }),
+      remarksBox("Additional Comments", d.additionalComments || "None"),
+      new Paragraph({ text: "" })
+    );
+    blocks.push(
+      new Paragraph({
+        children: [
+          new TextRun({ text: "RESULT: ", bold: true, color: NAVY, size: 20 }),
+          new TextRun({
+            text: d.result ? d.result.toUpperCase() : "—",
+            bold: true,
+            color: d.result === "pass" ? "1E7A34" : d.result === "fail" ? "B3261E" : MUTED,
+            size: 20,
+          }),
+        ],
+      }),
+      new Paragraph({ text: "" })
+    );
     blocks.push(
       kvTable([
-        ["Reported By", d.reportedByNameAndQualifications || "—"],
-        ["Authenticated By", d.authenticatedByName || "—"],
-        ["Next Exam Due", fmtDate(d.nextExaminationDue)],
-        ["Employer (authenticating)", d.authenticatingEmployerNameAddress || "—"],
+        ["Examiner Position", d.examinerPosition || "—"],
+        ["LEEA ID Number", d.leeaIdNumber || "—"],
       ])
     );
     blocks.push(new Paragraph({ text: "" }), ...issuedByLine(cert));
-    blocks.push(await signatureBlock(cert, "Master", "Inspector"));
+    blocks.push(await signatureBlock(cert, "Master", "Examiner"));
     return blocks;
   }
 

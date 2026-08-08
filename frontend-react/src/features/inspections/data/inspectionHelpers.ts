@@ -208,8 +208,15 @@ export function freshCalibrationState(subTypeId: string): CalibrationData {
   };
 }
 
+// Requested directly: "keep only this and the multiple items" — the
+// legacy Visual Certificate template (LooseGearVisualCertData,
+// VisualCertPage, VisualCertForm) is deliberately NOT deleted, just no
+// longer offered here: any certificate already saved with
+// subType: "visual_certificate" still opens, edits, and prints exactly
+// as before (see LooseGearForm.tsx's own conditional render and
+// CertificatePreview.tsx's LooseGearCertificatePage), it just can't be
+// chosen for a new one anymore.
 export const LOOSE_GEAR_SUB_TYPES: { id: LooseGearData["subType"]; label: string }[] = [
-  { id: "visual_certificate", label: "Visual Certificate of Thorough Examination" },
   { id: "standard_report", label: "Report of Thorough Examination" },
   { id: "multiple_items", label: "Report of Thorough Examination (Multiple Items)" },
 ];
@@ -262,20 +269,33 @@ export function freshLooseGearVisualCertData(): LooseGearVisualCertData {
 
 export function freshLooseGearStandardReportData(): LooseGearStandardReportData {
   return {
+    customerDetails: "",
+    siteAddress: "",
     dateOfExamination: "",
-    dateOfReport: "",
-    reportNumber: "",
-    clientEmployerNameAddress: "",
-    premisesAddress: "",
-    equipmentDescription: "",
+    examinationType: "",
+    jobNo: "",
+    prevExamDate: "",
+    nextExamDate: "",
+    idNo: "",
+    description: "",
+    modelDetails: "",
+    serialNo: "",
+    manufacturer: "",
+    prvFitted: "",
+    mfgDate: "",
+    itemLocation: "",
     swl: "",
-    dateOfManufacture: "",
-    dateOfLastExamination: "",
-    statutory: freshLooseGearStatutoryAnswers(),
-    reportedByNameAndQualifications: "",
-    authenticatedByName: "",
-    nextExaminationDue: "",
-    authenticatingEmployerNameAddress: "",
+    ewl: "",
+    examinationCarriedOut: "Thorough Examination",
+    examinationResult: "",
+    safeForUse: "",
+    defectsImmediate: "",
+    defectsObservation: "",
+    testsCarriedOut: "",
+    additionalComments: "",
+    result: "",
+    examinerPosition: "",
+    leeaIdNumber: "",
   };
 }
 
@@ -304,7 +324,7 @@ export function freshLooseGearMultipleItemsData(): LooseGearMultipleItemsData {
 // single-item "Visual Certificate" to the "Multiple Items" register
 // needs a completely different data shape, not the old sub-type's
 // leftover fields — same reasoning as freshFFEState above).
-export function freshLooseGearState(subTypeId: LooseGearData["subType"] = "visual_certificate"): LooseGearData {
+export function freshLooseGearState(subTypeId: LooseGearData["subType"] = "standard_report"): LooseGearData {
   const base: LooseGearData = { subType: subTypeId };
   if (subTypeId === "visual_certificate") base.visualCert = freshLooseGearVisualCertData();
   else if (subTypeId === "standard_report") base.standardReport = freshLooseGearStandardReportData();

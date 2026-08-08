@@ -355,8 +355,8 @@ export default function InspectionWorkspace() {
         if (!lg.visualCert.itemDescription.trim()) problems.push("Item description is required");
         if (!lg.visualCert.statutory.safeToOperate) problems.push('"Safe to operate" must be answered');
       } else if (lg?.subType === "standard_report" && lg.standardReport) {
-        if (!lg.standardReport.equipmentDescription.trim()) problems.push("Equipment description is required");
-        if (!lg.standardReport.statutory.safeToOperate) problems.push('"Safe to operate" must be answered');
+        if (!lg.standardReport.description.trim()) problems.push("Equipment description is required");
+        if (!lg.standardReport.result) problems.push("Result (pass/fail) must be selected");
       } else if (lg?.subType === "multiple_items" && lg.multipleItems) {
         if (lg.multipleItems.rows.length === 0) problems.push("At least one item is required in the register");
         lg.multipleItems.rows.forEach((row, i) => {

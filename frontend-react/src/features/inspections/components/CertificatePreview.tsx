@@ -804,6 +804,24 @@ function VisualCertPage({ cert, data }: { cert: InspectionCertificate; data: Loo
   );
 }
 
+const EXAMINATION_TYPE_PRINT_LABELS: Record<string, string> = {
+  initial: "Initial",
+  standard: "Standard",
+  under_scheme: "Under A Scheme",
+  exceptional: "After Exceptional Circumstances",
+  "": "—",
+};
+
+// Requested directly: "change the thorough examination report to this
+// type and style" — restructured to match the attached reference
+// ("Test & Tag" branded "Report of Thorough Examination of Lifting
+// Equipment", LOLER 1998): customer/site/report#/date header,
+// examination type, equipment identification block, free-text
+// examination details, and a PASS/FAIL result — no LOLER statutory
+// declaration section (that stayed on the legacy Visual Certificate
+// template only, see LooseGearStandardReportData's own comment in
+// inspection.types.ts). "Do not imbed the photo" — no
+// LooseGearItemPhoto here either now.
 function StandardReportPage({ cert, data }: { cert: InspectionCertificate; data: LooseGearStandardReportData }) {
   return (
     <CertPageFrame cert={cert}>
@@ -812,55 +830,92 @@ function StandardReportPage({ cert, data }: { cert: InspectionCertificate; data:
         <h2>Report of Thorough Examination</h2>
         <span className="insp-badge">LOOSE GEAR &amp; LIFTING EQUIPMENT</span>
       </div>
-      <div style={{ fontSize: 10, color: "var(--insp-muted)", marginBottom: 6 }}>
-        Lifting &amp; Rigging colour code is based on ACEPA (Association of Companies of Oil Exploration and Production in Angola).
-      </div>
+      <p style={{ fontSize: 10, color: "var(--insp-muted)", margin: "0 0 6px" }}>
+        This report complies with the requirements of the Lifting Operations and Lifting Equipment Regulations 1998.
+      </p>
       <table className="insp-id-table">
         <tbody>
           <tr>
-            <td className="insp-label-cell">Certificate No</td><td>{cert.certNo}</td>
-            <td className="insp-label-cell">Vessel</td><td>{cert.vesselName || "—"}</td>
+            <td className="insp-label-cell">Customer Details</td><td>{data.customerDetails || "—"}</td>
+            <td className="insp-label-cell">Site Address</td><td>{data.siteAddress || "—"}</td>
           </tr>
           <tr>
+            <td className="insp-label-cell">Report No.</td><td>{cert.certNo}</td>
             <td className="insp-label-cell">Date of Examination</td><td>{fmtDate(data.dateOfExamination)}</td>
-            <td className="insp-label-cell">Date of Report</td><td>{fmtDate(data.dateOfReport)}</td>
           </tr>
           <tr>
-            <td className="insp-label-cell">Report Number</td><td colSpan={3}>{data.reportNumber || "—"}</td>
+            <td className="insp-label-cell">Examination Type</td><td>{EXAMINATION_TYPE_PRINT_LABELS[data.examinationType] || "—"}</td>
+            <td className="insp-label-cell">Job No</td><td>{data.jobNo || "—"}</td>
           </tr>
           <tr>
-            <td className="insp-label-cell">Employer (for whom exam made)</td><td colSpan={3}>{data.clientEmployerNameAddress || "—"}</td>
+            <td className="insp-label-cell">Prev. Exam Date</td><td>{fmtDate(data.prevExamDate)}</td>
+            <td className="insp-label-cell">Next Exam Date</td><td>{fmtDate(data.nextExamDate)}</td>
           </tr>
           <tr>
-            <td className="insp-label-cell">Premises Address</td><td colSpan={3}>{data.premisesAddress || "—"}</td>
-          </tr>
-          <tr>
-            <td className="insp-label-cell">Equipment Description</td><td colSpan={3}>{data.equipmentDescription || "—"}</td>
-          </tr>
-          <tr>
-            <td className="insp-label-cell">SWL</td><td>{data.swl || "—"}</td>
-            <td className="insp-label-cell">Date of Manufacture</td><td>{fmtDate(data.dateOfManufacture)}</td>
-          </tr>
-          <tr>
-            <td className="insp-label-cell">Date of Last Examination</td><td colSpan={3}>{fmtDate(data.dateOfLastExamination)}</td>
+            <td className="insp-label-cell">Vessel</td><td colSpan={3}>{cert.vesselName || "—"}</td>
           </tr>
         </tbody>
       </table>
-      <LooseGearItemPhoto cert={cert} />
 
-      <div style={{ fontWeight: 700, fontSize: 11.5, color: "var(--insp-navy)", margin: "10px 0 4px" }}>LOLER 1998 Statutory Declaration</div>
-      <StatutoryAnswersRows data={data.statutory} />
+      <div style={{ fontWeight: 700, fontSize: 11.5, color: "var(--insp-navy)", margin: "8px 0 4px" }}>Description and Identification of the Equipment Item Examined</div>
       <table className="insp-id-table">
         <tbody>
           <tr>
-            <td className="insp-label-cell">Reported By</td><td colSpan={3}>{data.reportedByNameAndQualifications || "—"}</td>
+            <td className="insp-label-cell">I.D. No</td><td>{data.idNo || "—"}</td>
+            <td className="insp-label-cell">Description</td><td>{data.description || "—"}</td>
           </tr>
           <tr>
-            <td className="insp-label-cell">Authenticated By</td><td>{data.authenticatedByName || "—"}</td>
-            <td className="insp-label-cell">Next Exam Due</td><td>{fmtDate(data.nextExaminationDue)}</td>
+            <td className="insp-label-cell">Serial No</td><td>{data.serialNo || "—"}</td>
+            <td className="insp-label-cell">Model Details</td><td>{data.modelDetails || "—"}</td>
           </tr>
           <tr>
-            <td className="insp-label-cell">Employer (authenticating)</td><td colSpan={3}>{data.authenticatingEmployerNameAddress || "—"}</td>
+            <td className="insp-label-cell">Manufacturer</td><td>{data.manufacturer || "—"}</td>
+            <td className="insp-label-cell">P.R.V. Fitted</td><td>{yesNoCheckboxes(data.prvFitted)}</td>
+          </tr>
+          <tr>
+            <td className="insp-label-cell">Mfg. Date</td><td>{fmtDate(data.mfgDate)}</td>
+            <td className="insp-label-cell">Location</td><td>{data.itemLocation || "—"}</td>
+          </tr>
+          <tr>
+            <td className="insp-label-cell">S.W.L</td><td>{data.swl || "—"}</td>
+            <td className="insp-label-cell">E.W.L</td><td>{data.ewl || "—"}</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div style={{ fontWeight: 700, fontSize: 11.5, color: "var(--insp-navy)", margin: "8px 0 4px" }}>Examination Details</div>
+      <table className="insp-id-table">
+        <tbody>
+          <tr>
+            <td className="insp-label-cell">Type of Examination/Test Carried Out</td><td>{data.examinationCarriedOut || "—"}</td>
+            <td className="insp-label-cell">Examination Result / Equipment Status</td><td>{data.examinationResult || "—"}</td>
+          </tr>
+          <tr>
+            <td className="insp-label-cell">Safe For Use</td><td colSpan={3}>{yesNoCheckboxes(data.safeForUse)}</td>
+          </tr>
+        </tbody>
+      </table>
+      <div className="insp-remarks-box">(A) Defects Needing Immediate Attention: {data.defectsImmediate || "NONE"}</div>
+      <div className="insp-remarks-box">(B) Defects Under Observation / Parts Required: {data.defectsObservation || "NONE"}</div>
+      <div className="insp-remarks-box">Particulars of Any Tests Carried Out: {data.testsCarriedOut || "NONE"}</div>
+      <div className="insp-remarks-box">Additional Comments: {data.additionalComments || "None"}</div>
+
+      <div style={{ display: "flex", alignItems: "center", gap: 8, margin: "10px 0" }}>
+        <span style={{ fontWeight: 700, fontSize: 11.5, color: "var(--insp-navy)" }}>RESULT:</span>
+        {data.result ? (
+          <span className={`insp-pill ${data.result === "pass" ? "good" : "repair"}`} style={{ fontSize: 11, padding: "3px 12px" }}>
+            {data.result.toUpperCase()}
+          </span>
+        ) : (
+          <span style={{ fontSize: 11, color: "var(--insp-muted)" }}>—</span>
+        )}
+      </div>
+
+      <table className="insp-id-table">
+        <tbody>
+          <tr>
+            <td className="insp-label-cell">Examiner Position</td><td>{data.examinerPosition || "—"}</td>
+            <td className="insp-label-cell">LEEA ID Number</td><td>{data.leeaIdNumber || "—"}</td>
           </tr>
         </tbody>
       </table>
@@ -870,7 +925,7 @@ function StandardReportPage({ cert, data }: { cert: InspectionCertificate; data:
           Issued by {cert.issuedBy}{cert.issuedAt ? ` — ${new Date(cert.issuedAt).toLocaleString()}` : ""}
         </div>
       )}
-      <SignatureGrid cert={cert} masterLabel="Master" techLabel="Inspector" />
+      <SignatureGrid cert={cert} masterLabel="Master" techLabel="Examiner" />
       </div>
     </CertPageFrame>
   );

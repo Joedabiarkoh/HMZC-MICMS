@@ -6,6 +6,7 @@ import {
 import {
   InspectionCertificate,
   LooseGearData,
+  LooseGearExaminationType,
   LooseGearMultipleItemsData,
   LooseGearReasonForInspection,
   LooseGearRegisterRow,
@@ -41,12 +42,21 @@ interface Props {
 }
 
 /**
- * Requested directly: put HMZC's three real LOLER 1998 "Report of
- * Thorough Examination" templates into the Loose Gear & Lifting
- * Equipment division AS PROVIDED — each kept as its own selectable
- * sub-type with its own original field layout, the same pattern FFE
- * already uses for its ~20 sub-types (see ffeCertTypes.ts), rather than
- * merged into one shape or restyled to look like FFE's certificate.
+ * Requested directly: put HMZC's real LOLER 1998 "Report of Thorough
+ * Examination" templates into the Loose Gear & Lifting Equipment
+ * division AS PROVIDED — each its own sub-type with its own field
+ * layout, the same pattern FFE uses for its ~20 sub-types (see
+ * ffeCertTypes.ts), rather than merged into one shape.
+ *
+ * Originally three sub-types; requested directly, later: "change the
+ * thorough examination report to this [Test & Tag reference] type and
+ * style, keep only this and the multiple items" — Standard Report was
+ * redesigned to that reference's simpler style (see
+ * StandardReportForm's own comment) and Visual Certificate dropped
+ * from LOOSE_GEAR_SUB_TYPES (inspectionHelpers.ts), so only two are
+ * selectable now. Visual Certificate's own form/type/print code stays
+ * in place — not deleted — purely so a certificate already saved with
+ * it still opens and edits correctly.
  */
 export default function LooseGearForm({ current, updateField, openCertificate }: Props) {
   const looseGear = current.looseGear || freshLooseGearState();
@@ -158,14 +168,15 @@ function VesselLookupAndSignatures({ current, updateField, openCertificate }: Pr
         }}
       />
       {/* Requested directly: "remove the photo from the multiple items
-          report" — Multiple Items covers a register of several
-          different items, not one single item being inspected, so
-          "photo of item inspected" never quite fit there the way it
-          does for the other two templates (see LooseGearItemPhoto's
-          own comment in CertificatePreview.tsx). Hidden here too
-          rather than just left out of print/Word — an upload control
-          that silently went nowhere would be confusing. */}
-      {current.looseGear?.subType !== "multiple_items" && (
+          report", then, redesigning Standard Report to the Test & Tag
+          reference style: "do not imbed the photo." Neither of the two
+          selectable sub-types wants it anymore — only the legacy
+          Visual Certificate template (not selectable for new
+          certificates, only reachable if an existing one already has
+          it — see LOOSE_GEAR_SUB_TYPES in inspectionHelpers.ts) still
+          shows it, rather than an upload control that silently went
+          nowhere. */}
+      {current.looseGear?.subType === "visual_certificate" && (
         <PhotoUpload
           photos={current.photos[PHOTO_KEY] || []}
           onAdd={addPhotos}
@@ -174,15 +185,28 @@ function VesselLookupAndSignatures({ current, updateField, openCertificate }: Pr
           maxPhotos={1}
         />
       )}
+      {/* "Examiner" for the redesigned Standard Report (matches its own
+          "Examiner Details" section and the reference template's own
+          wording), "Inspector" for Multiple Items/the legacy Visual
+          Certificate — same shared cert.engineerName/engineerSig
+          field either way, just the label shown. */}
       <fieldset className="insp-fieldset">
         <legend className="insp-legend">Signatures</legend>
         <div className="insp-row2">
           <div className="insp-field"><label htmlFor="lg-master-name">Master Name (optional)</label><input id="lg-master-name" value={current.captainName} onChange={(e) => updateField("captainName", e.target.value)} /></div>
-          <div className="insp-field"><label htmlFor="lg-technician-name">Inspector Name</label><input id="lg-technician-name" value={current.engineerName} onChange={(e) => updateField("engineerName", e.target.value)} /></div>
+          <div className="insp-field">
+            <label htmlFor="lg-technician-name">{current.looseGear?.subType === "standard_report" ? "Examiner Name" : "Inspector Name"}</label>
+            <input id="lg-technician-name" value={current.engineerName} onChange={(e) => updateField("engineerName", e.target.value)} />
+          </div>
         </div>
         <div className="insp-row2">
           <SignatureCanvas label="Master Signature" value={current.captainSig} onChange={(v) => updateField("captainSig", v)} />
-          <SignatureCanvas label="Inspector Signature" value={current.engineerSig} onChange={(v) => updateField("engineerSig", v)} allowSavedDefault />
+          <SignatureCanvas
+            label={current.looseGear?.subType === "standard_report" ? "Examiner Signature" : "Inspector Signature"}
+            value={current.engineerSig}
+            onChange={(v) => updateField("engineerSig", v)}
+            allowSavedDefault
+          />
         </div>
       </fieldset>
     </>
@@ -306,50 +330,140 @@ function VisualCertForm({
   );
 }
 
+const EXAMINATION_TYPE_LABELS: Record<Exclude<LooseGearExaminationType, "">, string> = {
+  initial: "Initial",
+  standard: "Standard",
+  under_scheme: "Under A Scheme",
+  exceptional: "After Exceptional Circumstances",
+};
+
+// Requested directly: "change the thorough examination report to this
+// type and style" — restructured to match the attached reference
+// ("Test & Tag" branded "Report of Thorough Examination of Lifting
+// Equipment", LOLER 1998): customer/site/examination-type header,
+// equipment identification block, free-text examination details, and
+// a PASS/FAIL result — no LOLER statutory yes/no questions section
+// (that stays on the legacy Visual Certificate template only). "Do
+// not imbed the photo" — no PhotoUpload rendered for this sub-type
+// either now (see the exclusion in VesselLookupAndSignatures below).
 function StandardReportForm({
   data, onChange, current, updateField, openCertificate,
 }: { data: LooseGearStandardReportData; onChange: (patch: Partial<LooseGearStandardReportData>) => void } & Props) {
-  function updateStatutory(patch: Partial<LooseGearStatutoryAnswers>) {
-    onChange({ statutory: { ...data.statutory, ...patch } });
-  }
-
   return (
     <>
       <fieldset className="insp-fieldset">
         <legend className="insp-legend">Report of Thorough Examination</legend>
-        <p style={{ fontSize: 11, color: "var(--insp-muted)", marginTop: -4 }}>
-          Lifting &amp; Rigging colour code is based on ACEPA (Association of Companies of Oil Exploration and Production in Angola).
-        </p>
         <div className="insp-row2">
-          <div className="insp-field"><label htmlFor="sr-certno">Certificate No</label><input id="sr-certno" value={current.certNo} readOnly /></div>
-          <div className="insp-field"><label htmlFor="sr-vessel">Vessel</label><input id="sr-vessel" value={current.vesselName} onChange={(e) => updateField("vesselName", e.target.value)} /></div>
+          <div className="insp-field"><label htmlFor="sr-customer">Customer Details</label><input id="sr-customer" value={data.customerDetails} onChange={(e) => onChange({ customerDetails: e.target.value })} /></div>
+          <div className="insp-field"><label htmlFor="sr-site-address">Site Address</label><input id="sr-site-address" value={data.siteAddress} onChange={(e) => onChange({ siteAddress: e.target.value })} /></div>
         </div>
         <div className="insp-row2">
-          <div className="insp-field"><label htmlFor="sr-date-exam">Date of Thorough Examination</label><input id="sr-date-exam" type="date" value={data.dateOfExamination} onChange={(e) => onChange({ dateOfExamination: e.target.value })} /></div>
-          <div className="insp-field"><label htmlFor="sr-date-report">Date of Report</label><input id="sr-date-report" type="date" value={data.dateOfReport} onChange={(e) => onChange({ dateOfReport: e.target.value })} /></div>
+          <div className="insp-field"><label htmlFor="sr-certno">Report No.</label><input id="sr-certno" value={current.certNo} readOnly /></div>
+          <div className="insp-field"><label htmlFor="sr-date-exam">Date of Examination</label><input id="sr-date-exam" type="date" value={data.dateOfExamination} onChange={(e) => onChange({ dateOfExamination: e.target.value })} /></div>
         </div>
-        <div className="insp-field"><label htmlFor="sr-reportnum">Report Number</label><input id="sr-reportnum" value={data.reportNumber} onChange={(e) => onChange({ reportNumber: e.target.value })} /></div>
-        <div className="insp-field"><label htmlFor="sr-client-employer">Name &amp; Address of Employer for Whom the Examination Was Made</label><input id="sr-client-employer" value={data.clientEmployerNameAddress} onChange={(e) => onChange({ clientEmployerNameAddress: e.target.value })} /></div>
-        <div className="insp-field"><label htmlFor="sr-premises">Address of Premises at Which the Examination Was Made</label><input id="sr-premises" value={data.premisesAddress} onChange={(e) => onChange({ premisesAddress: e.target.value })} /></div>
-        <div className="insp-field"><label htmlFor="sr-equip-desc">Description and Identification of the Equipment</label><input id="sr-equip-desc" value={data.equipmentDescription} onChange={(e) => onChange({ equipmentDescription: e.target.value })} /></div>
         <div className="insp-row2">
-          <div className="insp-field"><label htmlFor="sr-swl">Safe Working Load(s)</label><input id="sr-swl" value={data.swl} onChange={(e) => onChange({ swl: e.target.value })} /></div>
-          <div className="insp-field"><label htmlFor="sr-mfg-date">Date of Manufacture (if known)</label><input id="sr-mfg-date" type="date" value={data.dateOfManufacture} onChange={(e) => onChange({ dateOfManufacture: e.target.value })} /></div>
+          <div className="insp-field">
+            <label htmlFor="sr-exam-type">Examination Type</label>
+            <select id="sr-exam-type" value={data.examinationType} onChange={(e) => onChange({ examinationType: e.target.value as LooseGearExaminationType })}>
+              <option value="">—</option>
+              {(Object.keys(EXAMINATION_TYPE_LABELS) as Exclude<LooseGearExaminationType, "">[]).map((k) => (
+                <option key={k} value={k}>{EXAMINATION_TYPE_LABELS[k]}</option>
+              ))}
+            </select>
+          </div>
+          <div className="insp-field"><label htmlFor="sr-jobno">Job No</label><input id="sr-jobno" value={data.jobNo} onChange={(e) => onChange({ jobNo: e.target.value })} /></div>
         </div>
-        <div className="insp-field"><label htmlFor="sr-last-exam">Date of Last Thorough Examination</label><input id="sr-last-exam" type="date" value={data.dateOfLastExamination} onChange={(e) => onChange({ dateOfLastExamination: e.target.value })} /></div>
+        <div className="insp-row2">
+          <div className="insp-field"><label htmlFor="sr-prev-exam">Prev. Exam Date</label><input id="sr-prev-exam" type="date" value={data.prevExamDate} onChange={(e) => onChange({ prevExamDate: e.target.value })} /></div>
+          <div className="insp-field"><label htmlFor="sr-next-exam">Next Exam Date</label><input id="sr-next-exam" type="date" value={data.nextExamDate} onChange={(e) => onChange({ nextExamDate: e.target.value })} /></div>
+        </div>
+        <div className="insp-field"><label htmlFor="sr-vessel">Vessel</label><input id="sr-vessel" value={current.vesselName} onChange={(e) => updateField("vesselName", e.target.value)} /></div>
       </fieldset>
 
       <fieldset className="insp-fieldset">
-        <legend className="insp-legend">Statutory Declaration</legend>
-        <StatutoryQuestionsBlock id="sr" data={data.statutory} onChange={updateStatutory} />
+        <legend className="insp-legend">Description and Identification of the Equipment Item Examined</legend>
         <div className="insp-row2">
-          <div className="insp-field"><label htmlFor="sr-reported-by">Name &amp; Qualifications of person making this report</label><input id="sr-reported-by" value={data.reportedByNameAndQualifications} onChange={(e) => onChange({ reportedByNameAndQualifications: e.target.value })} /></div>
-          <div className="insp-field"><label htmlFor="sr-authenticated">Name of person signing/authenticating this report</label><input id="sr-authenticated" value={data.authenticatedByName} onChange={(e) => onChange({ authenticatedByName: e.target.value })} /></div>
+          <div className="insp-field"><label htmlFor="sr-idno">I.D. No</label><input id="sr-idno" value={data.idNo} onChange={(e) => onChange({ idNo: e.target.value })} /></div>
+          <div className="insp-field"><label htmlFor="sr-desc">Description</label><input id="sr-desc" value={data.description} onChange={(e) => onChange({ description: e.target.value })} /></div>
         </div>
         <div className="insp-row2">
-          <div className="insp-field"><label htmlFor="sr-next-exam">Latest Date Next Examination Must Be Carried Out</label><input id="sr-next-exam" type="date" value={data.nextExaminationDue} onChange={(e) => onChange({ nextExaminationDue: e.target.value })} /></div>
-          <div className="insp-field"><label htmlFor="sr-employer">Name &amp; Address of Employer (of persons making/authenticating report)</label><input id="sr-employer" value={data.authenticatingEmployerNameAddress} onChange={(e) => onChange({ authenticatingEmployerNameAddress: e.target.value })} /></div>
+          <div className="insp-field"><label htmlFor="sr-model">Model Details</label><input id="sr-model" value={data.modelDetails} onChange={(e) => onChange({ modelDetails: e.target.value })} /></div>
+          <div className="insp-field"><label htmlFor="sr-serial">Serial No</label><input id="sr-serial" value={data.serialNo} onChange={(e) => onChange({ serialNo: e.target.value })} /></div>
         </div>
+        <div className="insp-row2">
+          <div className="insp-field"><label htmlFor="sr-manufacturer">Manufacturer</label><input id="sr-manufacturer" value={data.manufacturer} onChange={(e) => onChange({ manufacturer: e.target.value })} /></div>
+          <YesNoField id="sr-prv" label="P.R.V. Fitted" value={data.prvFitted} onChange={(v) => onChange({ prvFitted: v })} />
+        </div>
+        <div className="insp-row2">
+          <div className="insp-field"><label htmlFor="sr-mfgdate">Mfg. Date</label><input id="sr-mfgdate" type="date" value={data.mfgDate} onChange={(e) => onChange({ mfgDate: e.target.value })} /></div>
+          <div className="insp-field"><label htmlFor="sr-itemlocation">Location</label><input id="sr-itemlocation" value={data.itemLocation} onChange={(e) => onChange({ itemLocation: e.target.value })} /></div>
+        </div>
+        <div className="insp-row2">
+          <div className="insp-field"><label htmlFor="sr-swl">S.W.L</label><input id="sr-swl" value={data.swl} onChange={(e) => onChange({ swl: e.target.value })} /></div>
+          <div className="insp-field"><label htmlFor="sr-ewl">E.W.L</label><input id="sr-ewl" value={data.ewl} onChange={(e) => onChange({ ewl: e.target.value })} /></div>
+        </div>
+      </fieldset>
+
+      <fieldset className="insp-fieldset">
+        <legend className="insp-legend">Examination Details</legend>
+        <div className="insp-row2">
+          <div className="insp-field"><label htmlFor="sr-exam-carried-out">Type of Examination/Test Carried Out</label><input id="sr-exam-carried-out" value={data.examinationCarriedOut} onChange={(e) => onChange({ examinationCarriedOut: e.target.value })} /></div>
+          <div className="insp-field"><label htmlFor="sr-exam-result">Examination Result / Equipment Status</label><input id="sr-exam-result" value={data.examinationResult} onChange={(e) => onChange({ examinationResult: e.target.value })} placeholder="e.g. Satisfactory" /></div>
+        </div>
+        <YesNoField id="sr-safe" label="Safe For Use" value={data.safeForUse} onChange={(v) => onChange({ safeForUse: v })} />
+        <div className="insp-row2">
+          <div className="insp-field">
+            <label htmlFor="sr-defects-a">(A) Defects In Need of Attention To Prevent Immediate Failure &amp; Details of Action Required</label>
+            <textarea id="sr-defects-a" rows={3} value={data.defectsImmediate} onChange={(e) => onChange({ defectsImmediate: e.target.value })} placeholder="If none, state NONE" />
+          </div>
+          <div className="insp-field">
+            <label htmlFor="sr-defects-b">(B) Defects to be Kept Under Observation, Date When Must Be Rectified By and Parts Required</label>
+            <textarea id="sr-defects-b" rows={3} value={data.defectsObservation} onChange={(e) => onChange({ defectsObservation: e.target.value })} placeholder="If none, state NONE" />
+          </div>
+        </div>
+        <div className="insp-row2">
+          <div className="insp-field">
+            <label htmlFor="sr-tests">Particulars of Any Tests Carried Out as Part of the Examination</label>
+            <textarea id="sr-tests" rows={3} value={data.testsCarriedOut} onChange={(e) => onChange({ testsCarriedOut: e.target.value })} placeholder="If none, state NONE" />
+          </div>
+          <div className="insp-field">
+            <label htmlFor="sr-comments">Additional Comments Made As Part of This Examination</label>
+            <textarea id="sr-comments" rows={3} value={data.additionalComments} onChange={(e) => onChange({ additionalComments: e.target.value })} />
+          </div>
+        </div>
+      </fieldset>
+
+      <fieldset className="insp-fieldset">
+        <legend className="insp-legend">Result</legend>
+        <div className="insp-yesno-toggle" role="group" aria-label="Result">
+          <button
+            type="button"
+            className={data.result === "pass" ? "selected" : ""}
+            aria-pressed={data.result === "pass"}
+            onClick={() => onChange({ result: data.result === "pass" ? "" : "pass" })}
+            style={{ color: data.result === "pass" ? undefined : "var(--insp-green)" }}
+          >
+            <span aria-hidden="true">{data.result === "pass" ? "☒" : "☐"}</span> PASS
+          </button>
+          <button
+            type="button"
+            className={data.result === "fail" ? "selected" : ""}
+            aria-pressed={data.result === "fail"}
+            onClick={() => onChange({ result: data.result === "fail" ? "" : "fail" })}
+            style={{ color: data.result === "fail" ? undefined : "var(--insp-red)" }}
+          >
+            <span aria-hidden="true">{data.result === "fail" ? "☒" : "☐"}</span> FAIL
+          </button>
+        </div>
+      </fieldset>
+
+      <fieldset className="insp-fieldset">
+        <legend className="insp-legend">Examiner Details</legend>
+        <div className="insp-row2">
+          <div className="insp-field"><label htmlFor="sr-examiner-position">Position</label><input id="sr-examiner-position" value={data.examinerPosition} onChange={(e) => onChange({ examinerPosition: e.target.value })} /></div>
+          <div className="insp-field"><label htmlFor="sr-leea">LEEA ID Number</label><input id="sr-leea" value={data.leeaIdNumber} onChange={(e) => onChange({ leeaIdNumber: e.target.value })} /></div>
+        </div>
+        <p className="insp-help-note">Name and Signature are captured below, under Signatures.</p>
       </fieldset>
 
       <VesselLookupAndSignatures current={current} updateField={updateField} openCertificate={openCertificate} />
