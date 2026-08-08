@@ -486,7 +486,11 @@ function statutoryPairs(data: LooseGearStatutoryAnswers): Array<[string, string]
 async function buildLooseGearItemPhotoBlocks(cert: InspectionCertificate): Promise<Block[]> {
   const photo = cert.photos?.looseGear?.[0];
   if (!photo) return [];
-  const run = await imageRunAtWidth(photo.data, 260);
+  // Requested directly: "reduce size of the photo in lose gears" —
+  // matches the same shrink applied to the print/PDF version
+  // (LooseGearItemPhoto in CertificatePreview.tsx, down from 260 to
+  // a small inline thumbnail there); down from 260 to 120 here too.
+  const run = await imageRunAtWidth(photo.data, 120);
   if (!run) return [];
   return [
     heading("Photo of Item Inspected"),

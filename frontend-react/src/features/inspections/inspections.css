@@ -282,6 +282,23 @@ table.insp-id-table { width: 100%; table-layout: fixed; border-collapse: collaps
 table.insp-id-table td { border: 1px solid #CBD2D8; padding: 5px 8px; overflow-wrap: break-word; }
 table.insp-id-table td.insp-label-cell { background: #F4F6F7; font-weight: 700; color: var(--insp-navy); width: 16%; }
 
+/* Requested directly: "the lose gear report appears to be two pages,
+   make it one, ... reduce size of the photo ... and make the report
+   one page report." Measured directly in the browser: Loose Gear's
+   own content (several ID tables plus the full LOLER statutory
+   declaration) already ran over one page's budget before any photo
+   was even added, and shrinking the photo alone (see
+   LooseGearItemPhoto in CertificatePreview.tsx) only closed about
+   half that gap. Scoped tighter row/section spacing to just the three
+   Loose Gear pages (.lg-compact, applied in CertificatePreview.tsx)
+   rather than the base .insp-id-table/.insp-remarks-box rules above,
+   which every other certificate type also relies on and which were
+   never reported as too tall. */
+.lg-compact table.insp-id-table { margin-bottom: 6px; }
+.lg-compact table.insp-id-table td { padding: 2px 6px; }
+.lg-compact .insp-remarks-box { margin: 5px 0; padding: 4px 8px; }
+.lg-compact .insp-cert-title-row { margin: 2px 0 5px; }
+
 table.insp-print-chk { width: 100%; border-collapse: collapse; font-size: 10px; margin-bottom: 10px; }
 /* Requested directly: "make lifeboat certificate 2 page, davit
    certificate 1 page, equipment 1 page[,] same for FRC and free

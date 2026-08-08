@@ -631,18 +631,34 @@ function LooseGearCertificatePage({ cert, looseGear }: { cert: InspectionCertifi
 // attached — see PhotoUpload's maxPhotos prop, wired to 1 in
 // LooseGearForm.tsx — so there's never more than the first entry here
 // to show.
+// Requested directly, after measuring the real print output: "reduce
+// size of the photo in lose gears and make the report one page
+// report." Measured directly in the browser via
+// useFillToPageMultiple's own natural-content-height check: this
+// report's content already ran ~55px over one page's budget with NO
+// photo at all (the statutory declaration alone is long), and a
+// realistic phone photo at the old maxWidth/maxHeight (220x150) added
+// another ~180px on top of that — ~236px over budget in total. Fixed
+// width/height with object-fit: cover (70x50, versus a photo that
+// could render up to 150px tall before) plus the label sitting beside
+// it instead of on its own line above closes most of that gap — the
+// single biggest lever available without touching the shared
+// .insp-id-table/.insp-remarks-box styling every other certificate
+// type also relies on.
 function LooseGearItemPhoto({ cert }: { cert: InspectionCertificate }) {
   const photo = cert.photos?.looseGear?.[0];
   if (!photo) return null;
   return (
-    <div style={{ margin: "8px 0" }}>
-      <div style={{ fontWeight: 700, fontSize: 11.5, color: "var(--insp-navy)", marginBottom: 4 }}>Photo of Item Inspected</div>
+    <div style={{ margin: "4px 0", display: "flex", alignItems: "center", gap: 8 }}>
       <img
         src={photo.data}
         alt="Item inspected"
-        style={{ maxWidth: 220, maxHeight: 150, objectFit: "contain", border: "1px solid #C9D1D8", borderRadius: 4, display: "block" }}
+        style={{ width: 70, height: 50, objectFit: "cover", border: "1px solid #C9D1D8", borderRadius: 4, flexShrink: 0 }}
       />
-      {photo.caption && <div style={{ fontSize: 9.5, color: "var(--insp-muted)", marginTop: 3 }}>{photo.caption}</div>}
+      <div>
+        <div style={{ fontWeight: 700, fontSize: 10, color: "var(--insp-navy)" }}>Photo of Item Inspected</div>
+        {photo.caption && <div style={{ fontSize: 9, color: "var(--insp-muted)", marginTop: 1 }}>{photo.caption}</div>}
+      </div>
     </div>
   );
 }
@@ -693,6 +709,7 @@ function StatutoryAnswersRows({ data }: { data: LooseGearStatutoryAnswers }) {
 function VisualCertPage({ cert, data }: { cert: InspectionCertificate; data: LooseGearVisualCertData }) {
   return (
     <CertPageFrame cert={cert}>
+      <div className="lg-compact">
       <div className="insp-cert-title-row">
         <h2>Visual Certificate of Thorough Examination</h2>
         <span className="insp-badge">LOOSE GEAR &amp; LIFTING EQUIPMENT</span>
@@ -775,6 +792,7 @@ function VisualCertPage({ cert, data }: { cert: InspectionCertificate; data: Loo
         </div>
       )}
       <SignatureGrid cert={cert} masterLabel="Master" techLabel="Inspector" />
+      </div>
     </CertPageFrame>
   );
 }
@@ -782,6 +800,7 @@ function VisualCertPage({ cert, data }: { cert: InspectionCertificate; data: Loo
 function StandardReportPage({ cert, data }: { cert: InspectionCertificate; data: LooseGearStandardReportData }) {
   return (
     <CertPageFrame cert={cert}>
+      <div className="lg-compact">
       <div className="insp-cert-title-row">
         <h2>Report of Thorough Examination</h2>
         <span className="insp-badge">LOOSE GEAR &amp; LIFTING EQUIPMENT</span>
@@ -845,6 +864,7 @@ function StandardReportPage({ cert, data }: { cert: InspectionCertificate; data:
         </div>
       )}
       <SignatureGrid cert={cert} masterLabel="Master" techLabel="Inspector" />
+      </div>
     </CertPageFrame>
   );
 }
@@ -861,6 +881,7 @@ const REASON_PRINT_LABELS: Record<string, string> = {
 function MultipleItemsPage({ cert, data }: { cert: InspectionCertificate; data: LooseGearMultipleItemsData }) {
   return (
     <CertPageFrame cert={cert}>
+      <div className="lg-compact">
       <div className="insp-cert-title-row">
         <h2>Report of Thorough Examination (Multiple Items)</h2>
         <span className="insp-badge">LOOSE GEAR &amp; LIFTING EQUIPMENT</span>
@@ -925,6 +946,7 @@ function MultipleItemsPage({ cert, data }: { cert: InspectionCertificate; data: 
         </div>
       )}
       <SignatureGrid cert={cert} masterLabel="Master" techLabel="Inspector" />
+      </div>
     </CertPageFrame>
   );
 }
