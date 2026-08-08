@@ -886,7 +886,7 @@ function StandardReportPage({ cert, data }: { cert: InspectionCertificate; data:
             <td><span className="tt-label">Model Details</span>{data.modelDetails || "—"}</td>
           </tr>
           <tr>
-            <td><span className="tt-label">Serial No</span>{data.serialNo || "—"}</td>
+            <td><span className="tt-label">Serial No(s)</span>{data.serialNos.filter((s) => s.trim()).join(", ") || "—"}</td>
             <td><span className="tt-label">Manufacturer</span>{data.manufacturer || "—"}</td>
             <td><span className="tt-label">P.R.V. Fitted</span>{yesNoCheckboxes(data.prvFitted)}</td>
           </tr>
@@ -939,13 +939,40 @@ function StandardReportPage({ cert, data }: { cert: InspectionCertificate; data:
             <td><span className="tt-label">Position</span>{data.examinerPosition || "—"}</td>
           </tr>
           <tr>
-            <td>
+            <td style={{ position: "relative" }}>
               <span className="tt-label">Signature</span>
               {cert.engineerSig ? (
                 <img src={cert.engineerSig} alt="Examiner signature" style={{ height: 30 }} />
               ) : cert.engineerName ? (
                 <span style={{ fontFamily: "cursive", fontSize: 16 }}>{cert.engineerName}</span>
               ) : "—"}
+              {/* Requested directly: "the stamp is removed from the
+                  Lose gear certificate, you need to bring it back" —
+                  restores the same HMZC stamp overlay SignBox applies
+                  elsewhere (see SignBox's own comment for the full
+                  technique/reasoning) onto this report's own Examiner
+                  signature cell, since this report doesn't render a
+                  SignBox/SignatureGrid at all anymore (see this
+                  function's own top comment). */}
+              <div
+                role="img"
+                aria-label="HMZC Official Stamp"
+                style={{
+                  position: "absolute",
+                  left: "58%",
+                  bottom: -8,
+                  transform: "translateX(-50%) rotate(-7deg)",
+                  height: 42,
+                  width: 132,
+                  backgroundImage: "var(--insp-stamp-url)",
+                  backgroundSize: "contain",
+                  backgroundRepeat: "no-repeat",
+                  printColorAdjust: "exact",
+                  WebkitPrintColorAdjust: "exact",
+                  opacity: 0.9,
+                  pointerEvents: "none",
+                }}
+              />
             </td>
           </tr>
         </tbody>

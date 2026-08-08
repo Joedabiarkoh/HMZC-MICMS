@@ -325,7 +325,14 @@ export interface LooseGearStandardReportData {
   idNo: string;
   description: string;
   modelDetails: string;
-  serialNo: string;
+  // Requested directly: "the items serial number can be about 20 for
+  // 1 set of certificate" — one Standard Report can cover a whole
+  // batch of identical items (same description/model/manufacturer/
+  // SWL/EWL, examined together on the same visit) rather than always
+  // exactly one, so this holds a list of serial numbers instead of a
+  // single one. No fixed cap — "about 20" is the typical scale, not a
+  // hard limit.
+  serialNos: string[];
   manufacturer: string;
   prvFitted: LooseGearYesNo; // Pressure/Proof Relief Valve fitted, as printed on the reference form
   mfgDate: string;

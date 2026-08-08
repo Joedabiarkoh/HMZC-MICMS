@@ -335,12 +335,22 @@ async function signatureBlock(cert: InspectionCertificate, masterLabel: string, 
 // uses; there is no Master/Captain row here at all, matching
 // StandardReportPage's print layout in CertificatePreview.tsx.
 async function examinerDetailsTable(cert: InspectionCertificate, position: string, leeaId: string): Promise<Table> {
-  const sigRun = cert.engineerSig ? await imageRunAtHeight(cert.engineerSig, 40) : null;
+  const [sigRun, stampRun] = await Promise.all([
+    cert.engineerSig ? imageRunAtHeight(cert.engineerSig, 40) : Promise.resolve(null),
+    imageRunAtHeight(HMZC_STAMP_DATA_URI, 34),
+  ]);
   const sigContent: Paragraph[] = sigRun
     ? [new Paragraph({ children: [sigRun] })]
     : cert.engineerName
     ? [new Paragraph({ children: [new TextRun({ text: cert.engineerName, italics: true, color: NAVY, size: 22 })] })]
     : [textP("—")];
+  // Requested directly: "the stamp is removed from the Lose gear
+  // certificate, you need to bring it back" — this report doesn't use
+  // the shared signatureBlock()/signCellContent() (see this function's
+  // own top comment for why), so the stamp that would normally come
+  // from signCellContent's own `stamp` branch is added here instead,
+  // directly under the Examiner's signature.
+  if (stampRun) sigContent.push(new Paragraph({ spacing: { before: 40 }, children: [stampRun] }));
 
   function fieldCell(label: string, content: string | Paragraph[], opts: { rowSpan?: number; widthPct?: number } = {}): TableCell {
     const body = Array.isArray(content) ? content : [textP(content || "—", { size: 18 })];
@@ -628,7 +638,7 @@ async function buildLooseGearSection(cert: InspectionCertificate, looseGear: Loo
       kvTable([
         ["I.D. No", d.idNo || "—"],
         ["Description", d.description || "—"],
-        ["Serial No", d.serialNo || "—"],
+        ["Serial No(s)", d.serialNos.filter((s) => s.trim()).join(", ") || "—"],
         ["Model Details", d.modelDetails || "—"],
         ["Manufacturer", d.manufacturer || "—"],
         ["P.R.V. Fitted", yesNoLabel(d.prvFitted)],

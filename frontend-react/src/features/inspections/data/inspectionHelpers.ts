@@ -279,7 +279,7 @@ export function freshLooseGearStandardReportData(): LooseGearStandardReportData 
     idNo: "",
     description: "",
     modelDetails: "",
-    serialNo: "",
+    serialNos: [""],
     manufacturer: "",
     prvFitted: "",
     mfgDate: "",

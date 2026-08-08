@@ -425,12 +425,53 @@ function StandardReportForm({
         </div>
         <div className="insp-row2">
           <div className="insp-field"><label htmlFor="sr-model">Model Details</label><input id="sr-model" value={data.modelDetails} onChange={(e) => onChange({ modelDetails: e.target.value })} /></div>
-          <div className="insp-field"><label htmlFor="sr-serial">Serial No</label><input id="sr-serial" value={data.serialNo} onChange={(e) => onChange({ serialNo: e.target.value })} /></div>
-        </div>
-        <div className="insp-row2">
           <div className="insp-field"><label htmlFor="sr-manufacturer">Manufacturer</label><input id="sr-manufacturer" value={data.manufacturer} onChange={(e) => onChange({ manufacturer: e.target.value })} /></div>
-          <YesNoField id="sr-prv" label="P.R.V. Fitted" value={data.prvFitted} onChange={(v) => onChange({ prvFitted: v })} />
         </div>
+        {/* Requested directly: "the items serial number can be about 20
+            for 1 set of certificate" — one report can cover a whole
+            batch of identical items (same description/model/
+            manufacturer/SWL/EWL below, examined together), each with
+            its own serial number, rather than always exactly one item
+            per report — so this is a growable list, not a single
+            field. */}
+        <div className="insp-field">
+          <label>Serial Number(s)</label>
+          {data.serialNos.map((sn, i) => (
+            <div key={i} style={{ display: "flex", gap: 6, marginBottom: 4 }}>
+              <input
+                aria-label={`Serial No ${i + 1}`}
+                value={sn}
+                onChange={(e) => {
+                  const next = [...data.serialNos];
+                  next[i] = e.target.value;
+                  onChange({ serialNos: next });
+                }}
+                style={{ flex: 1 }}
+              />
+              <button
+                type="button"
+                className="insp-btn insp-btn-outline"
+                style={{ padding: "3px 10px" }}
+                onClick={() => {
+                  const next = [...data.serialNos];
+                  next.splice(i, 1);
+                  onChange({ serialNos: next.length ? next : [""] });
+                }}
+              >
+                Remove
+              </button>
+            </div>
+          ))}
+          <button
+            type="button"
+            className="insp-btn insp-btn-outline"
+            style={{ padding: "3px 10px", fontSize: 11 }}
+            onClick={() => onChange({ serialNos: [...data.serialNos, ""] })}
+          >
+            + Add Serial Number
+          </button>
+        </div>
+        <YesNoField id="sr-prv" label="P.R.V. Fitted" value={data.prvFitted} onChange={(v) => onChange({ prvFitted: v })} />
         <div className="insp-row2">
           <div className="insp-field"><label htmlFor="sr-mfgdate">Mfg. Date</label><input id="sr-mfgdate" type="date" value={data.mfgDate} onChange={(e) => onChange({ mfgDate: e.target.value })} /></div>
           <div className="insp-field"><label htmlFor="sr-itemlocation">Location</label><input id="sr-itemlocation" value={data.itemLocation} onChange={(e) => onChange({ itemLocation: e.target.value })} /></div>
