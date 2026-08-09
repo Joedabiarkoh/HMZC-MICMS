@@ -99,6 +99,67 @@ export const CALIBRATION_CERT_TYPES: CalibrationSubTypeConfig[] = [
     validityYears: 1,
   },
   {
+    // Requested directly: "move the gas detector A & B into calibration
+    // as gas detectors are part of calibration items" — moved from
+    // ffeCertTypes.ts (that file's "gas_detector", now deprecated
+    // there but kept registered so already-saved certificates still
+    // resolve). Recast into this file's Unit(s) Under Test / Test Data
+    // shape rather than the FFE archetype's single item table:
+    // itemColumns is the standard shared register (was empty/absent on
+    // the FFE version), items2Columns is the original 8-column gas-type
+    // calibration data unchanged.
+    id: "gas_detector_type_a",
+    label: "Gas Detector — Maintenance & Calibration (Type A)",
+    technicalFields: [],
+    itemColumns: UNIT_UNDER_TEST_COLS,
+    itemTableLabel: "Unit(s) Under Test",
+    items2Columns: [
+      { key: "gasType", label: "Gas Type" }, { key: "spanReading", label: "Span Reading" },
+      { key: "alarmHigh", label: "Alarm Set Point (High)" }, { key: "alarmLow", label: "Alarm Set Point (Low)" },
+      { key: "twa", label: "TWA" }, { key: "stel", label: "STEL" }, { key: "cylNo", label: "Cyl #" },
+      { key: "calibrationTest", label: "Calibration Test" },
+    ],
+    items2Label: "Calibration Test Data",
+    note: "Add one row per gas type actually fitted — the standard set is Combustible (%LEL), Oxygen (%VOL), Toxic Gas CO (PPM), and Toxic Gas H2S (PPM). Calibration is crucial for detector accuracy/reliability; follow the manufacturer's requirements to prevent premature failures.",
+    validityYears: 1,
+  },
+  {
+    // Moved from ffeCertTypes.ts's "gas_detector_type_b" — see
+    // gas_detector_type_a's own comment above. Its Instrument Type/
+    // Model/Serial Number technicalFields are dropped here in favor of
+    // the shared Unit(s) Under Test register (itemColumns) every other
+    // Calibration sub-type already uses for exactly that — Work
+    // Status/Calibrated Date/Next Recommended Service Date stay as
+    // technicalFields since they're facts about the certificate visit,
+    // not the instrument itself. defaultItems2 is the real, filled-in
+    // reference reading from the actual second source template ("GAS
+    // DETECTOR CERTIFICATE #2.docx", a Couper Tide vessel MSA Altair
+    // 4X unit, cylinder BC691594).
+    id: "gas_detector_type_b",
+    label: "Gas Detector — Maintenance & Calibration (Type B)",
+    technicalFields: [
+      { key: "workStatus", label: "Work Status" }, { key: "calibratedDate", label: "Calibrated Date" },
+      { key: "nextServiceDate", label: "Next Recommended Service Date" },
+    ],
+    itemColumns: UNIT_UNDER_TEST_COLS,
+    itemTableLabel: "Unit(s) Under Test",
+    items2Columns: [
+      { key: "gasType", label: "Gas Type" }, { key: "spanReading", label: "Span Reading" },
+      { key: "alarmHigh", label: "Alarm Set Point (High)" }, { key: "alarmLow", label: "Alarm Set Point (Low)" },
+      { key: "twa", label: "TWA" }, { key: "stel", label: "STEL" }, { key: "cylNo", label: "Cyl #" },
+      { key: "calibrationTest", label: "Calibration Test" },
+    ],
+    items2Label: "Calibration Test Data",
+    defaultItems2: [
+      { gasType: "COMBUSTIBLE (%LEL)", spanReading: "58%", alarmHigh: "20%", alarmLow: "10%", twa: "N/A", stel: "N/A", cylNo: "BC691594", calibrationTest: "PASS" },
+      { gasType: "OXYGEN (%VOL)", spanReading: "15.0%", alarmHigh: "23.0%", alarmLow: "19.5%", twa: "N/A", stel: "N/A", cylNo: "BC691594", calibrationTest: "PASS" },
+      { gasType: "TOXIC GAS CO (PPM)", spanReading: "60 PPM", alarmHigh: "100 PPM", alarmLow: "25 PPM", twa: "25 PPM", stel: "100 PPM", cylNo: "BC691594", calibrationTest: "PASS" },
+      { gasType: "TOXIC GAS H2S (PPM)", spanReading: "20 PPM", alarmHigh: "10 PPM", alarmLow: "5 PPM", twa: "10 PPM", stel: "15 PPM", cylNo: "BC691594", calibrationTest: "PASS" },
+    ],
+    note: "Calibration is crucial for ensuring the accuracy and reliability of detectors. Following the manufacturer's requirements helps maintain the performance and longevity of the equipment, preventing premature failures.",
+    validityYears: 1,
+  },
+  {
     id: "fixed_gas_sampling",
     label: "Fixed Gas Sampling System",
     technicalFields: [

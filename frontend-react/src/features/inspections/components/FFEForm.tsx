@@ -138,7 +138,7 @@ export default function FFEForm({ current, updateField, openCertificate }: Props
         <div className="insp-field">
           <label htmlFor="ffe-subtype">FFE Equipment / System</label>
           <select id="ffe-subtype" value={ffe.subType} onChange={(e) => changeSubType(e.target.value)}>
-            {FFE_CERT_TYPES.map((t) => (
+            {FFE_CERT_TYPES.filter((t) => !t.deprecated || t.id === ffe.subType).map((t) => (
               <option key={t.id} value={t.id}>{t.label}</option>
             ))}
           </select>

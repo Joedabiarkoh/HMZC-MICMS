@@ -69,6 +69,14 @@ export interface FFESubTypeConfig {
   readingsRows?: { key: string; label: string; maxAllowed: string }[];
   validityYears: 1 | 2;
   note?: string;
+  // Requested directly: "move the gas detector A & B into calibration
+  // as gas detectors are part of calibration items" — a sub-type moved
+  // elsewhere but kept registered here (not deleted) purely so
+  // certificates already saved under it still resolve/open correctly
+  // (see getFFEConfig — an unrecognized id would silently fall back to
+  // Chemical Suit). Filtered out of FFEForm.tsx's sub-type dropdown so
+  // it's simply not offered for a brand-new certificate.
+  deprecated?: boolean;
 }
 
 const SERIAL_MAKE_MODEL_COLS: FFEColumn[] = [
@@ -504,20 +512,16 @@ export const FFE_CERT_TYPES: FFESubTypeConfig[] = [
     validityYears: 1,
   },
   {
-    // Doc source (GAS DETECTOR CERTIFICATE) shows a fixed set of 4 gas
-    // types with several columns of calibration data each, not a single
-    // measured-value-vs-maximum-allowed pair like Air Quality Test's
-    // "readings" archetype — modelled as "items" instead so each of the
-    // 4 standard gas types (and any others actually fitted) is its own
-    // row with all the columns the real calibration certificate needs.
-    // Labelled "Type A" now that a second real template ("GAS DETECTOR
-    // CERTIFICATE #2.docx") turned up with the same item-table shape
-    // but its own header fields — see gas_detector_type_b below. id
-    // kept as "gas_detector" (not renamed to _type_a) so certificates
-    // already saved under it still resolve.
+    // Requested directly: "move the gas detector A & B into
+    // calibration as gas detectors are part of calibration items" —
+    // moved to calibrationCertTypes.ts (ids gas_detector_type_a /
+    // gas_detector_type_b there). Kept here, deprecated, purely so any
+    // certificate already saved with ffe.subType "gas_detector" still
+    // resolves/opens correctly — see FFESubTypeConfig.deprecated.
     id: "gas_detector",
-    label: "Gas Detector — Maintenance & Calibration (Type A)",
+    label: "Gas Detector — Maintenance & Calibration (Type A) — moved to Calibration",
     archetype: "items",
+    deprecated: true,
     itemColumns: [
       { key: "gasType", label: "Gas Type" }, { key: "spanReading", label: "Span Reading" },
       { key: "alarmHigh", label: "Alarm Set Point (High)" }, { key: "alarmLow", label: "Alarm Set Point (Low)" },
@@ -528,19 +532,13 @@ export const FFE_CERT_TYPES: FFESubTypeConfig[] = [
     note: "Add one row per gas type actually fitted — the standard set is Combustible (%LEL), Oxygen (%VOL), Toxic Gas CO (PPM), and Toxic Gas H2S (PPM). Calibration is crucial for detector accuracy/reliability; follow the manufacturer's requirements to prevent premature failures.",
   },
   {
-    // Requested directly: "add this multigas detection report as
-    // another type, so we can have type A & B" — from a second, real,
-    // filled-in gas detector certificate ("GAS DETECTOR CERTIFICATE
-    // #2.docx", a Couper Tide vessel MSA Altair 4X unit). Same item
-    // table shape as Type A above (its calibration data table matched
-    // exactly: Gas Type/Span Reading/Alarm High/Alarm Low/TWA/STEL/
-    // Cyl#/Calibration Test) but its own header fields the source
-    // captures that Type A doesn't: Instrument Type, Model, Serial
-    // Number, Work Status, Calibrated Date, Next Recommended Service
-    // Date — added here as technicalFields.
+    // Moved to calibrationCertTypes.ts (gas_detector_type_b) — see
+    // gas_detector's own comment above. Kept here, deprecated, purely
+    // for certificates already saved under it.
     id: "gas_detector_type_b",
-    label: "Gas Detector — Maintenance & Calibration (Type B)",
+    label: "Gas Detector — Maintenance & Calibration (Type B) — moved to Calibration",
     archetype: "items",
+    deprecated: true,
     technicalFields: [
       { key: "instrumentType", label: "Instrument Type" }, { key: "model", label: "Model" },
       { key: "serialNo", label: "Serial Number" }, { key: "workStatus", label: "Work Status" },
