@@ -510,8 +510,13 @@ export const FFE_CERT_TYPES: FFESubTypeConfig[] = [
     // "readings" archetype — modelled as "items" instead so each of the
     // 4 standard gas types (and any others actually fitted) is its own
     // row with all the columns the real calibration certificate needs.
+    // Labelled "Type A" now that a second real template ("GAS DETECTOR
+    // CERTIFICATE #2.docx") turned up with the same item-table shape
+    // but its own header fields — see gas_detector_type_b below. id
+    // kept as "gas_detector" (not renamed to _type_a) so certificates
+    // already saved under it still resolve.
     id: "gas_detector",
-    label: "Gas Detector — Maintenance & Calibration",
+    label: "Gas Detector — Maintenance & Calibration (Type A)",
     archetype: "items",
     itemColumns: [
       { key: "gasType", label: "Gas Type" }, { key: "spanReading", label: "Span Reading" },
@@ -521,6 +526,110 @@ export const FFE_CERT_TYPES: FFESubTypeConfig[] = [
     ],
     validityYears: 1,
     note: "Add one row per gas type actually fitted — the standard set is Combustible (%LEL), Oxygen (%VOL), Toxic Gas CO (PPM), and Toxic Gas H2S (PPM). Calibration is crucial for detector accuracy/reliability; follow the manufacturer's requirements to prevent premature failures.",
+  },
+  {
+    // Requested directly: "add this multigas detection report as
+    // another type, so we can have type A & B" — from a second, real,
+    // filled-in gas detector certificate ("GAS DETECTOR CERTIFICATE
+    // #2.docx", a Couper Tide vessel MSA Altair 4X unit). Same item
+    // table shape as Type A above (its calibration data table matched
+    // exactly: Gas Type/Span Reading/Alarm High/Alarm Low/TWA/STEL/
+    // Cyl#/Calibration Test) but its own header fields the source
+    // captures that Type A doesn't: Instrument Type, Model, Serial
+    // Number, Work Status, Calibrated Date, Next Recommended Service
+    // Date — added here as technicalFields.
+    id: "gas_detector_type_b",
+    label: "Gas Detector — Maintenance & Calibration (Type B)",
+    archetype: "items",
+    technicalFields: [
+      { key: "instrumentType", label: "Instrument Type" }, { key: "model", label: "Model" },
+      { key: "serialNo", label: "Serial Number" }, { key: "workStatus", label: "Work Status" },
+      { key: "calibratedDate", label: "Calibrated Date" }, { key: "nextServiceDate", label: "Next Recommended Service Date" },
+    ],
+    itemColumns: [
+      { key: "gasType", label: "Gas Type" }, { key: "spanReading", label: "Span Reading" },
+      { key: "alarmHigh", label: "Alarm Set Point (High)" }, { key: "alarmLow", label: "Alarm Set Point (Low)" },
+      { key: "twa", label: "TWA" }, { key: "stel", label: "STEL" }, { key: "cylNo", label: "Cyl #" },
+      { key: "calibrationTest", label: "Calibration Test" },
+    ],
+    validityYears: 1,
+    note: "Add one row per gas type actually fitted — the standard set is Combustible (%LEL), Oxygen (%VOL), Toxic Gas CO (PPM), and Toxic Gas H2S (PPM). Calibration is crucial for ensuring the accuracy and reliability of detectors. Following the manufacturer's requirements helps maintain the performance and longevity of the equipment, preventing premature failures.",
+  },
+  {
+    // Requested directly: "use the ladder certificate made and search
+    // for other best pilot ladder and accommodation ladder inspection/
+    // check list and create an inspection and checklist for both."
+    // itemColumns match the existing combined "LADDER" certificate's
+    // own register shape (Downloads/try folder/LADDER- CERTICATE.pdf —
+    // No/S-N/Manufacture/Year of Man./Type/Length-Steps/Location/
+    // Remarks), since a vessel can carry more than one pilot ladder.
+    // checklistItems researched against SOLAS Ch V Reg 23 and IMO
+    // Resolution A.1045(27) "Pilot Transfer Arrangements" (steps
+    // 310-350mm apart, side ropes free of knots/splices except above
+    // the top step, max 2 replacement steps secured by an approved
+    // method, manropes 28-32mm, retrieval line at/above the last
+    // spreader) — a superset of the reference certificate's own
+    // 9-item list, not a replacement of it.
+    id: "pilot_ladder",
+    label: "Pilot Ladder",
+    archetype: "items",
+    itemColumns: [
+      { key: "serialNo", label: "S/N" }, { key: "manufacturer", label: "Manufacturer" },
+      { key: "yearOfMan", label: "Year of Man." }, { key: "lengthSteps", label: "Length/Steps" },
+      { key: "location", label: "Location" }, { key: "remarks", label: "Remarks" },
+    ],
+    checklistItems: [
+      { no: "1", description: "Side ropes clean, in serviceable condition — no cuts, wear, rot, or damage" },
+      { no: "2", description: "Side ropes free of knots, splices, or joins, except above the top step" },
+      { no: "3", description: "Steps not cracked, broken, bent, or warped" },
+      { no: "4", description: "Steps clean, anti-slip surface intact — free of paint, grease, or contamination" },
+      { no: "5", description: "Steps horizontal and evenly spaced 310-350mm apart" },
+      { no: "6", description: "Spreaders fitted at correct intervals; steps and spreaders lie horizontal when rigged" },
+      { no: "7", description: "Step fixtures/seizings secure and tight" },
+      { no: "8", description: "No more than 2 replacement steps, each secured by an approved method" },
+      { no: "9", description: "Manropes (28-32mm) available, free of knots, joins, and splices" },
+      { no: "10", description: "Retrieval line fastened at or above the last spreader step, leading forward" },
+      { no: "11", description: "Ladder length adequate for the freeboard/height of transfer" },
+      { no: "12", description: "Marking, identification, and date of manufacture visible" },
+      { no: "13", description: "Proper storage condition" },
+      { no: "14", description: "Ancillary equipment (lifebuoy with self-igniting light, heaving line, handhold stanchions) present and in good condition" },
+    ],
+    validityYears: 1,
+    note: "Reference: SOLAS Chapter V, Regulation 23 and IMO Resolution A.1045(27) (Pilot Transfer Arrangements). A pilot ladder found not to comply must not be used until the defect is rectified.",
+  },
+  {
+    // checklistItems researched against SOLAS/MSC.1/Circ.1331 (Means of
+    // Access) guidance on accommodation ladder and gangway surveys —
+    // annual survey scope (steps/platforms, support and suspension
+    // points, stanchions, safety pins, handrails, turntables, side
+    // nets) plus the aluminium-on-steel-fitting corrosion check
+    // industry inspection checklists specifically flag.
+    id: "accommodation_ladder",
+    label: "Accommodation Ladder",
+    archetype: "items",
+    itemColumns: [
+      { key: "serialNo", label: "S/N" }, { key: "manufacturer", label: "Manufacturer" },
+      { key: "yearOfMan", label: "Year of Man." }, { key: "lengthSteps", label: "Length/Steps" },
+      { key: "location", label: "Location" }, { key: "remarks", label: "Remarks" },
+    ],
+    checklistItems: [
+      { no: "1", description: "Steps/treads — no distortion, cracks, or corrosion" },
+      { no: "2", description: "Platform — no distortion, cracks, or corrosion" },
+      { no: "3", description: "Side stringers/structure — no distortion, cracks, or corrosion" },
+      { no: "4", description: "Underside of ladder inspected for distortion, cracks, or corrosion" },
+      { no: "5", description: "Support points (pivots, rollers) free to turn and properly greased" },
+      { no: "6", description: "Suspension points (lugs, brackets) — no cracks, corrosion, or deformation" },
+      { no: "7", description: "Stanchions upright, not bent, securely fitted; safety pins present and functional" },
+      { no: "8", description: "Rigid handrails secure, no damage" },
+      { no: "9", description: "Hand ropes inspected along their full length — no fraying or damage" },
+      { no: "10", description: "Turntable operates freely and is properly greased" },
+      { no: "11", description: "Side nets fitted, no holes or damage, correctly secured" },
+      { no: "12", description: "Securing points and winch/winch bed structure — no distortion, cracks, or corrosion" },
+      { no: "13", description: "Aluminium-to-mild-steel fittings checked for galvanic corrosion, where applicable" },
+      { no: "14", description: "Operational test — deploys and retrieves smoothly under normal use" },
+    ],
+    validityYears: 1,
+    note: "Reference: SOLAS requirements and IMO MSC.1/Circ.1331 (Means of Access) guidance on accommodation ladder/gangway surveys.",
   },
 
   // ---------- Archetype: system (fixed installations) ----------
