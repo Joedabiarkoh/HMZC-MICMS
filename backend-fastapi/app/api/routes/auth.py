@@ -10,7 +10,7 @@ from app.core.database import get_database
 from app.core.email import send_account_created_email, send_password_reset_email
 from app.core.config import settings
 from app.core.permissions import ALL_PERMISSIONS
-from app.core.photo_storage import delete_photo_files, externalize_signature, collect_photo_filenames
+from app.core.photo_storage import delete_photo_files, externalize_signature, collect_photo_filenames, filter_deletable
 from app.core.rate_limit import check_rate_limit
 from app.core.security import create_access_token, generate_temporary_password, hash_password, verify_password
 from app.models.audit_log import AuditLog
@@ -175,7 +175,9 @@ def save_my_signature(
     db.commit()
     db.refresh(current_user)
     if old_url:
-        delete_photo_files(collect_photo_filenames(old_url))
+        deletable = filter_deletable(db, collect_photo_filenames(old_url))
+        if deletable:
+            delete_photo_files(deletable)
     return current_user
 
 
@@ -189,7 +191,9 @@ def delete_my_signature(
     db.commit()
     db.refresh(current_user)
     if old_url:
-        delete_photo_files(collect_photo_filenames(old_url))
+        deletable = filter_deletable(db, collect_photo_filenames(old_url))
+        if deletable:
+            delete_photo_files(deletable)
     return current_user
 
 

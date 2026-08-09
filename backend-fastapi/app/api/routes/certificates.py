@@ -9,7 +9,7 @@ from app.core.audit import record_audit
 from app.core.database import get_database
 from app.core.imo_validation import is_valid_imo_checksum
 from app.core.permissions import CERT_DELETE, CERT_EDIT, CERT_VIEW, CERT_VIEW_ALL, get_user_permissions
-from app.core.photo_storage import collect_photo_filenames, delete_photo_files, externalize_photos
+from app.core.photo_storage import collect_photo_filenames, delete_photo_files, externalize_photos, filter_deletable
 from app.models.certificate import Certificate
 from app.models.user import User
 from app.schemas.certificate import CertificateCreate, CertificateResponse, CertificateVerifyResult, VesselLookupResult, VesselSummary
@@ -84,8 +84,13 @@ def save_certificate(
             )
         # A photo removed in this edit (the technician deleted it before
         # re-saving) leaves an orphaned file behind unless it's cleaned up
-        # here — the new payload no longer references it, and nothing
-        # else ever will, so there's no other point this gets caught.
+        # here — the new payload no longer references it here, but a
+        # signature file in particular can still be needed elsewhere (the
+        # signer's own saved default, or another certificate that copied
+        # the same URL in at save time) — see filter_deletable's own
+        # comment; a real production bug already broke 4 certificates by
+        # deleting files this same "no longer referenced HERE" logic
+        # assumed nothing else could possibly want.
         old_files = set(collect_photo_filenames(existing.payload))
         new_files = set(collect_photo_filenames(externalized_payload))
         removed_files = old_files - new_files
@@ -101,7 +106,9 @@ def save_certificate(
         db.commit()
         db.refresh(existing)
         if removed_files:
-            delete_photo_files(list(removed_files))
+            deletable = filter_deletable(db, removed_files)
+            if deletable:
+                delete_photo_files(deletable)
         record_audit(db, request, "certificate.save", user_id=current_user.id, resource_type="certificate", resource_id=existing.cert_no, detail=f"status={existing.status}, version={existing.version}")
         return existing
 
@@ -341,4 +348,11 @@ def delete_certificate(
     db.delete(cert)
     db.commit()
     if photo_files:
-        delete_photo_files(photo_files)
+        # filter_deletable checks the certificates table AFTER this
+        # delete already committed, so this cert's own now-gone payload
+        # can't falsely count as "still referenced" — only genuinely
+        # other rows (or a user's saved_signature_url) protect a file
+        # from deletion here.
+        deletable = filter_deletable(db, photo_files)
+        if deletable:
+            delete_photo_files(deletable)

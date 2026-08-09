@@ -3,7 +3,9 @@ import binascii
 import re
 import uuid
 from pathlib import Path
-from typing import Any
+from typing import Any, Iterable
+
+from sqlalchemy.orm import Session
 
 from app.core.config import settings
 
@@ -144,6 +146,49 @@ def collect_photo_filenames(payload: Any) -> list[str]:
 
     walk(payload)
     return found
+
+
+# Root-caused directly from a real report: "Technician Signature
+# section... only showing signature with some picture instead of the
+# actual signature" — confirmed against the production database that
+# 4 real certificates (2 already finalized) had a broken engineerSig
+# because this exact class of gap already happened once: a
+# certificate's engineerSig/captainSig is a COPY of whatever the
+# signer's saved_signature_url was AT THE MOMENT it was created (see
+# freshCertificate() on the frontend), not a live reference to
+# "whatever the current default is" — so the same file on disk can
+# legitimately be pointed at by the user's own profile AND by any
+# number of certificates at once. Every call site that used to delete
+# a photo/signature file the instant it was no longer referenced from
+# ONE place (a certificate being edited/deleted, a user replacing/
+# removing their default signature) now checks first whether it's
+# still needed somewhere else, so replacing your default signature
+# tomorrow can't silently break a certificate issued yesterday.
+def is_file_still_needed(db: Session, filename: str) -> bool:
+    if "/" in filename or "\\" in filename:
+        return True  # not a bare filename — treat as "keep it", the caller's sanitization will reject it anyway
+    # Checked in Python, not a Postgres-only `payload::text LIKE` query —
+    # this also has to run correctly against SQLite (the test suite's
+    # database), which doesn't support that cast. `payload` is a handful
+    # of KB of JSON per certificate at this company's real scale, and
+    # this only runs on the rare admin/signature-management action that
+    # was about to delete a file anyway, not on every request.
+    import json
+    from app.models.certificate import Certificate
+    from app.models.user import User
+    for (payload,) in db.query(Certificate.payload).all():
+        if filename in json.dumps(payload):
+            return True
+    user_hit = db.query(User).filter(User.saved_signature_url.like(f"%{filename}%")).first()
+    return user_hit is not None
+
+
+def filter_deletable(db: Session, filenames: Iterable[str]) -> list[str]:
+    """Filters `filenames` down to the ones safe to actually delete from
+    disk — see is_file_still_needed's own comment for why this check
+    exists at all. Call this immediately before delete_photo_files at
+    every site that used to call it directly."""
+    return [f for f in filenames if not is_file_still_needed(db, f)]
 
 
 def delete_photo_files(filenames: list[str]) -> None:
