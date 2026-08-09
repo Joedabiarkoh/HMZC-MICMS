@@ -11,6 +11,7 @@ import JobCosting from "./features/finance/pages/JobCosting";
 import Reports from "./features/reports/pages/Reports";
 import InspectionWorkspace from "./features/inspections/pages/InspectionWorkspace";
 import CertificateLog from "./features/inspections/pages/CertificateLog";
+import OpenJobs from "./features/inspections/pages/OpenJobs";
 import VesselSearch from "./features/inspections/pages/VesselSearch";
 import VerifyCertificate from "./features/inspections/pages/VerifyCertificate";
 import SignIn from "./features/auth/pages/SignIn";
@@ -120,6 +121,7 @@ export default function App() {
               <Route path="/inspections" element={<RequirePermission permission={PERM.CERT_VIEW}><InspectionWorkspace /></RequirePermission>} />
               <Route path="/certificates" element={<RequirePermission permission={PERM.CERT_VIEW}><InspectionWorkspace /></RequirePermission>} />
               <Route path="/certificates/log" element={<RequirePermission permission={PERM.CERT_VIEW}><CertificateLog /></RequirePermission>} />
+              <Route path="/jobs/open" element={<RequirePermission permission={PERM.JOB_VIEW}><OpenJobs /></RequirePermission>} />
             </Route>
           </Route>
 

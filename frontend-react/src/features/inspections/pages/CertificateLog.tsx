@@ -260,7 +260,12 @@ export default function CertificateLog() {
                               >
                                 <span>Job: {jobGroup.jobNo} ({jobGroup.certs.length} certificate{jobGroup.certs.length === 1 ? "" : "s"})</span>
                                 <span style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                                  {jobGroup.jobNo !== "(no job)" && hasPermission(user, PERM.CERT_EDIT) && (
+                                  {/* jobs.create, not certificates.edit — matches
+                                      backend-fastapi's close_job (api/routes/jobs.py),
+                                      which requires JOB_CREATE. Was CERT_EDIT here,
+                                      which would show this button to someone the
+                                      backend then 403s. */}
+                                  {jobGroup.jobNo !== "(no job)" && hasPermission(user, PERM.JOB_CREATE) && (
                                     <button
                                       type="button"
                                       className="insp-btn insp-btn-outline"

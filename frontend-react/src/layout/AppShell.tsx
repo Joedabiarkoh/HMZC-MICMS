@@ -46,6 +46,7 @@ const NAV_GROUPS: NavGroup[] = [
       { to: "/vessels", label: "Vessels", permission: PERM.CERT_VIEW },
       { to: "/inspections", label: "Inspections", permission: PERM.CERT_EDIT },
       { to: "/certificates/log", label: "Certificate Log", permission: PERM.CERT_VIEW },
+      { to: "/jobs/open", label: "Open Jobs", permission: PERM.JOB_VIEW },
     ],
   },
   {

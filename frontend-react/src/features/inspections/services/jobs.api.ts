@@ -41,8 +41,13 @@ export async function createJob(input: CreateJobInput): Promise<Job> {
   return response.data;
 }
 
-export async function listJobs(vesselName: string, status?: "open" | "closed"): Promise<Job[]> {
-  const response = await api.get<Job[]>("/jobs", { params: { vessel_name: vesselName, status_filter: status } });
+// vesselName omitted (or "") lists every job matching status_filter
+// across all vessels — see api/routes/jobs.py's list_jobs, which
+// already only filters by vessel_name when one is actually given.
+// Used by JobPicker.tsx (vessel-scoped) and OpenJobs.tsx (unscoped,
+// company-wide) alike.
+export async function listJobs(vesselName?: string, status?: "open" | "closed"): Promise<Job[]> {
+  const response = await api.get<Job[]>("/jobs", { params: { vessel_name: vesselName || undefined, status_filter: status } });
   return response.data;
 }
 
