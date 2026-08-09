@@ -461,6 +461,14 @@ async function buildFFESection(cert: InspectionCertificate, ffe: FFEData): Promi
   if (cfg.technicalFields?.length) {
     blocks.push(heading("Technical Description"), kvTable(cfg.technicalFields.map((f) => [f.label, ffe.technicalValues[f.key] || "—"] as [string, string])));
   }
+  // Requested directly: the reference-standard note (e.g. Air Quality
+  // Test's "Reference limits per EN 12021 and DIN-3188.") was already
+  // shown on-screen (FFEForm.tsx) and in the print preview
+  // (CertificatePreview.tsx) but missing from the actual Word-exported
+  // certificate — the document that's really handed to a client.
+  if (cfg.note) {
+    blocks.push(textP(cfg.note, { size: 16, color: MUTED }));
+  }
   if (cfg.itemColumns?.length) {
     blocks.push(heading(cfg.itemTableLabel || "Items"), dataTable(["#", ...cfg.itemColumns.map((c) => c.label)], ffe.items.map((row, i) => [String(i + 1), ...cfg.itemColumns!.map((c) => row[c.key] || "—")])));
   }

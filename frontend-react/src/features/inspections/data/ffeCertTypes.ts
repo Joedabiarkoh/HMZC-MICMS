@@ -352,7 +352,7 @@ export const FFE_CERT_TYPES: FFESubTypeConfig[] = [
       "6 = New Extinguisher", "7 = Hydro Test", "8 = Condemned",
       "F = Foam", "W = Water", "CO2 = Carbon Dioxide", "WC = Wet Chemical", "DCP = Dry Chemical Powder",
       "PK = Purple K", "A+B = Chemical Foam A+B", "AFFF = Aqueous Film Forming Foam", "FP = Flouro Protein",
-      "Cart = Cartridge Type", "PRE = Pressure Type", "WT = Weighing", "HT = Hydro Test",
+      "Cart = Cartridge Type", "PRE = Pressure Type", "WT = Weighing", "HT = Hydro Test", "CR = Content Change",
     ],
     itemColumns: [
       { key: "serialNo", label: "Serial No" }, { key: "make", label: "Make" }, { key: "type", label: "Type" },
@@ -374,7 +374,7 @@ export const FFE_CERT_TYPES: FFESubTypeConfig[] = [
       "6 = New Extinguisher", "7 = Hydro Test", "8 = Condemned",
       "F = Foam", "W = Water", "CO2 = Carbon Dioxide", "WC = Wet Chemical", "DCP = Dry Chemical Powder",
       "PK = Purple K", "A+B = Chemical Foam A+B", "AFFF = Aqueous Film Forming Foam", "FP = Flouro Protein",
-      "Cart = Cartridge Type", "PRE = Pressure Type", "WT = Weighing", "HT = Hydro Test",
+      "Cart = Cartridge Type", "PRE = Pressure Type", "WT = Weighing", "HT = Hydro Test", "CR = Content Change",
     ],
     itemColumns: [
       { key: "serialNo", label: "Serial No" }, { key: "make", label: "Make" }, { key: "type", label: "Type" },
