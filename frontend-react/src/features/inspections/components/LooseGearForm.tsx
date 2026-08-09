@@ -1,3 +1,4 @@
+import { useState } from "react";
 import {
   LOOSE_GEAR_SUB_TYPES,
   freshLooseGearRegisterRow,
@@ -378,6 +379,15 @@ const EXAMINATION_TYPE_LABELS: Record<Exclude<LooseGearExaminationType, "">, str
 function StandardReportForm({
   data, onChange, current, updateField, openCertificate,
 }: { data: LooseGearStandardReportData; onChange: (patch: Partial<LooseGearStandardReportData>) => void } & Props) {
+  // Requested directly: "is there a way we can arrange all these
+  // process and work flow to make it simple and less complicated" —
+  // Date of Report, MBL, and Factor of Safety are real LOLER/BDA
+  // fields (see their own comments further down) but the least
+  // frequently needed of the ~30 on this form, so they're tucked
+  // behind one toggle instead of always taking up space. Starts
+  // expanded if any of them already have a value (reopening a
+  // certificate that used them shouldn't hide that data by default).
+  const [showAdditional, setShowAdditional] = useState(!!(data.dateOfReport || data.mbl || data.factorOfSafety));
   return (
     <>
       <fieldset className="insp-fieldset">
@@ -390,13 +400,23 @@ function StandardReportForm({
           <div className="insp-field"><label htmlFor="sr-certno">Report No.</label><input id="sr-certno" value={current.certNo} readOnly /></div>
           <div className="insp-field"><label htmlFor="sr-date-exam">Date of Examination</label><input id="sr-date-exam" type="date" value={data.dateOfExamination} onChange={(e) => onChange({ dateOfExamination: e.target.value })} /></div>
         </div>
+        <button
+          type="button"
+          className="insp-btn insp-btn-outline"
+          style={{ padding: "3px 10px", fontSize: 11, marginBottom: 8 }}
+          onClick={() => setShowAdditional((v) => !v)}
+        >
+          {showAdditional ? "− Hide Additional Details" : "+ Additional Details (Date of Report, MBL, Factor of Safety)"}
+        </button>
         {/* Requested directly: "look at this [BDA Technical Guide] at
             the report section and include section where needed" —
             LOLER Schedule 1 item 11 requires its own "date of the
             report", distinct from the date the examination itself was
             carried out above (the BDA's own example RTE shows these
             as two separate fields). */}
-        <div className="insp-field"><label htmlFor="sr-date-report">Date of Report</label><input id="sr-date-report" type="date" value={data.dateOfReport} onChange={(e) => onChange({ dateOfReport: e.target.value })} /></div>
+        {showAdditional && (
+          <div className="insp-field"><label htmlFor="sr-date-report">Date of Report</label><input id="sr-date-report" type="date" value={data.dateOfReport} onChange={(e) => onChange({ dateOfReport: e.target.value })} /></div>
+        )}
         <div className="insp-row2">
           <div className="insp-field">
             <label htmlFor="sr-exam-type">Examination Type</label>
@@ -499,11 +519,14 @@ function StandardReportForm({
             certificate" — MBL (Minimum Breaking Load) is the figure
             SWL/WLL is calculated FROM (WLL = MBL / FoS), and the
             guide's own example RTE records both alongside SWL for
-            that reason. */}
-        <div className="insp-row2">
-          <div className="insp-field"><label htmlFor="sr-mbl">MBL (Minimum Breaking Load)</label><input id="sr-mbl" value={data.mbl} onChange={(e) => onChange({ mbl: e.target.value })} placeholder="e.g. 7.12t" /></div>
-          <div className="insp-field"><label htmlFor="sr-fos">Factor of Safety</label><input id="sr-fos" value={data.factorOfSafety} onChange={(e) => onChange({ factorOfSafety: e.target.value })} placeholder="e.g. 5:1" /></div>
-        </div>
+            that reason. Gated by the same "Additional Details" toggle
+            as Date of Report above — see showAdditional's own comment. */}
+        {showAdditional && (
+          <div className="insp-row2">
+            <div className="insp-field"><label htmlFor="sr-mbl">MBL (Minimum Breaking Load)</label><input id="sr-mbl" value={data.mbl} onChange={(e) => onChange({ mbl: e.target.value })} placeholder="e.g. 7.12t" /></div>
+            <div className="insp-field"><label htmlFor="sr-fos">Factor of Safety</label><input id="sr-fos" value={data.factorOfSafety} onChange={(e) => onChange({ factorOfSafety: e.target.value })} placeholder="e.g. 5:1" /></div>
+          </div>
+        )}
       </fieldset>
 
       <fieldset className="insp-fieldset">

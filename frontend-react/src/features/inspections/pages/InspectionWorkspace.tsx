@@ -757,6 +757,31 @@ export default function InspectionWorkspace() {
             >
               Finalize &amp; Save
             </button>
+            {/* Requested directly: "some equipment can have same
+                details but only the serial number changes, allow to
+                use previous and create a copy for the next item...
+                so that once saved, you can still create a copy" —
+                then, as part of simplifying the workflow: "is there a
+                way we can arrange all these process and work flow to
+                make it simple." This is how a job actually gets built
+                up (one item after another), so it sits here as a
+                primary action next to Save/Finalize rather than as a
+                small secondary button competing with Print/Save as
+                Word/New Certificate below — "New Certificate" means
+                starting over from the Job Picker for something else
+                entirely, which isn't what adding the next item to an
+                already-open job actually needs. Only for Standard
+                Report (the one-item-per-certificate type this
+                repetition problem applies to), and only once this
+                certificate has actually been saved at least once
+                (current.jobRef is set by the Job Picker; savedAt/
+                issuedAt only get set by an actual save) — duplicating
+                a still-blank draft wouldn't save anyone any typing. */}
+            {current.looseGear?.subType === "standard_report" && current.jobRef && (current.savedAt || current.issuedAt) && (
+              <button className="insp-btn insp-btn-primary" onClick={handleDuplicateForNextItem} title="Copies the equipment details — Serial Number(s) and the examination outcome (Result, defects, tests) start blank for you to reassess. Reuses this same Job.">
+                + Add Next Item to This Job
+              </button>
+            )}
           </div>
           <div className="insp-btn-group insp-btn-group--secondary">
             <button className="insp-btn insp-btn-outline" onClick={handlePrint}>Print</button>
@@ -768,25 +793,8 @@ export default function InspectionWorkspace() {
             >
               Save as Word
             </button>
-            <button className="insp-btn insp-btn-outline" onClick={() => startNew(type)}>New Certificate</button>
+            <button className="insp-btn insp-btn-outline" onClick={() => startNew(type)} title="Starts over from the Job Picker — for a different vessel, job, or equipment type.">New Certificate</button>
           </div>
-          {/* Requested directly: "some equipment can have same details
-              but only the serial number changes, allow to use previous
-              and create a copy for the next item... so that once
-              saved, you can still create a copy" — only for Standard
-              Report (the one-item-per-certificate type this repetition
-              problem applies to), and only once this certificate has
-              actually been saved at least once (current.jobRef is set
-              by the Job Picker; savedAt/issuedAt only get set by an
-              actual save) — duplicating a still-blank draft wouldn't
-              save anyone any typing. */}
-          {current.looseGear?.subType === "standard_report" && current.jobRef && (current.savedAt || current.issuedAt) && (
-            <div className="insp-btn-group insp-btn-group--secondary">
-              <button className="insp-btn insp-btn-outline" onClick={handleDuplicateForNextItem} title="Copies the equipment details — Serial Number(s) and the examination outcome (Result, defects, tests) start blank for you to reassess. Reuses this same Job.">
-                Duplicate for Next Item
-              </button>
-            </div>
-          )}
         </div>
       </div>
     );
