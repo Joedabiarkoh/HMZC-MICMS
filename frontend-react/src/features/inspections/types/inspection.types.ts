@@ -400,9 +400,6 @@ export interface LooseGearStandardReportData {
   additionalComments: string;
 
   result: "" | "pass" | "fail";
-
-  examinerPosition: string; // Name/Signature reuse cert.engineerName/engineerSig (see SignatureGrid) — Position has no existing equivalent field
-  leeaIdNumber: string;
 }
 
 // Template 3 — "Report of Thorough Examination (Multiple Items)", the

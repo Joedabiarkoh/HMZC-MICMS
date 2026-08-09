@@ -43,6 +43,17 @@ export async function updateUserRole(userId: number, role: string): Promise<User
   return response.data;
 }
 
+/**
+ * Admin-only. Requested directly: "let admin be able to work on the
+ * profile and make changes in how the account name for users or
+ * email changes" — corrects a typo'd name or an out-of-date email;
+ * either field can be omitted to leave it unchanged.
+ */
+export async function updateUserProfile(userId: number, payload: { email?: string; full_name?: string }): Promise<User> {
+  const response = await api.patch(`/auth/users/${userId}/profile`, payload);
+  return response.data;
+}
+
 /** Admin-only. New accounts start inactive — this is how they get let in. */
 export async function approveUser(userId: number): Promise<User> {
   const response = await api.post(`/auth/users/${userId}/approve`);

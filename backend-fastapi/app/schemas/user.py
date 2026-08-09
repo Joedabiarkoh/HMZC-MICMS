@@ -101,6 +101,17 @@ class PermissionUpdate(BaseModel):
     extra_permissions: List[str]
 
 
+# Requested directly: "let admin be able to work on the profile and
+# make changes in how the account name for users or email changes" —
+# an admin correcting a typo'd name or a changed email address, not
+# the account holder themselves (that's a separate, not-yet-built
+# self-service flow). Both fields optional so the admin can send just
+# the one they're actually changing.
+class AdminUpdateProfile(BaseModel):
+    email: Optional[EmailStr] = None
+    full_name: Optional[str] = None
+
+
 # ---- Added for per-user reusable signatures ----
 
 class SignatureUpdate(BaseModel):

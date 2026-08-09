@@ -309,8 +309,6 @@ export function freshLooseGearStandardReportData(): LooseGearStandardReportData 
     testsCarriedOut: "",
     additionalComments: "",
     result: "",
-    examinerPosition: "",
-    leeaIdNumber: "",
   };
 }
 

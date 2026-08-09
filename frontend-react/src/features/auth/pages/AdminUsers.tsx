@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import "../auth.css";
 import { useAuth } from "../../../context/AuthContext";
-import { listUsers, updateUserRole, approveUser, deactivateUser, deleteUser, resetUserPassword, updateUserPermissions, createUser } from "../services/auth.api";
+import { listUsers, updateUserRole, approveUser, deactivateUser, deleteUser, resetUserPassword, updateUserPermissions, updateUserProfile, createUser } from "../services/auth.api";
 import { User, UserRole, ROLE_LABELS, ALL_PERMISSIONS, PERM } from "../types/auth.types";
 import { confirmAction } from "../../../components/ConfirmDialog";
 
@@ -54,6 +54,14 @@ export default function AdminUsers() {
   const [credentialResult, setCredentialResult] = useState<{ email: string; password: string; emailSent: boolean; isNewAccount: boolean } | null>(null);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [draftPerms, setDraftPerms] = useState<Set<string>>(new Set());
+  // Requested directly: "let admin be able to work on the profile and
+  // make changes in how the account name for users or email changes"
+  // — a separate edit mode from Manage Access above, so an admin can
+  // fix a typo'd name or an out-of-date email without also opening
+  // the permissions checklist.
+  const [editingProfileId, setEditingProfileId] = useState<number | null>(null);
+  const [profileDraft, setProfileDraft] = useState<{ full_name: string; email: string }>({ full_name: "", email: "" });
+  const [profileSaving, setProfileSaving] = useState(false);
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [newEmail, setNewEmail] = useState("");
   const [newFullName, setNewFullName] = useState("");
@@ -170,6 +178,30 @@ export default function AdminUsers() {
     setEditingId(null);
   }
 
+  function startEditProfile(u: User) {
+    setEditingProfileId(u.id);
+    setProfileDraft({ full_name: u.full_name || "", email: u.email });
+  }
+
+  async function saveProfile(u: User) {
+    const email = profileDraft.email.trim();
+    if (!email) {
+      setErr("Email can't be empty.");
+      return;
+    }
+    setProfileSaving(true);
+    setErr("");
+    try {
+      const updated = await updateUserProfile(u.id, { email, full_name: profileDraft.full_name.trim() });
+      setUsers((prev) => prev.map((x) => (x.id === updated.id ? updated : x)));
+      setEditingProfileId(null);
+    } catch (e: any) {
+      setErr(e?.response?.data?.detail || "Could not update this account's profile.");
+    } finally {
+      setProfileSaving(false);
+    }
+  }
+
   if (user && user.role !== "admin") {
     return <div className="users-page"><p>This page is only available to administrators.</p></div>;
   }
@@ -185,17 +217,59 @@ export default function AdminUsers() {
 
   function renderRow(u: User) {
     const isEditing = editingId === u.id;
+    const isEditingProfile = editingProfileId === u.id;
     return (
       <>
         <tr key={u.id}>
-          <td>{u.full_name || "—"}</td>
-          <td>{u.email}</td>
+          <td>
+            {isEditingProfile ? (
+              <input
+                aria-label="Full name"
+                value={profileDraft.full_name}
+                onChange={(e) => setProfileDraft((prev) => ({ ...prev, full_name: e.target.value }))}
+                style={{ width: "100%", padding: "4px 6px", fontSize: 12, border: "1px solid #C9D1D8", borderRadius: 4 }}
+              />
+            ) : (
+              u.full_name || "—"
+            )}
+          </td>
+          <td>
+            {isEditingProfile ? (
+              <input
+                aria-label="Email"
+                type="email"
+                value={profileDraft.email}
+                onChange={(e) => setProfileDraft((prev) => ({ ...prev, email: e.target.value }))}
+                style={{ width: "100%", padding: "4px 6px", fontSize: 12, border: "1px solid #C9D1D8", borderRadius: 4 }}
+              />
+            ) : (
+              u.email
+            )}
+          </td>
           <td><span className={`role-pill ${u.role}`}>{ROLE_LABELS[u.role] || u.role}</span></td>
           <td>{new Date(u.created_at).toLocaleDateString()}</td>
           <td style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
             {u.role !== "admin" && (
               <button className="auth-btn" style={{ width: "auto", padding: "5px 10px", fontSize: 11 }} onClick={() => promote(u, "admin")}>
                 Promote to Admin
+              </button>
+            )}
+            {isEditingProfile ? (
+              <>
+                <button className="auth-btn" style={{ width: "auto", padding: "5px 10px", fontSize: 11 }} onClick={() => saveProfile(u)} disabled={profileSaving}>
+                  {profileSaving ? "Saving..." : "Save Profile"}
+                </button>
+                <button
+                  className="auth-btn"
+                  style={{ width: "auto", padding: "5px 10px", fontSize: 11, background: "#fff", color: "#243040", border: "1px solid #C9D1D8" }}
+                  onClick={() => setEditingProfileId(null)}
+                >
+                  Cancel
+                </button>
+              </>
+            ) : (
+              <button className="auth-btn" style={{ width: "auto", padding: "5px 10px", fontSize: 11 }} onClick={() => startEditProfile(u)}>
+                Edit Profile
               </button>
             )}
             <button className="auth-btn" style={{ width: "auto", padding: "5px 10px", fontSize: 11 }} onClick={() => (isEditing ? setEditingId(null) : startEditPermissions(u))}>

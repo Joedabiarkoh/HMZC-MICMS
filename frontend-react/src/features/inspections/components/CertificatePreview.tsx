@@ -857,9 +857,9 @@ const EXAMINATION_TYPE_PRINT_LABELS: Record<string, string> = {
 // business actually needs and the reference has no field for.
 //
 // "remove the previous examiner sign and master sign section" — the
-// reference has only ONE signer block ("Examination Carried Out By /
-// Examiner Details": Name, Position, Signature, LEEA ID Number), not
-// the app's usual Master+Technician pair, so the shared SignatureGrid
+// reference has only ONE signer block ("Examination Carried Out By":
+// Name, Signature — Position/LEEA ID Number were removed on later
+// request), not the app's usual Master+Technician pair, so the shared SignatureGrid
 // (see MultipleItemsPage and every other certificate kind) is dropped
 // here in favor of a bespoke table matching that exact grouping — no
 // Master/Captain name or signature field renders for this report type
@@ -978,12 +978,8 @@ function StandardReportPage({ cert, data }: { cert: InspectionCertificate; data:
       <table className="tt-grid">
         <tbody>
           <tr>
-            <td rowSpan={3} style={{ width: "24%" }}><span className="tt-label">Examination Carried Out By</span></td>
+            <td rowSpan={2} style={{ width: "24%" }}><span className="tt-label">Examination Carried Out By</span></td>
             <td><span className="tt-label">Name</span>{cert.engineerName || "—"}</td>
-            <td rowSpan={3} style={{ width: "26%" }}><span className="tt-label">LEEA ID Number</span>{data.leeaIdNumber || "—"}</td>
-          </tr>
-          <tr>
-            <td><span className="tt-label">Position</span>{data.examinerPosition || "—"}</td>
           </tr>
           <tr>
             <td style={{ position: "relative" }}>

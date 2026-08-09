@@ -330,11 +330,12 @@ async function signatureBlock(cert: InspectionCertificate, masterLabel: string, 
 // the pdf loaded... remove the previous examiner sign and master sign
 // section on the lose gear" — matches the reference's own
 // "Examination Carried Out By / Examiner Details" grid (Name,
-// Position, Signature, LEEA ID Number) rather than the shared
-// Master+Technician signatureBlock() every other certificate kind
-// uses; there is no Master/Captain row here at all, matching
-// StandardReportPage's print layout in CertificatePreview.tsx.
-async function examinerDetailsTable(cert: InspectionCertificate, position: string, leeaId: string): Promise<Table> {
+// Signature) rather than the shared Master+Technician
+// signatureBlock() every other certificate kind uses; there is no
+// Master/Captain row here at all, matching StandardReportPage's print
+// layout in CertificatePreview.tsx. Position and LEEA ID Number were
+// removed on later request.
+async function examinerDetailsTable(cert: InspectionCertificate): Promise<Table> {
   const [sigRun, stampRun] = await Promise.all([
     cert.engineerSig ? imageRunAtHeight(cert.engineerSig, 40) : Promise.resolve(null),
     imageRunAtHeight(HMZC_STAMP_DATA_URI, 34),
@@ -368,12 +369,10 @@ async function examinerDetailsTable(cert: InspectionCertificate, position: strin
     rows: [
       new TableRow({
         children: [
-          fieldCell("Examination Carried Out By", "", { rowSpan: 3, widthPct: 28 }),
-          fieldCell("Name", cert.engineerName || "—", { widthPct: 46 }),
-          fieldCell("LEEA ID Number", leeaId || "—", { rowSpan: 3, widthPct: 26 }),
+          fieldCell("Examination Carried Out By", "", { rowSpan: 2, widthPct: 28 }),
+          fieldCell("Name", cert.engineerName || "—", { widthPct: 72 }),
         ],
       }),
-      new TableRow({ children: [fieldCell("Position", position || "—")] }),
       new TableRow({ children: [fieldCell("Signature", sigContent)] }),
     ],
   });
@@ -703,7 +702,7 @@ async function buildLooseGearSection(cert: InspectionCertificate, looseGear: Loo
       new Paragraph({ text: "" })
     );
     blocks.push(new Paragraph({ text: "" }), ...issuedByLine(cert));
-    blocks.push(await examinerDetailsTable(cert, d.examinerPosition, d.leeaIdNumber));
+    blocks.push(await examinerDetailsTable(cert));
     return blocks;
   }
 

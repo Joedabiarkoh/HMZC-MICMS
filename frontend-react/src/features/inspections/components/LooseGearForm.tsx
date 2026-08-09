@@ -613,15 +613,6 @@ function StandardReportForm({
         </div>
       </fieldset>
 
-      <fieldset className="insp-fieldset">
-        <legend className="insp-legend">Examiner Details</legend>
-        <div className="insp-row2">
-          <div className="insp-field"><label htmlFor="sr-examiner-position">Position</label><input id="sr-examiner-position" value={data.examinerPosition} onChange={(e) => onChange({ examinerPosition: e.target.value })} /></div>
-          <div className="insp-field"><label htmlFor="sr-leea">LEEA ID Number</label><input id="sr-leea" value={data.leeaIdNumber} onChange={(e) => onChange({ leeaIdNumber: e.target.value })} /></div>
-        </div>
-        <p className="insp-help-note">Name and Signature are captured below, under Signatures.</p>
-      </fieldset>
-
       <VesselLookupAndSignatures current={current} updateField={updateField} openCertificate={openCertificate} />
     </>
   );

@@ -18,7 +18,7 @@ from app.models.certificate import Certificate
 from app.models.finance_document import Invoice, Quotation
 from app.models.user import User, UserRole
 from app.schemas.audit import AuditLogResponse
-from app.schemas.user import AdminCreateUser, PasswordChange, PasswordResetResult, PermissionUpdate, SignatureUpdate, Token, UserCreate, UserResponse
+from app.schemas.user import AdminCreateUser, AdminUpdateProfile, PasswordChange, PasswordResetResult, PermissionUpdate, SignatureUpdate, Token, UserCreate, UserResponse
 
 # Transcribed from the pasted Module 2 chat output (app/api/v1/auth.py),
 # adapted to match what already existed in this project:
@@ -237,6 +237,45 @@ def update_user_role(
         db, request, "user.role_change", user_id=_admin.id, resource_type="user", resource_id=str(user.id),
         detail=f"{old_role} -> {new_role} (by admin id {_admin.id})",
     )
+    return user
+
+
+# Requested directly: "let admin be able to work on the profile and
+# make changes in how the account name for users or email changes" —
+# correcting a typo'd name or an out-of-date email, the same kind of
+# direct-database-access-avoiding fix update_user_role above exists
+# for. Both fields optional (see AdminUpdateProfile) so a request only
+# touching one doesn't have to resend the other unchanged.
+@router.patch("/users/{user_id}/profile", response_model=UserResponse)
+def update_user_profile(
+    user_id: int,
+    payload: AdminUpdateProfile,
+    request: Request,
+    db: Session = Depends(get_database),
+    admin: User = Depends(get_current_admin_user),
+):
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+
+    changes = []
+    if payload.email is not None and payload.email != user.email:
+        existing = db.query(User).filter(User.email == payload.email, User.id != user_id).first()
+        if existing:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Email address already registered")
+        changes.append(f"email: {user.email} -> {payload.email}")
+        user.email = payload.email
+    if payload.full_name is not None and payload.full_name != user.full_name:
+        changes.append(f"full_name: {user.full_name!r} -> {payload.full_name!r}")
+        user.full_name = payload.full_name
+
+    if changes:
+        db.commit()
+        db.refresh(user)
+        record_audit(
+            db, request, "user.profile_update", user_id=admin.id, resource_type="user", resource_id=str(user.id),
+            detail="; ".join(changes),
+        )
     return user
 
 
