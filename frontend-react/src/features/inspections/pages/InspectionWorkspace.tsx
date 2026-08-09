@@ -184,6 +184,25 @@ export default function InspectionWorkspace() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [current.certNo]);
 
+  // Requested directly: "when the job number is used to search for a
+  // certificate to review... the certificate is created as draft" —
+  // root cause was that selecting a Job in the picker tags jobRef (and,
+  // for Loose Gear, a fresh certNo) onto the still-blank draft, but the
+  // auto-save baseline above only resets when certNo itself changes
+  // (line ~162). For every OTHER equipment type, certNo doesn't change
+  // at that moment — only jobRef does — so the baseline stayed at the
+  // pre-Job-Picker snapshot, the very next 20s tick saw the jobRef
+  // change as "dirty," and auto-saved a brand-new draft certificate the
+  // technician never actually asked to create, just for having briefly
+  // looked at a job. Resetting the baseline here too means auto-save
+  // only fires once there's an edit beyond what the Job Picker itself
+  // set — i.e. once the technician has actually started filling in the
+  // certificate.
+  useEffect(() => {
+    lastSavedSnapshot.current = dirtyKey(current);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [current.jobRef]);
+
   useEffect(() => {
     const canAutoSave = hasPermission(user, PERM.CERT_EDIT);
     if (!canAutoSave) return;
@@ -191,8 +210,20 @@ export default function InspectionWorkspace() {
     const interval = window.setInterval(() => {
       const snapshot = dirtyKey(currentRef.current);
       if (snapshot === lastSavedSnapshot.current) return; // nothing changed since the last save
-      const hasAnyIdentity = currentRef.current.vesselName.trim() || currentRef.current.imoNo.trim();
-      if (!hasAnyIdentity) return; // don't auto-save a still-completely-blank new draft
+      // Requested directly: "when the job number is used to search for
+      // a certificate to review... the certificate is created as
+      // draft." Root cause: typing a vessel name into the Job Picker's
+      // own search box (to look up its open jobs) was, on its own,
+      // already enough to satisfy the old "has any identity" check
+      // below — no Job needed to be picked at all — so simply pausing
+      // 20s while searching created a phantom blank draft. Every
+      // equipment type now requires a real Job (jobRef) before a
+      // certificate is anything but a Job-Picker placeholder (see
+      // needsJobPicker below), so requiring jobRef here — instead of
+      // just a vessel name — is the correct, general condition for
+      // "there's now something real to save."
+      const hasJob = currentRef.current.jobRef.trim() || wasExistingCertRef.current;
+      if (!hasJob) return; // don't auto-save while still in the Job Picker — nothing real to save yet
       const savedByName = user ? (user.full_name || user.email) : currentRef.current.savedBy;
       const saved = saveCurrentRef.current("draft", savedByName);
       // Baseline from what was actually saved (includes the new
@@ -639,6 +670,14 @@ export default function InspectionWorkspace() {
                 onVesselChange={(v) => updateField("vesselName", v)}
                 onImoChange={(v) => updateField("imoNo", v)}
                 onJobSelected={handleJobSelected}
+                certificates={certificates}
+                onOpenCertificate={(certNo, equipmentType) => {
+                  if (equipmentType === type) {
+                    openCertificate(certNo);
+                  } else {
+                    window.location.href = `/inspections?type=${equipmentType}&open=${encodeURIComponent(certNo)}`;
+                  }
+                }}
               />
             </div>
           </div>

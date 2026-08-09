@@ -1,5 +1,7 @@
 import { useState } from "react";
 import { createJob, Job, listJobs } from "../services/jobs.api";
+import { InspectionCertificate, EquipmentTypeKey } from "../types/inspection.types";
+import { reportTypeLabel } from "../data/groupCertificatesByVessel";
 
 interface Props {
   vesselName: string;
@@ -7,6 +9,17 @@ interface Props {
   onVesselChange: (v: string) => void;
   onImoChange: (v: string) => void;
   onJobSelected: (job: Job) => void;
+  // Requested directly: "when the job number is used to search for a
+  // certificate to review... the certificate is created as draft" —
+  // before this, "Use This Job" was the ONLY action a job row offered,
+  // so a technician who just wanted to see what's already under a job
+  // had no choice but to drop into a brand-new blank draft to get
+  // there. certificates is this device's already-loaded cache (the
+  // same one InspectionWorkspace/VesselLookupPanel use), filtered
+  // per-job below so each row can list and open its own real,
+  // already-issued certificates instead.
+  certificates: Record<string, InspectionCertificate>;
+  onOpenCertificate: (certNo: string, equipmentType: EquipmentTypeKey) => void;
 }
 
 // Requested directly: "before you create a certificate job number
@@ -22,7 +35,7 @@ interface Props {
 // this vessel, or start a new one (with a PO or an explicit "PO not
 // available yet" + customer name — see po_pending), before the
 // certificate itself gets created.
-export default function JobPicker({ vesselName, imoNo, onVesselChange, onImoChange, onJobSelected }: Props) {
+export default function JobPicker({ vesselName, imoNo, onVesselChange, onImoChange, onJobSelected, certificates, onOpenCertificate }: Props) {
   const [jobs, setJobs] = useState<Job[] | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -107,20 +120,47 @@ export default function JobPicker({ vesselName, imoNo, onVesselChange, onImoChan
           {jobs.length === 0 ? (
             <p className="insp-help-note">No open jobs for this vessel yet.</p>
           ) : (
-            jobs.map((job) => (
-              <div key={job.job_no} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", border: "1px solid #DCE1E5", borderRadius: 6, padding: "8px 10px", marginBottom: 6 }}>
-                <div>
-                  <div style={{ fontWeight: 700, fontSize: 12.5 }}>{job.job_no}</div>
-                  <div style={{ fontSize: 10.5, color: "var(--insp-muted)" }}>
-                    {job.po_number ? `PO ${job.po_number}` : job.po_pending ? `PO pending — ${job.customer_name || "customer not recorded"}` : "No PO on file"}
-                    {" — "}{job.certificate_count} certificate{job.certificate_count === 1 ? "" : "s"} so far — opened {new Date(job.created_at).toLocaleDateString()} by {job.created_by?.full_name || job.created_by?.email || "—"}
+            jobs.map((job) => {
+              const existing = Object.values(certificates).filter((c) => c.jobRef === job.job_no);
+              return (
+                <div key={job.job_no} style={{ border: "1px solid #DCE1E5", borderRadius: 6, padding: "8px 10px", marginBottom: 6 }}>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                    <div>
+                      <div style={{ fontWeight: 700, fontSize: 12.5 }}>{job.job_no}</div>
+                      <div style={{ fontSize: 10.5, color: "var(--insp-muted)" }}>
+                        {job.po_number ? `PO ${job.po_number}` : job.po_pending ? `PO pending — ${job.customer_name || "customer not recorded"}` : "No PO on file"}
+                        {" — "}{job.certificate_count} certificate{job.certificate_count === 1 ? "" : "s"} so far — opened {new Date(job.created_at).toLocaleDateString()} by {job.created_by?.full_name || job.created_by?.email || "—"}
+                      </div>
+                    </div>
+                    <button type="button" className="insp-btn insp-btn-primary" style={{ padding: "4px 12px", fontSize: 11.5 }} onClick={() => useJob(job)} disabled={busyJobNo !== ""}>
+                      + Add a Certificate
+                    </button>
                   </div>
+                  {existing.length > 0 && (
+                    <div style={{ marginTop: 8, paddingTop: 8, borderTop: "1px solid #EEF1F3" }}>
+                      {existing.map((c) => (
+                        <div key={c.certNo} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "3px 0", fontSize: 11 }}>
+                          <span>
+                            <strong>{c.certNo}</strong> — {reportTypeLabel(c)}{" "}
+                            <span style={{ color: c.status === "final" ? "var(--insp-green, #1a7f37)" : "var(--insp-muted)" }}>
+                              ({c.status === "final" ? "Finalized" : "Draft"})
+                            </span>
+                          </span>
+                          <button type="button" className="insp-btn insp-btn-outline" style={{ padding: "2px 10px", fontSize: 11 }} onClick={() => onOpenCertificate(c.certNo, c.type)}>
+                            Open
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {existing.length === 0 && job.certificate_count > 0 && (
+                    <p className="insp-help-note" style={{ marginTop: 6, marginBottom: 0 }}>
+                      {job.certificate_count} certificate{job.certificate_count === 1 ? "" : "s"} on this job aren't visible to your account yet.
+                    </p>
+                  )}
                 </div>
-                <button type="button" className="insp-btn insp-btn-primary" style={{ padding: "4px 12px", fontSize: 11.5 }} onClick={() => useJob(job)} disabled={busyJobNo !== ""}>
-                  Use This Job
-                </button>
-              </div>
-            ))
+              );
+            })
           )}
         </div>
       )}
