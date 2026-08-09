@@ -151,7 +151,7 @@ async function loadImageBytes(src: string): Promise<{ bytes: Uint8Array; type: "
 
 // Signature/upload images can be any aspect ratio the user drew or
 // uploaded (unlike the fixed logo/stamp assets) — scaled to a fixed
-// display height, matching SignBox's own 44px-tall <img> in print.
+// display height, matching SignBox's own 60px-tall <img> in print.
 async function imageRunAtHeight(src: string, targetHeight: number): Promise<ImageRun | null> {
   try {
     const [{ width, height }, loaded] = await Promise.all([loadImageSize(src), loadImageBytes(src)]);
@@ -292,7 +292,7 @@ function checklistTable(certNo: string, sections: ChecklistSection[]): Table {
 
 async function signCellContent(label: string, name: string, sig: string, stamp: boolean): Promise<Paragraph[]> {
   const out: Paragraph[] = [];
-  const sigRun = sig ? await imageRunAtHeight(sig, 50) : null;
+  const sigRun = sig ? await imageRunAtHeight(sig, 68) : null;
   if (sigRun) {
     out.push(new Paragraph({ children: [sigRun] }));
   } else if (name) {
@@ -301,7 +301,7 @@ async function signCellContent(label: string, name: string, sig: string, stamp: 
   if (sig && name) out.push(textP(name, { size: 16 }));
   out.push(new Paragraph({ children: [new TextRun({ text: label.toUpperCase(), color: MUTED, size: 14 })] }));
   if (stamp) {
-    const stampRun = await imageRunAtHeight(HMZC_STAMP_DATA_URI, 40);
+    const stampRun = await imageRunAtHeight(HMZC_STAMP_DATA_URI, 54);
     if (stampRun) out.push(new Paragraph({ spacing: { before: 80 }, children: [stampRun] }));
   }
   return out;
@@ -337,8 +337,8 @@ async function signatureBlock(cert: InspectionCertificate, masterLabel: string, 
 // removed on later request.
 async function examinerDetailsTable(cert: InspectionCertificate): Promise<Table> {
   const [sigRun, stampRun] = await Promise.all([
-    cert.engineerSig ? imageRunAtHeight(cert.engineerSig, 40) : Promise.resolve(null),
-    imageRunAtHeight(HMZC_STAMP_DATA_URI, 34),
+    cert.engineerSig ? imageRunAtHeight(cert.engineerSig, 54) : Promise.resolve(null),
+    imageRunAtHeight(HMZC_STAMP_DATA_URI, 46),
   ]);
   const sigContent: Paragraph[] = sigRun
     ? [new Paragraph({ children: [sigRun] })]

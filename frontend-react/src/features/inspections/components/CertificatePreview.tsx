@@ -984,10 +984,13 @@ function StandardReportPage({ cert, data }: { cert: InspectionCertificate; data:
           <tr>
             <td style={{ position: "relative" }}>
               <span className="tt-label">Signature</span>
+              {/* Requested directly: "the signature and stamp appears
+                  small, check if the size can be increased on all the
+                  certificate" — matches SignBox's own scale-up above. */}
               {cert.engineerSig ? (
-                <img src={cert.engineerSig} alt="Examiner signature" style={{ height: 30 }} />
+                <img src={cert.engineerSig} alt="Examiner signature" style={{ height: 42 }} />
               ) : cert.engineerName ? (
-                <span style={{ fontFamily: "cursive", fontSize: 16 }}>{cert.engineerName}</span>
+                <span style={{ fontFamily: "cursive", fontSize: 20 }}>{cert.engineerName}</span>
               ) : "—"}
               {/* Requested directly: "the stamp is removed from the
                   Lose gear certificate, you need to bring it back" —
@@ -1003,10 +1006,10 @@ function StandardReportPage({ cert, data }: { cert: InspectionCertificate; data:
                 style={{
                   position: "absolute",
                   left: "58%",
-                  bottom: -8,
+                  bottom: -11,
                   transform: "translateX(-50%) rotate(-7deg)",
-                  height: 42,
-                  width: 132,
+                  height: 58,
+                  width: 182,
                   backgroundImage: "var(--insp-stamp-url)",
                   backgroundSize: "contain",
                   backgroundRepeat: "no-repeat",
@@ -1323,10 +1326,18 @@ function SignBox({ label, name, sig, stamp }: { label: string; name: string; sig
           blank space above it where the Master will physically sign —
           lines up with the Technician's regardless of which box is
           filled in. */}
-      <div style={{ minHeight: 64 }}>
-        {sig && <img src={sig} alt={label} style={{ height: 44 }} />}
-        {!sig && name && <div style={{ fontFamily: "cursive", fontSize: 20, color: "var(--insp-navy)" }}>{name}</div>}
-        {sig && name && <div style={{ fontSize: 10, color: "var(--insp-text)", marginTop: 2 }}>{name}</div>}
+      {/* Requested directly: "the signature and stamp appears small,
+          check if the size can be increased on all the certificate" —
+          signature raised from 44px to 60px tall, stamp from 52 to 70
+          (164 to 220 wide, keeping the source PNG's 327:104 aspect
+          ratio). minHeight/offsets below are scaled the same ~1.35x so
+          the stamp still overlaps the signature+name the same way and
+          the Master/Technician boxes still line up (see this block's
+          own comment above for why that alignment matters). */}
+      <div style={{ minHeight: 86 }}>
+        {sig && <img src={sig} alt={label} style={{ height: 60 }} />}
+        {!sig && name && <div style={{ fontFamily: "cursive", fontSize: 26, color: "var(--insp-navy)" }}>{name}</div>}
+        {sig && name && <div style={{ fontSize: 11, color: "var(--insp-text)", marginTop: 2 }}>{name}</div>}
       </div>
       <div style={{ fontSize: 9.5, color: "var(--insp-muted)", textTransform: "uppercase" }}>{label}</div>
       {/* Requested directly, reviewing why Paged.js pagination on a
@@ -1339,7 +1350,7 @@ function SignBox({ label, name, sig, stamp }: { label: string; name: string; sig
           shared --insp-stamp-url variable (already set once,
           globally) replaces that — width is explicit rather than
           "auto" since a background-image has no intrinsic size to
-          derive one from the way an <img> does; 164x52 preserves the
+          derive one from the way an <img> does; 220x70 preserves the
           source PNG's own 327:104 aspect ratio at this height. */}
       {stamp && (
         <div
@@ -1348,10 +1359,10 @@ function SignBox({ label, name, sig, stamp }: { label: string; name: string; sig
           style={{
             position: "absolute",
             left: "50%",
-            top: -4,
+            top: -5,
             transform: "translateX(-50%) rotate(-7deg)",
-            height: 52,
-            width: 164,
+            height: 70,
+            width: 220,
             backgroundImage: "var(--insp-stamp-url)",
             backgroundSize: "contain",
             backgroundRepeat: "no-repeat",
