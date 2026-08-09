@@ -28,9 +28,16 @@ const TYPE_GROUPS: { label: string; keys: EquipmentTypeKey[] }[] = [
   { label: "Lifting Appliances", keys: ["crane", "loosegear"] },
   { label: "Fire Safety", keys: ["firefighting"] },
   { label: "Calibration", keys: ["calibration"] },
-  // Requested directly: a selectable section for the combined FFE/
-  // Calibration vessel Photo Report (see PhotoReportForm.tsx).
-  { label: "Photo Reports", keys: ["photo_report"] },
+  // Requested directly: originally one combined "FFE & Calibration"
+  // Photo Report selection; later split into two separate types on
+  // request ("separate photo report for ffe and calibration
+  // certificate") — both still use the same PhotoReportForm.tsx (no
+  // FFE/Calibration-specific fields, just a different label/typeName,
+  // see inspectionChecklists.ts). The old combined "photo_report" key
+  // is deliberately left out of this list — it stays registered in
+  // INSPECTION_TYPES so already-saved certificates of that type still
+  // open, it's just not offered for a brand-new one anymore.
+  { label: "Photo Reports", keys: ["ffe_photo_report", "calibration_photo_report"] },
 ];
 
 type SubTab = "statement" | "boat" | "davit" | "equip" | "checklist" | "loadtest";

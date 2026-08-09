@@ -388,6 +388,15 @@ function StandardReportForm({
   // expanded if any of them already have a value (reopening a
   // certificate that used them shouldn't hide that data by default).
   const [showAdditional, setShowAdditional] = useState(!!(data.dateOfReport || data.mbl || data.factorOfSafety));
+  // Requested directly: "collapse the ID section" — same collapsible
+  // idea as showAdditional above, but for the whole "Description and
+  // Identification of the Equipment Item Examined" fieldset rather
+  // than a handful of rarely-used fields within it. Defaults open
+  // (unlike showAdditional's fields, these are ones a technician
+  // fills in on every report) — collapsing is for reducing clutter
+  // once they're done, not for hiding required fields from a
+  // first-time flow.
+  const [idSectionOpen, setIdSectionOpen] = useState(true);
   return (
     <>
       <fieldset className="insp-fieldset">
@@ -450,82 +459,96 @@ function StandardReportForm({
       </fieldset>
 
       <fieldset className="insp-fieldset">
-        <legend className="insp-legend">Description and Identification of the Equipment Item Examined</legend>
-        <div className="insp-row2">
-          <div className="insp-field"><label htmlFor="sr-idno">I.D. No</label><input id="sr-idno" value={data.idNo} onChange={(e) => onChange({ idNo: e.target.value })} /></div>
-          <div className="insp-field"><label htmlFor="sr-desc">Description</label><input id="sr-desc" value={data.description} onChange={(e) => onChange({ description: e.target.value })} /></div>
-        </div>
-        <div className="insp-row2">
-          <div className="insp-field"><label htmlFor="sr-model">Model Details</label><input id="sr-model" value={data.modelDetails} onChange={(e) => onChange({ modelDetails: e.target.value })} /></div>
-          <div className="insp-field"><label htmlFor="sr-manufacturer">Manufacturer</label><input id="sr-manufacturer" value={data.manufacturer} onChange={(e) => onChange({ manufacturer: e.target.value })} /></div>
-        </div>
-        {/* Requested directly: "the items serial number can be about 20
-            for 1 set of certificate" — one report can cover a whole
-            batch of identical items (same description/model/
-            manufacturer/SWL/EWL below, examined together), each with
-            its own serial number, rather than always exactly one item
-            per report — so this is a growable list, not a single
-            field. */}
-        <div className="insp-field">
-          <label>Serial Number(s)</label>
-          {data.serialNos.map((sn, i) => (
-            <div key={i} style={{ display: "flex", gap: 6, marginBottom: 4 }}>
-              <input
-                aria-label={`Serial No ${i + 1}`}
-                value={sn}
-                onChange={(e) => {
-                  const next = [...data.serialNos];
-                  next[i] = e.target.value;
-                  onChange({ serialNos: next });
-                }}
-                style={{ flex: 1 }}
-              />
-              <button
-                type="button"
-                className="insp-btn insp-btn-outline"
-                style={{ padding: "3px 10px" }}
-                onClick={() => {
-                  const next = [...data.serialNos];
-                  next.splice(i, 1);
-                  onChange({ serialNos: next.length ? next : [""] });
-                }}
-              >
-                Remove
-              </button>
-            </div>
-          ))}
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <legend className="insp-legend">Description and Identification of the Equipment Item Examined</legend>
           <button
             type="button"
             className="insp-btn insp-btn-outline"
             style={{ padding: "3px 10px", fontSize: 11 }}
-            onClick={() => onChange({ serialNos: [...data.serialNos, ""] })}
+            onClick={() => setIdSectionOpen((v) => !v)}
           >
-            + Add Serial Number
+            {idSectionOpen ? "− Collapse" : "+ Expand"}
           </button>
         </div>
-        <YesNoField id="sr-prv" label="P.R.V. Fitted" value={data.prvFitted} onChange={(v) => onChange({ prvFitted: v })} />
-        <div className="insp-row2">
-          <div className="insp-field"><label htmlFor="sr-mfgdate">Mfg. Date</label><input id="sr-mfgdate" type="date" value={data.mfgDate} onChange={(e) => onChange({ mfgDate: e.target.value })} /></div>
-          <div className="insp-field"><label htmlFor="sr-itemlocation">Location</label><input id="sr-itemlocation" value={data.itemLocation} onChange={(e) => onChange({ itemLocation: e.target.value })} /></div>
-        </div>
-        <div className="insp-row2">
-          <div className="insp-field"><label htmlFor="sr-swl">S.W.L</label><input id="sr-swl" value={data.swl} onChange={(e) => onChange({ swl: e.target.value })} /></div>
-          <div className="insp-field"><label htmlFor="sr-ewl">E.W.L</label><input id="sr-ewl" value={data.ewl} onChange={(e) => onChange({ ewl: e.target.value })} /></div>
-        </div>
-        {/* Requested directly, from the BDA Technical Guide (Thorough
-            Examinations: Steel wire ropes, lifting accessories and
-            certification): "The BDA further recommends that the
-            Factor of Safety used to calculate WLLs... is added to the
-            certificate" — MBL (Minimum Breaking Load) is the figure
-            SWL/WLL is calculated FROM (WLL = MBL / FoS), and the
-            guide's own example RTE records both alongside SWL for
-            that reason. Gated by the same "Additional Details" toggle
-            as Date of Report above — see showAdditional's own comment. */}
-        {showAdditional && (
-          <div className="insp-row2">
-            <div className="insp-field"><label htmlFor="sr-mbl">MBL (Minimum Breaking Load)</label><input id="sr-mbl" value={data.mbl} onChange={(e) => onChange({ mbl: e.target.value })} placeholder="e.g. 7.12t" /></div>
-            <div className="insp-field"><label htmlFor="sr-fos">Factor of Safety</label><input id="sr-fos" value={data.factorOfSafety} onChange={(e) => onChange({ factorOfSafety: e.target.value })} placeholder="e.g. 5:1" /></div>
-          </div>
+        {idSectionOpen && (
+          <>
+            <div className="insp-row2">
+              <div className="insp-field"><label htmlFor="sr-idno">I.D. No</label><input id="sr-idno" value={data.idNo} onChange={(e) => onChange({ idNo: e.target.value })} /></div>
+              <div className="insp-field"><label htmlFor="sr-desc">Description</label><input id="sr-desc" value={data.description} onChange={(e) => onChange({ description: e.target.value })} /></div>
+            </div>
+            <div className="insp-row2">
+              <div className="insp-field"><label htmlFor="sr-model">Model Details</label><input id="sr-model" value={data.modelDetails} onChange={(e) => onChange({ modelDetails: e.target.value })} /></div>
+              <div className="insp-field"><label htmlFor="sr-manufacturer">Manufacturer</label><input id="sr-manufacturer" value={data.manufacturer} onChange={(e) => onChange({ manufacturer: e.target.value })} /></div>
+            </div>
+            {/* Requested directly: "the items serial number can be about 20
+                for 1 set of certificate" — one report can cover a whole
+                batch of identical items (same description/model/
+                manufacturer/SWL/EWL below, examined together), each with
+                its own serial number, rather than always exactly one item
+                per report — so this is a growable list, not a single
+                field. */}
+            <div className="insp-field">
+              <label>Serial Number(s)</label>
+              {data.serialNos.map((sn, i) => (
+                <div key={i} style={{ display: "flex", gap: 6, marginBottom: 4 }}>
+                  <input
+                    aria-label={`Serial No ${i + 1}`}
+                    value={sn}
+                    onChange={(e) => {
+                      const next = [...data.serialNos];
+                      next[i] = e.target.value;
+                      onChange({ serialNos: next });
+                    }}
+                    style={{ flex: 1 }}
+                  />
+                  <button
+                    type="button"
+                    className="insp-btn insp-btn-outline"
+                    style={{ padding: "3px 10px" }}
+                    onClick={() => {
+                      const next = [...data.serialNos];
+                      next.splice(i, 1);
+                      onChange({ serialNos: next.length ? next : [""] });
+                    }}
+                  >
+                    Remove
+                  </button>
+                </div>
+              ))}
+              <button
+                type="button"
+                className="insp-btn insp-btn-outline"
+                style={{ padding: "3px 10px", fontSize: 11 }}
+                onClick={() => onChange({ serialNos: [...data.serialNos, ""] })}
+              >
+                + Add Serial Number
+              </button>
+            </div>
+            <YesNoField id="sr-prv" label="P.R.V. Fitted" value={data.prvFitted} onChange={(v) => onChange({ prvFitted: v })} />
+            <div className="insp-row2">
+              <div className="insp-field"><label htmlFor="sr-mfgdate">Mfg. Date</label><input id="sr-mfgdate" type="date" value={data.mfgDate} onChange={(e) => onChange({ mfgDate: e.target.value })} /></div>
+              <div className="insp-field"><label htmlFor="sr-itemlocation">Location</label><input id="sr-itemlocation" value={data.itemLocation} onChange={(e) => onChange({ itemLocation: e.target.value })} /></div>
+            </div>
+            <div className="insp-row2">
+              <div className="insp-field"><label htmlFor="sr-swl">S.W.L</label><input id="sr-swl" value={data.swl} onChange={(e) => onChange({ swl: e.target.value })} /></div>
+              <div className="insp-field"><label htmlFor="sr-ewl">WLL</label><input id="sr-ewl" value={data.ewl} onChange={(e) => onChange({ ewl: e.target.value })} /></div>
+            </div>
+            {/* Requested directly, from the BDA Technical Guide (Thorough
+                Examinations: Steel wire ropes, lifting accessories and
+                certification): "The BDA further recommends that the
+                Factor of Safety used to calculate WLLs... is added to the
+                certificate" — MBL (Minimum Breaking Load) is the figure
+                SWL/WLL is calculated FROM (WLL = MBL / FoS), and the
+                guide's own example RTE records both alongside SWL for
+                that reason. Gated by the same "Additional Details" toggle
+                as Date of Report above — see showAdditional's own comment. */}
+            {showAdditional && (
+              <div className="insp-row2">
+                <div className="insp-field"><label htmlFor="sr-mbl">MBL (Minimum Breaking Load)</label><input id="sr-mbl" value={data.mbl} onChange={(e) => onChange({ mbl: e.target.value })} placeholder="e.g. 7.12t" /></div>
+                <div className="insp-field"><label htmlFor="sr-fos">Factor of Safety</label><input id="sr-fos" value={data.factorOfSafety} onChange={(e) => onChange({ factorOfSafety: e.target.value })} placeholder="e.g. 5:1" /></div>
+              </div>
+            )}
+          </>
         )}
       </fieldset>
 

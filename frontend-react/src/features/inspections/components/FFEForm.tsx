@@ -70,6 +70,67 @@ export default function FFEForm({ current, updateField, openCertificate }: Props
     updateFFE({ checklist: next });
   }
 
+  const itemTables = (
+    <>
+      {!!cfg.itemColumns?.length && (
+        <ItemTable
+          title={cfg.itemTableLabel || "Items"}
+          columns={cfg.itemColumns}
+          rows={ffe.items}
+          onAdd={() => addItemRow("items")}
+          onRemove={(i) => removeItemRow("items", i)}
+          onChange={(i, key, v) => updateItemCell("items", i, key, v)}
+        />
+      )}
+
+      {!!cfg.items2Columns?.length && (
+        <ItemTable
+          title={cfg.items2Label || "Items"}
+          columns={cfg.items2Columns}
+          rows={ffe.items2}
+          onAdd={() => addItemRow("items2")}
+          onRemove={(i) => removeItemRow("items2", i)}
+          onChange={(i, key, v) => updateItemCell("items2", i, key, v)}
+        />
+      )}
+    </>
+  );
+
+  const checklistTable = !!cfg.checklistItems?.length && (
+    <fieldset className="insp-fieldset">
+      <legend className="insp-legend">Description of Inspection/Tests</legend>
+      <table style={{ width: "100%", fontSize: 12, borderCollapse: "collapse" }}>
+        <thead>
+          <tr style={{ textAlign: "left", borderBottom: "1px solid #DCE1E5" }}>
+            <th style={{ padding: "4px 6px", width: 32 }}>No</th>
+            <th style={{ padding: "4px 6px" }}>Description</th>
+            <th style={{ padding: "4px 6px", width: 220 }}>Result</th>
+            <th style={{ padding: "4px 6px", width: 160 }}>Comment</th>
+          </tr>
+        </thead>
+        <tbody>
+          {ffe.checklist.map((row, i) => (
+            <tr key={row.no} style={{ borderTop: "1px solid #EEF1F3" }}>
+              <td style={{ padding: "4px 6px" }}>{row.no}</td>
+              <td style={{ padding: "4px 6px" }}>{row.description}</td>
+              <td style={{ padding: "4px 6px" }}>
+                <select value={row.result} onChange={(e) => updateChecklistRow(i, { result: e.target.value as any })}>
+                  <option value="">—</option>
+                  <option value="done">Carried Out</option>
+                  <option value="not_done">Not Carried Out</option>
+                  <option value="na">N/A</option>
+                </select>
+              </td>
+              <td style={{ padding: "4px 6px" }}>
+                <input value={row.comment} onChange={(e) => updateChecklistRow(i, { comment: e.target.value })} style={{ width: "100%" }} />
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </fieldset>
+  );
+
   return (
     <>
       <fieldset className="insp-fieldset">
@@ -137,62 +198,15 @@ export default function FFEForm({ current, updateField, openCertificate }: Props
         </fieldset>
       )}
 
-      {!!cfg.itemColumns?.length && (
-        <ItemTable
-          title={cfg.itemTableLabel || "Items"}
-          columns={cfg.itemColumns}
-          rows={ffe.items}
-          onAdd={() => addItemRow("items")}
-          onRemove={(i) => removeItemRow("items", i)}
-          onChange={(i, key, v) => updateItemCell("items", i, key, v)}
-        />
-      )}
-
-      {!!cfg.items2Columns?.length && (
-        <ItemTable
-          title={cfg.items2Label || "Items"}
-          columns={cfg.items2Columns}
-          rows={ffe.items2}
-          onAdd={() => addItemRow("items2")}
-          onRemove={(i) => removeItemRow("items2", i)}
-          onChange={(i, key, v) => updateItemCell("items2", i, key, v)}
-        />
-      )}
-
-      {!!cfg.checklistItems?.length && (
-        <fieldset className="insp-fieldset">
-          <legend className="insp-legend">Description of Inspection/Tests</legend>
-          <table style={{ width: "100%", fontSize: 12, borderCollapse: "collapse" }}>
-            <thead>
-              <tr style={{ textAlign: "left", borderBottom: "1px solid #DCE1E5" }}>
-                <th style={{ padding: "4px 6px", width: 32 }}>No</th>
-                <th style={{ padding: "4px 6px" }}>Description</th>
-                <th style={{ padding: "4px 6px", width: 220 }}>Result</th>
-                <th style={{ padding: "4px 6px", width: 160 }}>Comment</th>
-              </tr>
-            </thead>
-            <tbody>
-              {ffe.checklist.map((row, i) => (
-                <tr key={row.no} style={{ borderTop: "1px solid #EEF1F3" }}>
-                  <td style={{ padding: "4px 6px" }}>{row.no}</td>
-                  <td style={{ padding: "4px 6px" }}>{row.description}</td>
-                  <td style={{ padding: "4px 6px" }}>
-                    <select value={row.result} onChange={(e) => updateChecklistRow(i, { result: e.target.value as any })}>
-                      <option value="">—</option>
-                      <option value="done">Carried Out</option>
-                      <option value="not_done">Not Carried Out</option>
-                      <option value="na">N/A</option>
-                    </select>
-                  </td>
-                  <td style={{ padding: "4px 6px" }}>
-                    <input value={row.comment} onChange={(e) => updateChecklistRow(i, { comment: e.target.value })} style={{ width: "100%" }} />
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </fieldset>
-      )}
+      {/* Requested directly: "move the cylinder details below the
+          description of inspection for CO2, novec, wet chemical" —
+          itemsAfterChecklist (see ffeCertTypes.ts) swaps which of these
+          two blocks renders first; every other "system"/"items"
+          sub-type keeps its existing item-table-before-checklist order
+          (itemsAfterChecklist is unset/false for them). */}
+      {!cfg.itemsAfterChecklist && itemTables}
+      {checklistTable}
+      {cfg.itemsAfterChecklist && itemTables}
 
       {!!cfg.readingsRows?.length && (
         <fieldset className="insp-fieldset">
@@ -203,6 +217,7 @@ export default function FFEForm({ current, updateField, openCertificate }: Props
                 <th style={{ padding: "4px 6px" }}>Type of Vapor/Gas</th>
                 <th style={{ padding: "4px 6px" }}>Measured Value</th>
                 <th style={{ padding: "4px 6px" }}>Maximum Allowed</th>
+                <th style={{ padding: "4px 6px" }}>Remarks</th>
               </tr>
             </thead>
             <tbody>
@@ -213,6 +228,9 @@ export default function FFEForm({ current, updateField, openCertificate }: Props
                     <input value={ffe.technicalValues[`reading_${r.key}`] || ""} onChange={(e) => updateTechnicalValue(`reading_${r.key}`, e.target.value)} />
                   </td>
                   <td style={{ padding: "4px 6px", color: "var(--insp-muted)" }}>{r.maxAllowed}</td>
+                  <td style={{ padding: "4px 6px" }}>
+                    <input value={ffe.technicalValues[`remarks_${r.key}`] || ""} onChange={(e) => updateTechnicalValue(`remarks_${r.key}`, e.target.value)} />
+                  </td>
                 </tr>
               ))}
             </tbody>

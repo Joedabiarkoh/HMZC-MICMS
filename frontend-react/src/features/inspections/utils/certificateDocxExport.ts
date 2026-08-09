@@ -469,22 +469,29 @@ async function buildFFESection(cert: InspectionCertificate, ffe: FFEData): Promi
   if (cfg.note) {
     blocks.push(textP(cfg.note, { size: 16, color: MUTED }));
   }
-  if (cfg.itemColumns?.length) {
-    blocks.push(heading(cfg.itemTableLabel || "Items"), dataTable(["#", ...cfg.itemColumns.map((c) => c.label)], ffe.items.map((row, i) => [String(i + 1), ...cfg.itemColumns!.map((c) => row[c.key] || "—")])));
+  function pushItemTables() {
+    if (cfg.itemColumns?.length) {
+      blocks.push(heading(cfg.itemTableLabel || "Items"), dataTable(["#", ...cfg.itemColumns.map((c) => c.label)], ffe.items.map((row, i) => [String(i + 1), ...cfg.itemColumns!.map((c) => row[c.key] || "—")])));
+    }
+    if (cfg.items2Columns?.length) {
+      blocks.push(heading(cfg.items2Label || "Items"), dataTable(["#", ...cfg.items2Columns.map((c) => c.label)], ffe.items2.map((row, i) => [String(i + 1), ...cfg.items2Columns!.map((c) => row[c.key] || "—")])));
+    }
   }
-  if (cfg.items2Columns?.length) {
-    blocks.push(heading(cfg.items2Label || "Items"), dataTable(["#", ...cfg.items2Columns.map((c) => c.label)], ffe.items2.map((row, i) => [String(i + 1), ...cfg.items2Columns!.map((c) => row[c.key] || "—")])));
-  }
+  // Requested directly: "move the cylinder details below the
+  // description of inspection for CO2, novec, wet chemical" — see
+  // ffeCertTypes.ts's itemsAfterChecklist.
+  if (!cfg.itemsAfterChecklist) pushItemTables();
   if (cfg.checklistItems?.length) {
     blocks.push(
       heading("Description of Inspection/Tests"),
       dataTable(["No", "Description", "Result", "Comment"], ffe.checklist.map((r) => [r.no, r.description, checklistResultLabel(r.result), r.comment || "—"]))
     );
   }
+  if (cfg.itemsAfterChecklist) pushItemTables();
   if (cfg.readingsRows?.length) {
     blocks.push(
       heading("Readings"),
-      dataTable(["Type of Vapor/Gas", "Measured Value", "Maximum Allowed"], cfg.readingsRows.map((r) => [r.label, ffe.technicalValues[`reading_${r.key}`] || "—", r.maxAllowed]))
+      dataTable(["Type of Vapor/Gas", "Measured Value", "Maximum Allowed", "Remarks"], cfg.readingsRows.map((r) => [r.label, ffe.technicalValues[`reading_${r.key}`] || "—", r.maxAllowed, ffe.technicalValues[`remarks_${r.key}`] || "—"]))
     );
   }
   blocks.push(new Paragraph({ text: "" }), remarksBox("Comments", ffe.comments || "None"), new Paragraph({ text: "" }));
@@ -655,7 +662,7 @@ async function buildLooseGearSection(cert: InspectionCertificate, looseGear: Loo
         ["Mfg. Date", fmtDate(d.mfgDate)],
         ["Location", d.itemLocation || "—"],
         ["S.W.L", d.swl || "—"],
-        ["E.W.L", d.ewl || "—"],
+        ["WLL", d.ewl || "—"],
         ["MBL (Minimum Breaking Load)", d.mbl || "—"],
         ["Factor of Safety", d.factorOfSafety || "—"],
       ])

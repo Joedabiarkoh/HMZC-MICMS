@@ -404,17 +404,23 @@ export const INSPECTION_TYPES: Record<EquipmentTypeKey, EquipmentTypeConfig> = {
   calibration: {
     kind: "calibration", typeName: "Calibration", label: "Calibration",
   },
-  // Requested directly: "photo report for FFE and Calibration should
-  // be all together for the vessel but not for each inspection, make
-  // a section for photo report that the technician can select..." —
-  // one combined report per vessel/visit, not tied to any single FFE
-  // or Calibration sub-type certificate. No checklist at all — see
-  // InspectionWorkspace.tsx's own "photoreport" branch for the form
-  // (vessel info + photos + sign-off only) and CertificatePreview.tsx
-  // for how it prints (PhotoReportPage IS the certificate here, not
-  // an appendix to one).
+  // Kept registered (not deleted) purely so certificates already
+  // saved under this original combined type still resolve/open
+  // correctly — see inspection.types.ts's EquipmentTypeKey comment.
+  // Not offered for new certificates (removed from
+  // InspectionWorkspace.tsx's TYPE_GROUPS) — replaced below by two
+  // separate types on later request ("separate photo report for ffe
+  // and calibration certificate").
   photo_report: {
     kind: "photoreport", typeName: "FFE & Calibration Photo Report", label: "Photo Report",
     statementIntro: "This report consolidates photographic evidence from the firefighting equipment and/or calibration inspections carried out for this vessel.",
+  },
+  ffe_photo_report: {
+    kind: "photoreport", typeName: "FFE Photo Report", label: "FFE Photo Report",
+    statementIntro: "This report consolidates photographic evidence from the firefighting equipment inspections carried out for this vessel.",
+  },
+  calibration_photo_report: {
+    kind: "photoreport", typeName: "Calibration Photo Report", label: "Calibration Photo Report",
+    statementIntro: "This report consolidates photographic evidence from the calibration inspections carried out for this vessel.",
   },
 };

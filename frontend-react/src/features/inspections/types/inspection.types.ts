@@ -24,10 +24,18 @@ export type EquipmentTypeKey =
   // certificates per vessel visit (Fire Extinguisher, CO2 System,
   // Pressure Gauge, ...) — tying photo evidence to one of those would
   // fragment it across however many sub-type certs happened to be
-  // issued that visit. This is its own selectable type instead: no
-  // checklist, just vessel info + photos + sign-off, one combined
-  // report per vessel/visit covering both FFE and Calibration work.
-  | "photo_report";
+  // issued that visit. Originally one combined type covering both;
+  // later split into two on request ("separate photo report for ffe
+  // and calibration certificate") — each still no checklist, just
+  // vessel info + photos + sign-off. "photo_report" is kept (not
+  // removed) purely so certificates already saved under the old
+  // combined type still resolve/open correctly — see
+  // inspectionChecklists.ts's INSPECTION_TYPES for all three entries,
+  // and InspectionWorkspace.tsx's TYPE_GROUPS for why only the two new
+  // ones are offered for a brand-new certificate.
+  | "photo_report"
+  | "ffe_photo_report"
+  | "calibration_photo_report";
 
 export type ChecklistStatus = "good" | "part" | "repair" | "na" | "";
 

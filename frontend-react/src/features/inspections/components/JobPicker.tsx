@@ -2,6 +2,8 @@ import { useState } from "react";
 import { createJob, Job, listJobs } from "../services/jobs.api";
 import { InspectionCertificate, EquipmentTypeKey } from "../types/inspection.types";
 import { reportTypeLabel } from "../data/groupCertificatesByVessel";
+import { useAuth } from "../../../context/AuthContext";
+import { hasPermission, PERM } from "../../auth/types/auth.types";
 
 interface Props {
   vesselName: string;
@@ -36,6 +38,19 @@ interface Props {
 // available yet" + customer name — see po_pending), before the
 // certificate itself gets created.
 export default function JobPicker({ vesselName, imoNo, onVesselChange, onImoChange, onJobSelected, certificates, onOpenCertificate }: Props) {
+  const { user } = useAuth();
+  // Requested directly: "check access grant as who can manage add
+  // certificate and close certificate[,] technician who does not have
+  // permission to close certificate can only add but cannot close the
+  // job order." jobs.create is what backend-fastapi's create_job AND
+  // close_job both require (see core/permissions.py) — someone with
+  // only jobs.view + certificates.edit can join an existing open job
+  // and add certificates to it (see "+ Add a Certificate" above), but
+  // was still shown this whole "Start New Job" section and would only
+  // find out they can't open one after a 403 from the backend. Hidden
+  // outright now, matching how Close Job is already gated in
+  // CertificateLog.tsx/OpenJobs.tsx.
+  const canManageJobs = hasPermission(user, PERM.JOB_CREATE);
   const [jobs, setJobs] = useState<Job[] | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -165,30 +180,36 @@ export default function JobPicker({ vesselName, imoNo, onVesselChange, onImoChan
         </div>
       )}
 
-      <div style={{ marginTop: 14, paddingTop: 14, borderTop: "1px solid #E4E7E9" }}>
-        <div style={{ fontWeight: 700, fontSize: 12, color: "var(--insp-navy)", marginBottom: 8 }}>Start New Job</div>
-        <div className="insp-row2">
-          <div className="insp-field">
-            <label htmlFor="jp-po">PO Number</label>
-            <input id="jp-po" value={poNumber} onChange={(e) => setPoNumber(e.target.value)} disabled={poPending} placeholder="e.g. PO-99887" />
+      {canManageJobs ? (
+        <div style={{ marginTop: 14, paddingTop: 14, borderTop: "1px solid #E4E7E9" }}>
+          <div style={{ fontWeight: 700, fontSize: 12, color: "var(--insp-navy)", marginBottom: 8 }}>Start New Job</div>
+          <div className="insp-row2">
+            <div className="insp-field">
+              <label htmlFor="jp-po">PO Number</label>
+              <input id="jp-po" value={poNumber} onChange={(e) => setPoNumber(e.target.value)} disabled={poPending} placeholder="e.g. PO-99887" />
+            </div>
+            <div className="insp-field" style={{ display: "flex", alignItems: "flex-end", paddingBottom: 6 }}>
+              <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, fontWeight: 600, color: "var(--insp-muted)" }}>
+                <input type="checkbox" checked={poPending} onChange={(e) => { setPoPending(e.target.checked); if (e.target.checked) setPoNumber(""); }} />
+                PO not available yet
+              </label>
+            </div>
           </div>
-          <div className="insp-field" style={{ display: "flex", alignItems: "flex-end", paddingBottom: 6 }}>
-            <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, fontWeight: 600, color: "var(--insp-muted)" }}>
-              <input type="checkbox" checked={poPending} onChange={(e) => { setPoPending(e.target.checked); if (e.target.checked) setPoNumber(""); }} />
-              PO not available yet
-            </label>
-          </div>
+          {poPending && (
+            <div className="insp-field">
+              <label htmlFor="jp-customer">Customer Name</label>
+              <input id="jp-customer" value={customerName} onChange={(e) => setCustomerName(e.target.value)} placeholder="Who this job is for, until the PO arrives" />
+            </div>
+          )}
+          <button type="button" className="insp-btn insp-btn-primary" style={{ marginTop: 6 }} onClick={startNewJob} disabled={busyJobNo !== ""}>
+            {busyJobNo === "__new__" ? "Starting..." : "+ Start New Job for This Vessel"}
+          </button>
         </div>
-        {poPending && (
-          <div className="insp-field">
-            <label htmlFor="jp-customer">Customer Name</label>
-            <input id="jp-customer" value={customerName} onChange={(e) => setCustomerName(e.target.value)} placeholder="Who this job is for, until the PO arrives" />
-          </div>
-        )}
-        <button type="button" className="insp-btn insp-btn-primary" style={{ marginTop: 6 }} onClick={startNewJob} disabled={busyJobNo !== ""}>
-          {busyJobNo === "__new__" ? "Starting..." : "+ Start New Job for This Vessel"}
-        </button>
-      </div>
+      ) : (
+        <p className="insp-help-note" style={{ marginTop: 14, paddingTop: 14, borderTop: "1px solid #E4E7E9" }}>
+          You don't have permission to open or close jobs — pick an existing open job above to add a certificate to it. Ask an administrator if you need to start a new job.
+        </p>
+      )}
     </fieldset>
   );
 }

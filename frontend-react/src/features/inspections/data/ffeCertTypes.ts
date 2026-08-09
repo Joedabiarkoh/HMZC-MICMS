@@ -58,6 +58,14 @@ export interface FFESubTypeConfig {
   items2Columns?: FFEColumn[];
   items2Label?: string;
   checklistItems?: FFEChecklistItemDef[];
+  // Requested directly: "move the cylinder details below the
+  // description of inspection for CO2, novec, wet chemical" — the
+  // cylinder register (itemColumns/items2Columns) renders after
+  // checklistItems ("Description of Inspection/Tests") instead of
+  // before it when this is set. Defaults to false/unset everywhere
+  // else (e.g. Foam Applicator, BA Trolley & Rescue Set) so their
+  // existing item-table-before-checklist order is untouched.
+  itemsAfterChecklist?: boolean;
   readingsRows?: { key: string; label: string; maxAllowed: string }[];
   validityYears: 1 | 2;
   note?: string;
@@ -562,6 +570,7 @@ export const FFE_CERT_TYPES: FFESubTypeConfig[] = [
       { key: "lastHydroTestDate", label: "Last Hydro Test Date" }, { key: "workDone", label: "Work Done" }, { key: "remarks", label: "Remarks (also note Pilot-Remote/Time Delay here)" },
     ],
     items2Label: "Cylinder Specifications — Pilot",
+    itemsAfterChecklist: true,
     validityYears: 1,
   },
   {
@@ -647,6 +656,7 @@ export const FFE_CERT_TYPES: FFESubTypeConfig[] = [
     ],
     itemColumns: CYLINDER_SPEC_COLS,
     itemTableLabel: "Cylinder Specifications",
+    itemsAfterChecklist: true,
     validityYears: 1,
   },
   {
@@ -662,6 +672,7 @@ export const FFE_CERT_TYPES: FFESubTypeConfig[] = [
     checklistItems: FIXED_SYSTEM_CHECKLIST_25,
     itemColumns: CYLINDER_SPEC_COLS,
     itemTableLabel: "Cylinder Specifications",
+    itemsAfterChecklist: true,
     validityYears: 1,
     note: "Adapted from this project's standard clean-agent/fixed-gas-system pattern (matches the CO2 System checklist above) — the source template (CERT Novec System Certificate.doc) couldn't be read in this environment (legacy .doc, no Word/LibreOffice available to convert it). Worth checking this against the actual Novec template once it can be opened, in case its checklist genuinely differs from CO2's.",
   },

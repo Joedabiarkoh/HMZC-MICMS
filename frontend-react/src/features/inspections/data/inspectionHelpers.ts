@@ -88,7 +88,11 @@ export function generateCertNo(type: EquipmentTypeKey, existingNumbers: Set<stri
   const tags: Record<EquipmentTypeKey, string> = {
     lifeboat: "LB", rescueboat: "RB", freefall_dry: "FFD", freefall_tanker: "FFT",
     crane: "CR", firefighting: "FF", loosegear: "LG", calibration: "CAL",
-    photo_report: "PR",
+    // photo_report (no longer offered for new certs, see TYPE_GROUPS
+    // in InspectionWorkspace.tsx) keeps its old tag so this map stays
+    // exhaustive over EquipmentTypeKey — it just never gets hit by a
+    // brand-new certificate anymore.
+    photo_report: "PR", ffe_photo_report: "FPR", calibration_photo_report: "CPR",
   };
   const tag = tags[type];
   const count = Array.from(existingNumbers).filter((k) => k.includes(ymd) && k.includes(tag)).length + 1;

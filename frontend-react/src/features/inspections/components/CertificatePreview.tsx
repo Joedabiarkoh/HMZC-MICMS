@@ -436,12 +436,15 @@ function FFECertificatePage({ cert, ffe }: { cert: InspectionCertificate; ffe: F
 
       {cfg.note && <div style={{ fontSize: 10, color: "var(--insp-muted)", marginTop: 8 }}>{cfg.note}</div>}
 
-      {!!cfg.itemColumns?.length && (
-        <FFEItemsTable title={cfg.itemTableLabel || "Items"} columns={cfg.itemColumns} rows={ffe.items} certNo={cert.certNo} />
-      )}
-
-      {!!cfg.items2Columns?.length && (
-        <FFEItemsTable title={cfg.items2Label || "Items"} columns={cfg.items2Columns} rows={ffe.items2} certNo={cert.certNo} />
+      {!cfg.itemsAfterChecklist && (
+        <>
+          {!!cfg.itemColumns?.length && (
+            <FFEItemsTable title={cfg.itemTableLabel || "Items"} columns={cfg.itemColumns} rows={ffe.items} certNo={cert.certNo} />
+          )}
+          {!!cfg.items2Columns?.length && (
+            <FFEItemsTable title={cfg.items2Label || "Items"} columns={cfg.items2Columns} rows={ffe.items2} certNo={cert.certNo} />
+          )}
+        </>
       )}
 
       {!!cfg.checklistItems?.length && (
@@ -466,13 +469,27 @@ function FFECertificatePage({ cert, ffe }: { cert: InspectionCertificate; ffe: F
         </>
       )}
 
+      {/* Requested directly: "move the cylinder details below the
+          description of inspection for CO2, novec, wet chemical" —
+          see ffeCertTypes.ts's itemsAfterChecklist. */}
+      {!!cfg.itemsAfterChecklist && (
+        <>
+          {!!cfg.itemColumns?.length && (
+            <FFEItemsTable title={cfg.itemTableLabel || "Items"} columns={cfg.itemColumns} rows={ffe.items} certNo={cert.certNo} />
+          )}
+          {!!cfg.items2Columns?.length && (
+            <FFEItemsTable title={cfg.items2Label || "Items"} columns={cfg.items2Columns} rows={ffe.items2} certNo={cert.certNo} />
+          )}
+        </>
+      )}
+
       {!!cfg.readingsRows?.length && (
         <>
           <div style={{ fontWeight: 700, fontSize: 11.5, color: "var(--insp-navy)", margin: "10px 0 4px" }}>Readings</div>
           <table className="insp-print-chk">
             <thead>
-              <CertNoTheadRow certNo={cert.certNo} colSpan={3} />
-              <tr><th>Type of Vapor/Gas</th><th>Measured Value</th><th>Maximum Allowed</th></tr>
+              <CertNoTheadRow certNo={cert.certNo} colSpan={4} />
+              <tr><th>Type of Vapor/Gas</th><th>Measured Value</th><th>Maximum Allowed</th><th>Remarks</th></tr>
             </thead>
             <tbody>
               {cfg.readingsRows.map((r) => (
@@ -480,6 +497,7 @@ function FFECertificatePage({ cert, ffe }: { cert: InspectionCertificate; ffe: F
                   <td>{r.label}</td>
                   <td>{ffe.technicalValues[`reading_${r.key}`] || "—"}</td>
                   <td>{r.maxAllowed}</td>
+                  <td>{ffe.technicalValues[`remarks_${r.key}`] || "—"}</td>
                 </tr>
               ))}
             </tbody>
@@ -907,7 +925,7 @@ function StandardReportPage({ cert, data }: { cert: InspectionCertificate; data:
             <td><span className="tt-label">Mfg. Date</span>{fmtDate(data.mfgDate)}</td>
             <td><span className="tt-label">Location</span>{data.itemLocation || "—"}</td>
             <td><span className="tt-label">S.W.L</span>{data.swl || "—"}</td>
-            <td><span className="tt-label">E.W.L</span>{data.ewl || "—"}</td>
+            <td><span className="tt-label">WLL</span>{data.ewl || "—"}</td>
           </tr>
           {/* Requested directly, from the BDA Technical Guide: MBL is
               the figure SWL/WLL is calculated FROM (WLL = MBL/FoS),
