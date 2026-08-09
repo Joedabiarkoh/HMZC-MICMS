@@ -70,6 +70,7 @@ const SERIAL_MAKE_MODEL_COLS: FFEColumn[] = [
   { key: "mfgDate", label: "Mfg Date" },
   { key: "size", label: "Size" },
   { key: "workDone", label: "Work Done" },
+  { key: "remarks", label: "Remarks" },
 ];
 
 const CYLINDER_SPEC_COLS: FFEColumn[] = [
@@ -156,7 +157,7 @@ export const FFE_CERT_TYPES: FFESubTypeConfig[] = [
     itemColumns: [
       { key: "serialNo", label: "Serial No" }, { key: "make", label: "Make" },
       { key: "typeModel", label: "Type/Model" }, { key: "lightExpiryDate", label: "Light Expiry Date" },
-      { key: "size", label: "Size" }, { key: "workDone", label: "Work Done" },
+      { key: "size", label: "Size" }, { key: "workDone", label: "Work Done" }, { key: "remarks", label: "Remarks" },
     ],
     validityYears: 1,
   },
@@ -172,7 +173,7 @@ export const FFE_CERT_TYPES: FFESubTypeConfig[] = [
     itemColumns: [
       { key: "serialNo", label: "Serial No" }, { key: "make", label: "Make" },
       { key: "typeModel", label: "Type/Model" }, { key: "lightExpiryDate", label: "Light Expiry Date" },
-      { key: "size", label: "Size" }, { key: "workDone", label: "Work Done" },
+      { key: "size", label: "Size" }, { key: "workDone", label: "Work Done" }, { key: "remarks", label: "Remarks" },
     ],
     validityYears: 1,
   },
@@ -198,7 +199,7 @@ export const FFE_CERT_TYPES: FFESubTypeConfig[] = [
       { key: "serialNo", label: "Serial No" }, { key: "make", label: "Make" },
       { key: "typeModel", label: "Type/Model" }, { key: "cylCapacity", label: "Cyl Cpty" },
       { key: "lightExpiryDate", label: "Light Expiry Date" }, { key: "size", label: "Size" },
-      { key: "workDone", label: "Work Done" },
+      { key: "workDone", label: "Work Done" }, { key: "remarks", label: "Remarks" },
     ],
     validityYears: 1,
   },
@@ -301,7 +302,7 @@ export const FFE_CERT_TYPES: FFESubTypeConfig[] = [
       { key: "serialNo", label: "Serial No" }, { key: "make", label: "Make" },
       { key: "capacity", label: "Capacity" }, { key: "workingPressure", label: "Working Pressure" },
       { key: "hydroTestPressure", label: "Hydro Test Pressure" }, { key: "lastHydroTestDate", label: "Last Hydro Test Date" },
-      { key: "workDone", label: "Work Done" },
+      { key: "workDone", label: "Work Done" }, { key: "remarks", label: "Remarks" },
     ],
     validityYears: 1,
   },
@@ -320,7 +321,7 @@ export const FFE_CERT_TYPES: FFESubTypeConfig[] = [
     itemColumns: [
       { key: "setNo", label: "Set No" }, { key: "make", label: "Make" },
       { key: "ipPressure", label: "I/P Pressure" }, { key: "opPressure", label: "O/P Pressure" },
-      { key: "workDone", label: "Work Done" },
+      { key: "workDone", label: "Work Done" }, { key: "remarks", label: "Remarks" },
     ],
     itemTableLabel: "Regulator Details",
     items2Columns: [
@@ -340,10 +341,9 @@ export const FFE_CERT_TYPES: FFESubTypeConfig[] = [
     // exactly Sl No / Serial No / Make / Type / Capacity / Last Hydro
     // Test Date / Work Done. "Sl No" is the ItemTable's own auto-
     // numbered "#" column (see FFEForm.tsx/CertificatePreview.tsx's
-    // FFEItemsTable), not a separate data field — the six columns below
-    // are what's actually entered per row. Cartridge Exp./Weight and a
-    // free-text Remarks column (present in the old combined sub-type)
-    // were dropped to match the exact format requested.
+    // FFEItemsTable), not a separate data field. Cartridge Exp./Weight
+    // (present in the old combined sub-type) is still dropped, but
+    // Remarks was added back on later request.
     id: "portable_fire_extinguisher",
     label: "Portable Fire Extinguisher",
     archetype: "items",
@@ -357,13 +357,17 @@ export const FFE_CERT_TYPES: FFESubTypeConfig[] = [
     itemColumns: [
       { key: "serialNo", label: "Serial No" }, { key: "make", label: "Make" }, { key: "type", label: "Type" },
       { key: "capacity", label: "Capacity" }, { key: "lastHydroTestDate", label: "Last Hydro Test Date" },
-      { key: "workDone", label: "Work Done" },
+      { key: "workDone", label: "Work Done" }, { key: "remarks", label: "Remarks" },
     ],
     validityYears: 1,
   },
   {
+    // Renamed from "Non-Portable Fire Extinguisher" on later request —
+    // id kept as non_portable_fire_extinguisher so existing saved
+    // certificates (which store ffe.subType by id, not label) still
+    // resolve correctly; only the displayed label changed.
     id: "non_portable_fire_extinguisher",
-    label: "Non-Portable Fire Extinguisher",
+    label: "Wheeled Fire Extinguisher",
     archetype: "items",
     workCodes: [
       "1 = Inspection", "2 = Service", "3 = Content Checked", "4 = Recharge", "5 = Painted",
@@ -375,7 +379,7 @@ export const FFE_CERT_TYPES: FFESubTypeConfig[] = [
     itemColumns: [
       { key: "serialNo", label: "Serial No" }, { key: "make", label: "Make" }, { key: "type", label: "Type" },
       { key: "capacity", label: "Capacity" }, { key: "lastHydroTestDate", label: "Last Hydro Test Date" },
-      { key: "workDone", label: "Work Done" },
+      { key: "workDone", label: "Work Done" }, { key: "remarks", label: "Remarks" },
     ],
     validityYears: 1,
   },
@@ -384,8 +388,9 @@ export const FFE_CERT_TYPES: FFESubTypeConfig[] = [
     label: "Foam Applicator",
     archetype: "items",
     itemColumns: [
-      { key: "location", label: "Location" }, { key: "make", label: "Make" }, { key: "type", label: "Type" },
-      { key: "foamCan", label: "Foam Can" }, { key: "expDate", label: "Exp Date" }, { key: "serialNo", label: "Serial No" },
+      { key: "serialNo", label: "Serial No" }, { key: "location", label: "Location" }, { key: "make", label: "Make" },
+      { key: "type", label: "Type" }, { key: "foamCan", label: "Foam Can" }, { key: "expDate", label: "Exp Date" },
+      { key: "remarks", label: "Remarks" },
     ],
     checklistItems: [
       { no: "1", description: "Box" },
@@ -517,11 +522,12 @@ export const FFE_CERT_TYPES: FFESubTypeConfig[] = [
     // (EMERG. GENERATOR)" template (Cert. Simples batch) added Make, Gas
     // Type and Remarks, and its source doc actually carries FOUR
     // separate cylinder registers (Main, Pilot-Local, Pilot-Remote, Time
-    // Delay) rather than one combined table — kept as one incrementable
-    // table here (consistent with every other multi-cylinder sub-type
-    // in this file) with the note below telling the technician to
-    // identify which group each row belongs to, rather than adding a
-    // fourth distinct table shape just for this one sub-type.
+    // Delay). Requested directly: Pilot gets its own real table (items2)
+    // as a subhead directly under Main Cylinder Specifications, rather
+    // than only being noted in Remarks — Pilot-Remote and Time Delay
+    // cylinders are rare enough to stay covered by the Remarks column on
+    // whichever table (Main or Pilot) they're closer to, instead of
+    // adding two more distinct table shapes for them.
     id: "co2_system",
     label: "Fixed CO2 System",
     archetype: "system",
@@ -542,9 +548,20 @@ export const FFE_CERT_TYPES: FFESubTypeConfig[] = [
       { key: "serialNo", label: "Serial No" }, { key: "make", label: "Make" }, { key: "gasType", label: "Gas Type" },
       { key: "capacityKg", label: "Capacity (Kg)" }, { key: "tareWt", label: "Tare Wt (Kg)" }, { key: "totalWt", label: "Total Wt (Kg)" },
       { key: "workingPressure", label: "Working Pressure" }, { key: "hydroTestPressure", label: "Hydro Test Pressure" },
-      { key: "lastHydroTestDate", label: "Last Hydro Test Date" }, { key: "workDone", label: "Work Done" }, { key: "remarks", label: "Remarks" },
+      { key: "lastHydroTestDate", label: "Last Hydro Test Date" }, { key: "workDone", label: "Work Done" }, { key: "remarks", label: "Remarks (also note Pilot-Remote/Time Delay here)" },
     ],
-    itemTableLabel: "Cylinder Specifications (Main / Pilot-Local / Pilot-Remote / Time Delay — note which group in Remarks)",
+    itemTableLabel: "Cylinder Specifications — Main",
+    // Pilot cylinders get their own register, same shape as Main,
+    // rendered immediately below it (see FFEForm.tsx/CertificatePreview.tsx
+    // — items2 always follows items directly) so it reads as a subhead
+    // under Main Cylinder Specifications rather than a separate section.
+    items2Columns: [
+      { key: "serialNo", label: "Serial No" }, { key: "make", label: "Make" }, { key: "gasType", label: "Gas Type" },
+      { key: "capacityKg", label: "Capacity (Kg)" }, { key: "tareWt", label: "Tare Wt (Kg)" }, { key: "totalWt", label: "Total Wt (Kg)" },
+      { key: "workingPressure", label: "Working Pressure" }, { key: "hydroTestPressure", label: "Hydro Test Pressure" },
+      { key: "lastHydroTestDate", label: "Last Hydro Test Date" }, { key: "workDone", label: "Work Done" }, { key: "remarks", label: "Remarks (also note Pilot-Remote/Time Delay here)" },
+    ],
+    items2Label: "Cylinder Specifications — Pilot",
     validityYears: 1,
   },
   {
@@ -690,11 +707,16 @@ export const FFE_CERT_TYPES: FFESubTypeConfig[] = [
       { key: "modelType", label: "Model/Type" }, { key: "serialNo", label: "Serial No" },
       { key: "maxWorkingPressure", label: "Max. Working Pressure" },
     ],
+    // Requested directly: show each parameter's limit as a comparison
+    // (≤ / = / ≥) rather than a bare number — every one of these 4 is a
+    // maximum-allowed-content limit under EN 12021/DIN-3188 (there's no
+    // minimum-content parameter among them, e.g. no Oxygen row, which
+    // would instead need a target range), so all four are "≤".
     readingsRows: [
-      { key: "water_vapour", label: "Water Vapour", maxAllowed: "35 mg/m³" },
-      { key: "oil_vapor", label: "Oil Vapor", maxAllowed: "0.5 mg/m³" },
-      { key: "carbon_dioxide", label: "Carbon Dioxide", maxAllowed: "500 PPM" },
-      { key: "carbon_monoxide", label: "Carbon Monoxide", maxAllowed: "15 PPM" },
+      { key: "water_vapour", label: "Water Vapour", maxAllowed: "≤ 35 mg/m³" },
+      { key: "oil_vapor", label: "Oil Vapor", maxAllowed: "≤ 0.5 mg/m³" },
+      { key: "carbon_dioxide", label: "Carbon Dioxide", maxAllowed: "≤ 500 PPM" },
+      { key: "carbon_monoxide", label: "Carbon Monoxide", maxAllowed: "≤ 15 PPM" },
     ],
     validityYears: 1,
     note: "Reference limits per EN 12021 and DIN-3188.",

@@ -13,6 +13,8 @@ const PERM_LABELS: Record<string, string> = {
   [PERM.CERT_VIEW_ALL]: "View & download everyone's certificates",
   [PERM.CERT_EDIT]: "Create & edit certificates",
   [PERM.CERT_DELETE]: "Delete certificates",
+  [PERM.JOB_VIEW]: "View/join open jobs",
+  [PERM.JOB_CREATE]: "Create & close jobs",
   [PERM.FIN_VIEW]: "View quotations & invoices",
   [PERM.FIN_EDIT]: "Create & edit quotations/invoices",
   [PERM.FIN_DELETE]: "Delete quotations/invoices",

@@ -34,6 +34,8 @@ export const PERM = {
   CERT_VIEW_ALL: "certificates.view_all",
   CERT_EDIT: "certificates.edit",
   CERT_DELETE: "certificates.delete",
+  JOB_VIEW: "jobs.view",
+  JOB_CREATE: "jobs.create",
   FIN_VIEW: "finance.view",
   FIN_EDIT: "finance.edit",
   FIN_DELETE: "finance.delete",
