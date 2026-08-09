@@ -20,6 +20,8 @@ import { checklistProgress } from "../data/inspectionHelpers";
 import { dirtyKey } from "../data/dirtyKey";
 import { useAuth } from "../../../context/AuthContext";
 import { hasPermission, PERM } from "../../auth/types/auth.types";
+import JobPicker from "../components/JobPicker";
+import { Job, reserveCertNo } from "../services/jobs.api";
 
 const TYPE_GROUPS: { label: string; keys: EquipmentTypeKey[] }[] = [
   { label: "Lifesaving Appliances", keys: ["lifeboat", "rescueboat", "freefall_dry", "freefall_tanker"] },
@@ -160,6 +162,27 @@ export default function InspectionWorkspace() {
     lastSavedSnapshot.current = dirtyKey(current);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [current.certNo]); // reset the baseline whenever a *different* certificate is loaded
+
+  // Requested directly: "the job creation number should be for all
+  // the certificate" — needsJobPicker (below) needs to know "was this
+  // certificate already a real, pre-existing record before this
+  // editing session," which is NOT the same question as "does
+  // `certificates[current.certNo]` exist right now." The 20-second
+  // auto-save above (line ~176) persists a brand-new draft — including
+  // one still sitting in the Job Picker with no jobRef yet — the
+  // moment it has a vessel name, which would otherwise make
+  // `certificates[current.certNo]` become true mid-picker and silently
+  // let the certificate through without ever requiring a Job (a real,
+  // reproduced bug: typing a vessel name into the picker and waiting
+  // ~20s skipped the gate entirely). Frozen once, right when a
+  // (possibly new) certNo is first loaded — before auto-save has had
+  // any chance to run — rather than read live, so a later auto-save of
+  // THIS SAME still-picker-gated draft can't retroactively flip it.
+  const wasExistingCertRef = useRef(!!certificates[current.certNo] || !!current.issuedAt);
+  useEffect(() => {
+    wasExistingCertRef.current = !!certificates[current.certNo] || !!current.issuedAt;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [current.certNo]);
 
   useEffect(() => {
     const canAutoSave = hasPermission(user, PERM.CERT_EDIT);
@@ -512,6 +535,57 @@ export default function InspectionWorkspace() {
             Open a certificate from the <a href="/certificates/log">Certificate Log</a> to view it here.
           </div>
         )}
+      </div>
+    );
+  }
+
+  // Requested directly: "the job creation number should be for all
+  // the certificate, so that all certificate issued will stay under
+  // that job number and easy to track" — a brand-new (never-saved)
+  // certificate of ANY equipment type with no Job attached yet shows
+  // the Job Picker instead of that type's own form; certificates
+  // already saved (existing in `certificates`, including ones that
+  // predate this feature and so have no jobRef at all) skip it
+  // entirely — this only ever gates the moment a NEW certificate is
+  // created, never re-blocks an already-issued one.
+  const needsJobPicker = !current.jobRef && !wasExistingCertRef.current;
+
+  async function handleJobSelected(job: Job) {
+    updateField("jobRef", job.job_no);
+    // Only Loose Gear derives its own cert_no from the Job (see
+    // Job model's own comment for why — the "300 items for one
+    // vessel" numbering problem is specific to it). Every other
+    // equipment type keeps the cert_no it already got from
+    // freshCertificate()'s own generateCertNo when this draft was
+    // first opened — the Job here is purely a tracking tag for them.
+    if (cfg.kind === "loosegear") {
+      try {
+        const reserved = await reserveCertNo(job.job_no);
+        updateField("certNo", reserved.cert_no);
+      } catch {
+        window.alert(`Couldn't reserve a certificate number under ${job.job_no} — it may have just been closed. Try again.`);
+      }
+    }
+  }
+
+  if (needsJobPicker) {
+    return (
+      <div className="inspections-page" data-type={type}>
+        <TopBar type={type} onTypeChange={handleTypeChange} />
+        <div className="insp-layout">
+          <div className="insp-panel">
+            <div className="insp-panel-header">{cfg.typeName}</div>
+            <div className="insp-panel-body">
+              <JobPicker
+                vesselName={current.vesselName}
+                imoNo={current.imoNo}
+                onVesselChange={(v) => updateField("vesselName", v)}
+                onImoChange={(v) => updateField("imoNo", v)}
+                onJobSelected={handleJobSelected}
+              />
+            </div>
+          </div>
+        </div>
       </div>
     );
   }

@@ -17,6 +17,7 @@ interface BackendCertificate {
   imo_no: string | null;
   status: string;
   date_of_servicing: string | null;
+  job_no: string | null;
   payload: InspectionCertificate;
   issued_by: { id: number; email: string; full_name: string | null; role: string } | null;
   version: number;
@@ -39,6 +40,7 @@ function toBackendPayload(cert: InspectionCertificate) {
     imo_no: cert.imoNo || null,
     status: cert.status,
     date_of_servicing: cert.dateOfServicing || null,
+    job_no: cert.jobRef || null,
     payload: cert,
     version: cert.version ?? null,
   };

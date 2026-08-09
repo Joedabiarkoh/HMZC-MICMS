@@ -30,6 +30,13 @@ class Certificate(BaseModel):
     status = Column(String, nullable=False, default="draft")  # "draft" | "final"
     date_of_servicing = Column(String, nullable=True)
 
+    # Requested directly: "the job creation number should be for all
+    # the certificate, so that all certificate issued will stay under
+    # that job number and easy to track" — the Job (see models/job.py)
+    # this certificate was created under, regardless of equipment
+    # type. Nullable/empty for certificates that predate this feature.
+    job_no = Column(String, nullable=True, index=True)
+
     issued_by_id = Column(Integer, ForeignKey("users.id"), nullable=True)
     issued_by = relationship("User")
 

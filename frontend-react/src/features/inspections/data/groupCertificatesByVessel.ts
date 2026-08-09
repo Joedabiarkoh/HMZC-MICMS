@@ -23,31 +23,23 @@ export function reportTypeLabel(cert: InspectionCertificate): string {
   return base;
 }
 
-export interface JobGroup {
-  jobNo: string;
-  certs: InspectionCertificate[];
-}
-
 export interface TypeGroup {
   key: string;
   label: string;
   certs: InspectionCertificate[];
-  // Requested directly: "sometimes the items for lifting gear can be
-  // over 300 report for the various lifting items on board the vessel
-  // ... find a creative way of ... grouping these" — then, later:
-  // "before you create a certificate job number must be created for
-  // you and all the certificate that will be created within that job
-  // number will be grouped under that job number." Every Standard
-  // Report and Multiple Items certificate is now tied to a real
-  // backend Job (see looseGear.jobRef, LooseGearJobPicker.tsx,
-  // backend-fastapi's LooseGearJob model) — grouped here by that
-  // shared job_no so a whole vessel visit's certificates collapse
-  // into one batch instead of a flat list. Legacy certificates that
-  // predate the Job feature (empty jobRef) fall into a "(no job)"
-  // bucket rather than being silently dropped. Only populated for
-  // these two report types; every other type group leaves this
-  // undefined.
-  jobGroups?: JobGroup[];
+}
+
+export interface JobGroup {
+  jobNo: string;
+  certs: InspectionCertificate[];
+  // Requested directly: "the job creation number should be for all
+  // the certificate" — a Job can now cover certificates of several
+  // different equipment types issued on the same vessel visit (a
+  // lifeboat cert, a crane cert, and a batch of Loose Gear items, all
+  // under one PO), so each job is further broken out by report type
+  // here, same grouping reportTypeLabel already gives every other
+  // level of this file.
+  certsByType: TypeGroup[];
 }
 
 export interface VesselGroup {
@@ -55,27 +47,20 @@ export interface VesselGroup {
   vesselName: string;
   imoNo: string;
   certs: InspectionCertificate[];
-  // Requested directly: as a vessel accumulates more certificates, a
-  // single flat list under it stops being scannable — grouped by
-  // report type (see reportTypeLabel above), newest activity first.
-  certsByType: TypeGroup[];
+  // Requested directly: "so that all certificate issued will stay
+  // under that job number and easy to track, as the same vessel can
+  // be visited on different occassion for different POs" — Job (see
+  // looseGear... no, cert.jobRef now, backend-fastapi's Job model) is
+  // the primary grouping under a vessel: each visit/PO is its own
+  // job, and everything issued during it — regardless of equipment
+  // type — collapses into that one batch. Legacy certificates that
+  // predate the Job feature (empty jobRef) fall into a "(no job)"
+  // bucket rather than being silently dropped.
+  certsByJob: JobGroup[];
 }
 
 function latestTimestamp(certs: InspectionCertificate[]): string {
   return certs[0]?.issuedAt || certs[0]?.savedAt || "";
-}
-
-function groupByJobNo(certs: InspectionCertificate[]): JobGroup[] {
-  const byJob = new Map<string, InspectionCertificate[]>();
-  for (const c of certs) {
-    const jobNo = c.looseGear?.jobRef?.trim() || "(no job)";
-    const bucket = byJob.get(jobNo);
-    if (bucket) bucket.push(c);
-    else byJob.set(jobNo, [c]);
-  }
-  return Array.from(byJob.entries())
-    .map(([jobNo, jobCerts]) => ({ jobNo, certs: jobCerts }))
-    .sort((a, b) => latestTimestamp(b.certs).localeCompare(latestTimestamp(a.certs)));
 }
 
 function groupByType(certs: InspectionCertificate[]): TypeGroup[] {
@@ -89,13 +74,20 @@ function groupByType(certs: InspectionCertificate[]): TypeGroup[] {
     }
     group.certs.push(c);
   }
-  for (const group of byType.values()) {
-    const first = group.certs[0];
-    if (first?.type === "loosegear" && (first.looseGear?.subType === "standard_report" || first.looseGear?.subType === "multiple_items")) {
-      group.jobGroups = groupByJobNo(group.certs);
-    }
-  }
   return Array.from(byType.values()).sort((a, b) => latestTimestamp(b.certs).localeCompare(latestTimestamp(a.certs)));
+}
+
+function groupByJobNo(certs: InspectionCertificate[]): JobGroup[] {
+  const byJob = new Map<string, InspectionCertificate[]>();
+  for (const c of certs) {
+    const jobNo = c.jobRef?.trim() || "(no job)";
+    const bucket = byJob.get(jobNo);
+    if (bucket) bucket.push(c);
+    else byJob.set(jobNo, [c]);
+  }
+  return Array.from(byJob.entries())
+    .map(([jobNo, jobCerts]) => ({ jobNo, certs: jobCerts, certsByType: groupByType(jobCerts) }))
+    .sort((a, b) => latestTimestamp(b.certs).localeCompare(latestTimestamp(a.certs)));
 }
 
 // Extracted from CertificateLog.tsx purely to be independently testable
@@ -126,7 +118,7 @@ export function groupCertificatesByVessel(
     const key = vesselName || imoNo ? `${vesselName}|${imoNo}` : "__unrecorded__";
     let group = byVessel.get(key);
     if (!group) {
-      group = { key, vesselName, imoNo, certs: [], certsByType: [] };
+      group = { key, vesselName, imoNo, certs: [], certsByJob: [] };
       byVessel.set(key, group);
     }
     group.certs.push(c);
@@ -134,7 +126,7 @@ export function groupCertificatesByVessel(
 
   for (const group of byVessel.values()) {
     group.certs.sort((a, b) => (b.issuedAt || b.savedAt || "").localeCompare(a.issuedAt || a.savedAt || ""));
-    group.certsByType = groupByType(group.certs);
+    group.certsByJob = groupByJobNo(group.certs);
   }
 
   return Array.from(byVessel.values()).sort((a, b) => {

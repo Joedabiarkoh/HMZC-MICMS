@@ -13,6 +13,11 @@ class CertificateCreate(BaseModel):
     imo_no: Optional[str] = None
     status: str = "draft"
     date_of_servicing: Optional[str] = None
+    # Requested directly: "the job creation number should be for all
+    # the certificate" — the Job (models/job.py) this certificate was
+    # created under, regardless of equipment type. None for
+    # certificates that predate this feature.
+    job_no: Optional[str] = None
     payload: Dict[str, Any]
     # If set, must match the record's current version or the save is
     # rejected with 409 Conflict instead of silently overwriting someone
@@ -28,6 +33,7 @@ class CertificateResponse(BaseModel):
     imo_no: Optional[str] = None
     status: str
     date_of_servicing: Optional[str] = None
+    job_no: Optional[str] = None
     payload: Dict[str, Any]
     issued_by: Optional[UserResponse] = None
     version: int

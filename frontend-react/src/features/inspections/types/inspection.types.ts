@@ -118,6 +118,19 @@ export interface InspectionCertificate {
   flag: string;
   location: string;
 
+  // Requested directly: "the job number creation should be...
+  // assigned to be assigned to someone as how it is for other roles
+  // or access" then, generalizing from Loose Gear only: "the job
+  // creation number should be for all the certificate, so that all
+  // certificate issued will stay under that job number and easy to
+  // track, as the same vessel can be visited on different occassion
+  // for different POs." Every certificate, regardless of equipment
+  // type, is now tied to a real backend Job (see backend-fastapi's
+  // Job model) — the vessel+PO-level record a technician must pick
+  // or start before creating a new certificate of ANY kind (see
+  // JobPicker.tsx). Empty for certificates that predate this feature.
+  jobRef: string;
+
   // Boat-type fields (lifeboat / rescueboat / freefall_*)
   capacity?: string;
   boat?: IdentifiedComponent;
@@ -425,16 +438,6 @@ export interface LooseGearData {
   visualCert?: LooseGearVisualCertData;
   standardReport?: LooseGearStandardReportData;
   multipleItems?: LooseGearMultipleItemsData;
-  // Requested directly: "before you create a certificate job number
-  // must be created for you and all the certificate that will be
-  // created within that job number will be grouped under that job
-  // number... job number will be associated to a vessel" — the real,
-  // backend-enforced Job (see backend-fastapi's LooseGearJob model)
-  // this certificate was issued under. Empty for certificates that
-  // predate this feature (opened before a Job was required) — see
-  // LooseGearJobPicker.tsx for where this gets set, once, when a new
-  // standard_report/multiple_items certificate is first created.
-  jobRef: string;
 }
 
 export interface EquipmentTypeConfig {

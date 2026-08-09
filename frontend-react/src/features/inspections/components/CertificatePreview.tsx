@@ -882,7 +882,7 @@ function StandardReportPage({ cert, data }: { cert: InspectionCertificate; data:
             )}
           </tr>
           <tr>
-            <td><span className="tt-label">Job No</span>{data.jobNo || "—"}</td>
+            <td><span className="tt-label">Job No</span>{cert.jobRef || data.jobNo || "—"}</td>
             <td><span className="tt-label">Prev. Exam Date</span>{fmtDate(data.prevExamDate)}</td>
             <td><span className="tt-label">Next Exam Date</span>{fmtDate(data.nextExamDate)}</td>
             <td><span className="tt-label">Vessel</span>{cert.vesselName || "—"}</td>

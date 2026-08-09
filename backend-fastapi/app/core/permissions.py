@@ -22,6 +22,20 @@ CERT_VIEW_ALL = "certificates.view_all"  # see EVERYONE's issued certificates, n
 CERT_EDIT = "certificates.edit"      # create new certificates, save/finalize changes to existing ones
 CERT_DELETE = "certificates.delete"
 
+# Requested directly: "the job number creation should be... assigned
+# to be assigned to someone as how it is for other roles or access" —
+# a Job (models/job.py) has to exist before ANY certificate can be
+# created (see JobPicker.tsx), so who's allowed to actually open/close
+# one is its own, separately grantable permission rather than folded
+# into certificates.edit — same shape as certificates.delete being its
+# own permission below. jobs.view (list/search open jobs to join one,
+# needed by the picker) is deliberately separate from jobs.create
+# (open a brand-new job or close one) — day-to-day certificate work
+# needs the former; the latter is the one an admin might want to
+# restrict to specific people.
+JOB_VIEW = "jobs.view"
+JOB_CREATE = "jobs.create"
+
 FIN_VIEW = "finance.view"            # see the dashboard, quotations, invoices, and search the item catalog
 FIN_EDIT = "finance.edit"            # create/save quotations and invoices
 FIN_DELETE = "finance.delete"
@@ -34,6 +48,7 @@ SUPPLIER_MANAGE = "suppliers.manage"  # upload a completed form, delete a submis
 
 ALL_PERMISSIONS = {
     CERT_VIEW, CERT_VIEW_ALL, CERT_EDIT, CERT_DELETE,
+    JOB_VIEW, JOB_CREATE,
     FIN_VIEW, FIN_EDIT, FIN_DELETE, FIN_CATALOG_MANAGE,
     USERS_MANAGE,
     SUPPLIER_VIEW, SUPPLIER_MANAGE,
@@ -59,7 +74,14 @@ ALL_PERMISSIONS = {
 # via ALL_PERMISSIONS below either way.
 ROLE_DEFAULT_PERMISSIONS = {
     UserRole.ADMIN: set(ALL_PERMISSIONS),
-    UserRole.INSPECTOR: {CERT_VIEW, CERT_EDIT},  # "Technical" in the UI — see the note in models/user.py on why the stored value isn't renamed
+    # jobs.view/jobs.create default on for Inspector alongside
+    # certificates.edit — every certificate now requires a Job first
+    # (see JobPicker.tsx), so without these the role that actually
+    # issues certificates couldn't do its own job. Still its own
+    # separately grantable/revocable permission (see JOB_CREATE's own
+    # comment) if an admin later wants to restrict specific people to
+    # only joining jobs someone else opened.
+    UserRole.INSPECTOR: {CERT_VIEW, CERT_EDIT, JOB_VIEW, JOB_CREATE},  # "Technical" in the UI — see the note in models/user.py on why the stored value isn't renamed
     UserRole.SALES: {CERT_VIEW, CERT_VIEW_ALL, SUPPLIER_VIEW},
     # Supplier boarding paperwork is the kind of thing Administration
     # actually processes day to day, so they get suppliers.manage

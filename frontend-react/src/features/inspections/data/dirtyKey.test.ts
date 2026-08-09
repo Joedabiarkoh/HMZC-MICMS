@@ -27,6 +27,7 @@ function baseCert(overrides: Partial<InspectionCertificate> = {}): InspectionCer
     imoNo: "1234567",
     flag: "",
     location: "",
+    jobRef: "",
     remarks: "",
     remarksAuto: true,
     outstanding: {},

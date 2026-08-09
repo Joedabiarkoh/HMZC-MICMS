@@ -8,7 +8,7 @@ import { groupCertificatesByVessel, reportTypeLabel, VesselGroup } from "../data
 import { hasPermission, PERM } from "../../auth/types/auth.types";
 import { confirmAction } from "../../../components/ConfirmDialog";
 import { exportRowsToCsv } from "../../../utils/exportCsv";
-import { closeLooseGearJob } from "../services/looseGearJobs.api";
+import { closeJob } from "../services/jobs.api";
 
 /**
  * The previous standalone tool had a "Certificate Log" tab for exactly
@@ -33,14 +33,16 @@ export default function CertificateLog() {
   const navigate = useNavigate();
   const [search, setSearch] = useState("");
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
-  // Requested directly: "I want it to be grouped based on the report
-  // type" — a vessel's type groups (see certsByType, jobGroups a level
-  // further down for Loose Gear Standard Report) both collapse/expand
-  // independently of the other, keyed by "<vesselKey>::<typeLabel>" and
-  // "<vesselKey>::<typeLabel>::<jobNo>" respectively so two different
-  // vessels' same-named type or job group don't share expanded state.
-  const [expandedTypes, setExpandedTypes] = useState<Set<string>>(new Set());
+  // Requested directly: "the job creation number should be for all
+  // the certificate, so that all certificate issued will stay under
+  // that job number and easy to track" — a vessel's Jobs (see
+  // certsByJob, groupCertificatesByVessel.ts) and each job's own
+  // report-type groups both collapse/expand independently, keyed by
+  // "<vesselKey>::<jobNo>" and "<vesselKey>::<jobNo>::<typeLabel>" so
+  // two different vessels' same-named job or type group don't share
+  // expanded state.
   const [expandedJobs, setExpandedJobs] = useState<Set<string>>(new Set());
+  const [expandedTypes, setExpandedTypes] = useState<Set<string>>(new Set());
   const [closingJob, setClosingJob] = useState("");
 
   // Requested directly: "once the job is completed that job number
@@ -57,7 +59,7 @@ export default function CertificateLog() {
     if (!ok) return;
     setClosingJob(jobNo);
     try {
-      await closeLooseGearJob(jobNo);
+      await closeJob(jobNo);
     } catch {
       window.alert(`Couldn't close ${jobNo} — check your connection and try again.`);
     } finally {
@@ -79,15 +81,6 @@ export default function CertificateLog() {
     });
   }
 
-  function toggleType(key: string) {
-    setExpandedTypes((prev) => {
-      const next = new Set(prev);
-      if (next.has(key)) next.delete(key);
-      else next.add(key);
-      return next;
-    });
-  }
-
   function toggleJob(key: string) {
     setExpandedJobs((prev) => {
       const next = new Set(prev);
@@ -97,9 +90,17 @@ export default function CertificateLog() {
     });
   }
 
-  // Extracted so both a type group with no jobGroups and each individual
-  // job sub-group (see certsByType/jobGroups, groupCertificatesByVessel.ts)
-  // can render the same certificate table without duplicating it.
+  function toggleType(key: string) {
+    setExpandedTypes((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  }
+
+  // Shared by every report-type group's cert table, regardless of
+  // which job it's under.
   function renderCertTable(certs: VesselGroup["certs"]) {
     return (
       <table style={{ width: "100%", borderCollapse: "collapse" }}>
@@ -155,7 +156,7 @@ export default function CertificateLog() {
     exportRowsToCsv(`certificate-log-${new Date().toISOString().slice(0, 10)}`, rows, [
       { header: "Certificate No", value: (c) => c.certNo },
       { header: "Type", value: (c) => reportTypeLabel(c) },
-      { header: "Job No", value: (c) => c.looseGear?.standardReport?.jobNo || "" },
+      { header: "Job No", value: (c) => c.jobRef || "" },
       { header: "Vessel", value: (c) => c.vesselName },
       { header: "IMO No", value: (c) => c.imoNo },
       { header: "Status", value: (c) => c.status },
@@ -239,68 +240,59 @@ export default function CertificateLog() {
                   {isOpen && (
                     <tr>
                       <td colSpan={6} style={{ padding: 0, background: "#F8F9FA" }}>
-                        {/* Requested directly: "I want it to be grouped based
-                            on the report type" — a vessel's certificates are
-                            grouped by report type (see reportTypeLabel,
-                            groupCertificatesByVessel.ts) rather than by year,
-                            since a technician looking for "the crane reports"
-                            or "the loose gear thorough examinations" thinks in
-                            terms of what kind of report it is, not when it was
-                            filed. */}
-                        {group.certsByType.map((typeGroup) => {
-                          const typeKey = `${group.key}::${typeGroup.key}`;
-                          const typeOpen = expandedTypes.has(typeKey);
+                        {/* Requested directly: "the job creation number
+                            should be for all the certificate, so that
+                            all certificate issued will stay under that
+                            job number and easy to track" — a vessel's
+                            certificates are grouped by Job first (one
+                            job can span several equipment types issued
+                            on the same visit/PO), then by report type
+                            within each job. */}
+                        {group.certsByJob.map((jobGroup) => {
+                          const jobKey = `${group.key}::${jobGroup.jobNo}`;
+                          const jobOpen = expandedJobs.has(jobKey);
+                          const jobInfo = jobGroup.certs[0];
                           return (
-                            <div key={typeGroup.key}>
+                            <div key={jobGroup.jobNo}>
                               <div
-                                onClick={() => toggleType(typeKey)}
+                                onClick={() => toggleJob(jobKey)}
                                 style={{ padding: "8px 12px", fontSize: 11.5, fontWeight: 700, color: "var(--insp-navy)", cursor: "pointer", display: "flex", justifyContent: "space-between", alignItems: "center", borderTop: "1px solid #E4E8EB" }}
                               >
-                                <span>{typeGroup.label} ({typeGroup.certs.length})</span>
-                                <span style={{ fontSize: 10, color: "var(--insp-muted)", fontWeight: 600 }}>{typeOpen ? "Hide" : "Show"}</span>
+                                <span>Job: {jobGroup.jobNo} ({jobGroup.certs.length} certificate{jobGroup.certs.length === 1 ? "" : "s"})</span>
+                                <span style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                                  {jobGroup.jobNo !== "(no job)" && hasPermission(user, PERM.CERT_EDIT) && (
+                                    <button
+                                      type="button"
+                                      className="insp-btn insp-btn-outline"
+                                      style={{ padding: "2px 8px", fontSize: 10 }}
+                                      onClick={(e) => { e.stopPropagation(); handleCloseJob(jobGroup.jobNo); }}
+                                      disabled={closingJob === jobGroup.jobNo}
+                                    >
+                                      {closingJob === jobGroup.jobNo ? "Closing..." : "Close Job"}
+                                    </button>
+                                  )}
+                                  <span style={{ fontSize: 10, color: "var(--insp-muted)", fontWeight: 600 }}>{jobOpen ? "Hide" : "Show"}</span>
+                                </span>
                               </div>
-                              {typeOpen && (
-                                typeGroup.jobGroups ? (
-                                  // Requested directly: "sometimes the items for
-                                  // lifting gear can be over 300 report for the
-                                  // various lifting items on board the vessel for
-                                  // just one vessel ... find a creative way of
-                                  // making [grouping] possible" — a further,
-                                  // independently-collapsible level by Job No, so
-                                  // one vessel visit's worth of item reports reads
-                                  // as one batch instead of 300 flat rows.
-                                  typeGroup.jobGroups.map((jobGroup) => {
-                                    const jobKey = `${typeKey}::${jobGroup.jobNo}`;
-                                    const jobOpen = expandedJobs.has(jobKey);
+                              {jobOpen && (
+                                <div style={{ marginLeft: 16 }}>
+                                  {jobGroup.certsByType.map((typeGroup) => {
+                                    const typeKey = `${jobKey}::${typeGroup.key}`;
+                                    const typeOpen = expandedTypes.has(typeKey);
                                     return (
-                                      <div key={jobGroup.jobNo} style={{ marginLeft: 16 }}>
+                                      <div key={typeGroup.key}>
                                         <div
-                                          onClick={() => toggleJob(jobKey)}
+                                          onClick={() => toggleType(typeKey)}
                                           style={{ padding: "6px 12px", fontSize: 11, fontWeight: 600, color: "var(--insp-text)", cursor: "pointer", display: "flex", justifyContent: "space-between", alignItems: "center" }}
                                         >
-                                          <span>Job: {jobGroup.jobNo} ({jobGroup.certs.length} item{jobGroup.certs.length === 1 ? "" : "s"})</span>
-                                          <span style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                                            {jobGroup.jobNo !== "(no job)" && hasPermission(user, PERM.CERT_EDIT) && (
-                                              <button
-                                                type="button"
-                                                className="insp-btn insp-btn-outline"
-                                                style={{ padding: "2px 8px", fontSize: 10 }}
-                                                onClick={(e) => { e.stopPropagation(); handleCloseJob(jobGroup.jobNo); }}
-                                                disabled={closingJob === jobGroup.jobNo}
-                                              >
-                                                {closingJob === jobGroup.jobNo ? "Closing..." : "Close Job"}
-                                              </button>
-                                            )}
-                                            <span style={{ fontSize: 10, color: "var(--insp-muted)", fontWeight: 600 }}>{jobOpen ? "Hide" : "Show"}</span>
-                                          </span>
+                                          <span>{typeGroup.label} ({typeGroup.certs.length})</span>
+                                          <span style={{ fontSize: 10, color: "var(--insp-muted)", fontWeight: 600 }}>{typeOpen ? "Hide" : "Show"}</span>
                                         </div>
-                                        {jobOpen && renderCertTable(jobGroup.certs)}
+                                        {typeOpen && renderCertTable(typeGroup.certs)}
                                       </div>
                                     );
-                                  })
-                                ) : (
-                                  renderCertTable(typeGroup.certs)
-                                )
+                                  })}
+                                </div>
                               )}
                             </div>
                           );

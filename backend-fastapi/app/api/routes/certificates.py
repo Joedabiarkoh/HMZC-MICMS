@@ -95,6 +95,7 @@ def save_certificate(
         existing.imo_no = cert_in.imo_no
         existing.status = cert_in.status
         existing.date_of_servicing = cert_in.date_of_servicing
+        existing.job_no = cert_in.job_no
         existing.payload = externalized_payload
         existing.version += 1
         db.commit()
@@ -111,6 +112,7 @@ def save_certificate(
         imo_no=cert_in.imo_no,
         status=cert_in.status,
         date_of_servicing=cert_in.date_of_servicing,
+        job_no=cert_in.job_no,
         payload=externalized_payload,
         issued_by_id=current_user.id,
     )
