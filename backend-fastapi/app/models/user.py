@@ -15,13 +15,20 @@ from app.models.base import BaseModel
 
 class UserRole(str, enum.Enum):
     ADMIN = "admin"
-    # Stored value kept as "inspector" rather than renamed to "technical"
-    # — renaming a Postgres enum value needs an ALTER TYPE ... RENAME
+    # Member name kept as INSPECTOR rather than renamed to TECHNICAL —
+    # renaming a Postgres enum value needs an ALTER TYPE ... RENAME
     # VALUE migration, which is riskier to get right without a live
     # database to test against than just labelling it "Technical"
     # everywhere it's shown to a person (see ROLE_LABELS in
     # core/permissions.py-adjacent frontend code) while leaving the
-    # actual stored identifier alone.
+    # actual stored identifier alone. That stored identifier is the
+    # enum MEMBER NAME, "INSPECTOR" (uppercase) — SQLAlchemy's Enum
+    # column type persists .name by default, not .value, despite this
+    # class inheriting from `str` (confirmed directly against a live
+    # database after a migration's raw-SQL `role = 'inspector'` WHERE
+    # clause silently matched zero rows). Any future raw-SQL migration
+    # touching this column needs the uppercase member name, not the
+    # lowercase `= "inspector"` value assigned below.
     INSPECTOR = "inspector"
     FINANCE = "finance"
     CLIENT = "client"

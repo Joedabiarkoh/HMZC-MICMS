@@ -74,14 +74,23 @@ ALL_PERMISSIONS = {
 # via ALL_PERMISSIONS below either way.
 ROLE_DEFAULT_PERMISSIONS = {
     UserRole.ADMIN: set(ALL_PERMISSIONS),
-    # jobs.view/jobs.create default on for Inspector alongside
-    # certificates.edit — every certificate now requires a Job first
-    # (see JobPicker.tsx), so without these the role that actually
-    # issues certificates couldn't do its own job. Still its own
-    # separately grantable/revocable permission (see JOB_CREATE's own
-    # comment) if an admin later wants to restrict specific people to
-    # only joining jobs someone else opened.
-    UserRole.INSPECTOR: {CERT_VIEW, CERT_EDIT, JOB_VIEW, JOB_CREATE},  # "Technical" in the UI — see the note in models/user.py on why the stored value isn't renamed
+    # jobs.view defaults on for Inspector alongside certificates.edit —
+    # every certificate now requires a Job first (see JobPicker.tsx),
+    # so without this the role that actually issues certificates
+    # couldn't even find/join one. jobs.create is deliberately NOT a
+    # role default here (was, until an admin reported it directly:
+    # "some technician has been assigned this role but it cannot be
+    # changed, even when you undo and click save" — extra_permissions
+    # can only ADD to a role default, never subtract, so unchecking a
+    # baked-in default like this was silently a no-op every time).
+    # jobs.create is granted per-person instead, via Manage Access —
+    # see migration 0020_inspector_job_create.py, which
+    # grants it to every ALREADY-EXISTING Inspector as an explicit
+    # extra_permissions entry at the moment this changed, so nobody's
+    # actual day-to-day access changed — only whether an admin can
+    # later revoke it for one specific person, which now actually
+    # works.
+    UserRole.INSPECTOR: {CERT_VIEW, CERT_EDIT, JOB_VIEW},  # "Technical" in the UI — see the note in models/user.py on why the stored value isn't renamed
     UserRole.SALES: {CERT_VIEW, CERT_VIEW_ALL, SUPPLIER_VIEW},
     # Supplier boarding paperwork is the kind of thing Administration
     # actually processes day to day, so they get suppliers.manage
