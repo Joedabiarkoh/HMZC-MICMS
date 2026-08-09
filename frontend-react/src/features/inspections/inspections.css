@@ -51,6 +51,48 @@
   min-width: 260px;
 }
 
+/* ---- job tabs ---- */
+.insp-job-tabs {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 20px;
+  background: var(--insp-navy);
+  flex-wrap: wrap;
+}
+.insp-job-tab {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 6px 5px 10px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.08);
+  color: #C9D6E0;
+  font-size: 11.5px;
+  font-weight: 600;
+  cursor: pointer;
+  max-width: 240px;
+}
+.insp-job-tab-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.insp-job-tab.active { background: #fff; color: var(--insp-navy); }
+.insp-job-tab-close {
+  background: transparent;
+  border: none;
+  color: inherit;
+  opacity: 0.6;
+  cursor: pointer;
+  font-size: 13px;
+  line-height: 1;
+  padding: 0 2px;
+}
+.insp-job-tab-close:hover { opacity: 1; }
+.insp-job-tab-new {
+  background: transparent;
+  border: 1px dashed rgba(255, 255, 255, 0.4);
+  color: #C9D6E0;
+}
+.insp-job-tab-new:hover { border-color: #fff; color: #fff; }
+
 .insp-badge {
   display: inline-block;
   font-size: 10.5px;

@@ -514,10 +514,13 @@ export const FFE_CERT_TYPES: FFESubTypeConfig[] = [
   {
     // Requested directly: "move the gas detector A & B into
     // calibration as gas detectors are part of calibration items" —
-    // moved to calibrationCertTypes.ts (ids gas_detector_type_a /
-    // gas_detector_type_b there). Kept here, deprecated, purely so any
-    // certificate already saved with ffe.subType "gas_detector" still
-    // resolves/opens correctly — see FFESubTypeConfig.deprecated.
+    // moved to calibrationCertTypes.ts (id gas_detector_type_a there;
+    // a Type B was also added there briefly and then removed again
+    // before any certificate ever used it — Type A is the only
+    // instrument this company actually calibrates). Kept here,
+    // deprecated, purely so any certificate already saved with
+    // ffe.subType "gas_detector" still resolves/opens correctly — see
+    // FFESubTypeConfig.deprecated.
     id: "gas_detector",
     label: "Gas Detector — Maintenance & Calibration (Type A) — moved to Calibration",
     archetype: "items",
@@ -530,28 +533,6 @@ export const FFE_CERT_TYPES: FFESubTypeConfig[] = [
     ],
     validityYears: 1,
     note: "Add one row per gas type actually fitted — the standard set is Combustible (%LEL), Oxygen (%VOL), Toxic Gas CO (PPM), and Toxic Gas H2S (PPM). Calibration is crucial for detector accuracy/reliability; follow the manufacturer's requirements to prevent premature failures.",
-  },
-  {
-    // Moved to calibrationCertTypes.ts (gas_detector_type_b) — see
-    // gas_detector's own comment above. Kept here, deprecated, purely
-    // for certificates already saved under it.
-    id: "gas_detector_type_b",
-    label: "Gas Detector — Maintenance & Calibration (Type B) — moved to Calibration",
-    archetype: "items",
-    deprecated: true,
-    technicalFields: [
-      { key: "instrumentType", label: "Instrument Type" }, { key: "model", label: "Model" },
-      { key: "serialNo", label: "Serial Number" }, { key: "workStatus", label: "Work Status" },
-      { key: "calibratedDate", label: "Calibrated Date" }, { key: "nextServiceDate", label: "Next Recommended Service Date" },
-    ],
-    itemColumns: [
-      { key: "gasType", label: "Gas Type" }, { key: "spanReading", label: "Span Reading" },
-      { key: "alarmHigh", label: "Alarm Set Point (High)" }, { key: "alarmLow", label: "Alarm Set Point (Low)" },
-      { key: "twa", label: "TWA" }, { key: "stel", label: "STEL" }, { key: "cylNo", label: "Cyl #" },
-      { key: "calibrationTest", label: "Calibration Test" },
-    ],
-    validityYears: 1,
-    note: "Add one row per gas type actually fitted — the standard set is Combustible (%LEL), Oxygen (%VOL), Toxic Gas CO (PPM), and Toxic Gas H2S (PPM). Calibration is crucial for ensuring the accuracy and reliability of detectors. Following the manufacturer's requirements helps maintain the performance and longevity of the equipment, preventing premature failures.",
   },
   {
     // Requested directly: "use the ladder certificate made and search

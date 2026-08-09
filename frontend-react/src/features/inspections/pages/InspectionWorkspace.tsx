@@ -22,6 +22,7 @@ import { useAuth } from "../../../context/AuthContext";
 import { hasPermission, PERM } from "../../auth/types/auth.types";
 import JobPicker from "../components/JobPicker";
 import { Job, reserveCertNo } from "../services/jobs.api";
+import { JobTab, loadJobTabs, persistJobTabs } from "../services/jobTabs.storage";
 
 const TYPE_GROUPS: { label: string; keys: EquipmentTypeKey[] }[] = [
   { label: "Lifesaving Appliances", keys: ["lifeboat", "rescueboat", "freefall_dry", "freefall_tanker"] },
@@ -66,6 +67,42 @@ export default function InspectionWorkspace() {
   const [visitedTabs, setVisitedTabs] = useState<Set<SubTab>>(new Set(["statement"]));
   const { current, setCurrent, saveCurrent, saveOther, startNew, openCertificate, certificates, syncError, pendingSyncCount, retrySync } = useInspections(type);
   const { user } = useAuth();
+
+  // Job Tabs — requested directly: "it is difficult to switch between
+  // job numbers without closing the other, set it up such that when you
+  // open one job number, you can also open another job number and work
+  // on without closing the other... issue all certificate within that
+  // job without needing to switch back and forth." A tab tracks one
+  // open Job; the certNo it points at is kept in sync with whichever
+  // certificate is currently active for that job below, so resuming a
+  // tab is just openCertificate() against the existing `certificates`
+  // cache — no separate in-memory copy of each tab's draft is kept,
+  // which is what keeps this a small addition instead of a rewrite of
+  // this page's single-`current` model.
+  const [openJobTabs, setOpenJobTabs] = useState<JobTab[]>(() => loadJobTabs());
+  useEffect(() => {
+    persistJobTabs(openJobTabs);
+  }, [openJobTabs]);
+
+  // Keeps the active tab's snapshot (vessel/IMO/type/certNo) up to date
+  // as the technician works, so switching away and force-saving (see
+  // activateJobTab below) always has the right certNo to resume from.
+  useEffect(() => {
+    if (!current.jobRef) return;
+    setOpenJobTabs((prev) => {
+      const idx = prev.findIndex((t) => t.jobNo === current.jobRef);
+      const snapshot: JobTab = { jobNo: current.jobRef, vesselName: current.vesselName, imoNo: current.imoNo, type, certNo: current.certNo };
+      if (idx === -1) return [...prev, snapshot];
+      const existing = prev[idx];
+      if (existing.vesselName === snapshot.vesselName && existing.imoNo === snapshot.imoNo && existing.type === snapshot.type && existing.certNo === snapshot.certNo) {
+        return prev; // nothing actually changed — avoid a pointless re-render loop
+      }
+      const next = [...prev];
+      next[idx] = snapshot;
+      return next;
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [current.jobRef, current.vesselName, current.imoNo, current.certNo, type]);
 
   const cfg = INSPECTION_TYPES[type];
 
@@ -191,6 +228,26 @@ export default function InspectionWorkspace() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [current.certNo]);
 
+  // startNew() always produces a certNo that's never been saved before,
+  // so the effect above updating wasExistingCertRef would eventually
+  // catch up to `false` on its own — but ONLY once something else
+  // triggers another render, since mutating a ref doesn't itself cause
+  // one. Going straight from viewing a real, already-saved certificate
+  // into a brand-new blank draft (e.g. "New Certificate", or Job Tabs'
+  // "+ New Job" below) with no other state change in between left a
+  // real, reproduced bug: the Job Picker's own gate (needsJobPicker,
+  // see below) read the still-stale `true` on that first render and
+  // skipped straight to the equipment form instead, for a certificate
+  // that had no Job attached yet. Setting the ref synchronously, in the
+  // same tick as the state update that will cause the render, closes
+  // that gap for good instead of depending on some unrelated re-render
+  // to happen to bail it out.
+  function startNewDraft(t: EquipmentTypeKey, vesselName = "", imoNo = "", date?: string) {
+    const fresh = startNew(t, vesselName, imoNo, date);
+    wasExistingCertRef.current = false;
+    return fresh;
+  }
+
   // Requested directly: "when the job number is used to search for a
   // certificate to review... the certificate is created as draft" —
   // root cause was that selecting a Job in the picker tags jobRef (and,
@@ -282,7 +339,7 @@ export default function InspectionWorkspace() {
     const imoNo = searchParams.get("imoNo");
     if (vesselName || imoNo) {
       appliedVesselHandoff.current = true;
-      startNew(type, vesselName || "", imoNo || "");
+      startNewDraft(type, vesselName || "", imoNo || "");
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -290,11 +347,69 @@ export default function InspectionWorkspace() {
   function handleTypeChange(next: EquipmentTypeKey) {
     setType(next);
     setSub("statement");
-    startNew(next);
+    startNewDraft(next);
   }
 
   function updateField<K extends keyof typeof current>(key: K, value: (typeof current)[K]) {
     setCurrent((prev) => ({ ...prev, [key]: value }));
+  }
+
+  // Shared by "+ New Job" and switching tabs below — force-saves
+  // whatever's currently dirty (same save path as the manual "Save
+  // Draft" button) so navigating away from a job in progress can never
+  // silently lose work.
+  function forceSaveIfDirty() {
+    if (current.jobRef && dirtyKey(current) !== lastSavedSnapshot.current) {
+      const savedByName = user ? (user.full_name || user.email) : current.savedBy;
+      const saved = saveCurrent("draft", savedByName);
+      lastSavedSnapshot.current = dirtyKey(saved);
+    }
+  }
+
+  function handleNewJob() {
+    forceSaveIfDirty();
+    setSub("statement");
+    startNewDraft(type);
+  }
+
+  // Resumes the target tab's most recently active certificate if one
+  // was ever saved, or re-attaches the same Job fresh (same as picking
+  // it in the Job Picker) if this tab was opened but nothing under it
+  // has been saved yet.
+  async function activateJobTab(tab: JobTab) {
+    if (tab.jobNo === current.jobRef) return; // already the active tab
+
+    forceSaveIfDirty();
+
+    setSub("statement");
+    setType(tab.type);
+    if (certificates[tab.certNo]) {
+      openCertificate(tab.certNo);
+    } else {
+      startNew(tab.type, tab.vesselName, tab.imoNo);
+      updateField("jobRef", tab.jobNo);
+      if (INSPECTION_TYPES[tab.type].kind === "loosegear") {
+        try {
+          const reserved = await reserveCertNo(tab.jobNo);
+          updateField("certNo", reserved.cert_no);
+        } catch {
+          window.alert(`Couldn't reserve a certificate number under ${tab.jobNo} — it may have just been closed.`);
+        }
+      }
+    }
+  }
+
+  // Session-local only — never touches the Job on the server (see
+  // closeJob in jobs.api.ts for that separate, permissioned action).
+  // Closing the tab you're currently on hands off to another open tab
+  // if one exists, otherwise back to a blank Job Picker.
+  function closeJobTab(jobNo: string) {
+    const next = openJobTabs.filter((t) => t.jobNo !== jobNo);
+    setOpenJobTabs(next);
+    if (jobNo === current.jobRef) {
+      if (next.length > 0) activateJobTab(next[0]);
+      else handleNewJob();
+    }
   }
 
   function updateNested(group: "boat" | "release" | "davit" | "winch" | "crane" | "wireRope" | "loadTest", field: string, value: string) {
@@ -751,7 +866,15 @@ export default function InspectionWorkspace() {
   if (needsJobPicker) {
     return (
       <div className="inspections-page" data-type={type}>
-        <TopBar type={type} onTypeChange={handleTypeChange} />
+        <TopBar
+          type={type}
+          onTypeChange={handleTypeChange}
+          jobTabs={openJobTabs}
+          activeJobNo={current.jobRef}
+          onActivateTab={activateJobTab}
+          onCloseTab={closeJobTab}
+          onNewJob={handleNewJob}
+        />
         <div className="insp-layout">
           <div className="insp-panel">
             <div className="insp-panel-header">{cfg.typeName}</div>
@@ -785,7 +908,15 @@ export default function InspectionWorkspace() {
   if (cfg.kind === "ffe") {
     return (
       <div className="inspections-page" data-type={type}>
-        <TopBar type={type} onTypeChange={handleTypeChange} />
+        <TopBar
+          type={type}
+          onTypeChange={handleTypeChange}
+          jobTabs={openJobTabs}
+          activeJobNo={current.jobRef}
+          onActivateTab={activateJobTab}
+          onCloseTab={closeJobTab}
+          onNewJob={handleNewJob}
+        />
         {syncError && (
           <div style={{ margin: "10px 20px 0", background: "#FBF0E2", border: "1px solid #B4690E", color: "#7A4A08", borderRadius: 6, padding: "8px 12px", fontSize: 12, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
             <span>{syncError}</span>
@@ -835,7 +966,7 @@ export default function InspectionWorkspace() {
             >
               Save as Word
             </button>
-            <button className="insp-btn insp-btn-outline" onClick={() => startNew(type)}>New Certificate</button>
+            <button className="insp-btn insp-btn-outline" onClick={() => startNewDraft(type)}>New Certificate</button>
           </div>
         </div>
       </div>
@@ -849,7 +980,15 @@ export default function InspectionWorkspace() {
   if (cfg.kind === "loosegear") {
     return (
       <div className="inspections-page" data-type={type}>
-        <TopBar type={type} onTypeChange={handleTypeChange} />
+        <TopBar
+          type={type}
+          onTypeChange={handleTypeChange}
+          jobTabs={openJobTabs}
+          activeJobNo={current.jobRef}
+          onActivateTab={activateJobTab}
+          onCloseTab={closeJobTab}
+          onNewJob={handleNewJob}
+        />
         {syncError && (
           <div style={{ margin: "10px 20px 0", background: "#FBF0E2", border: "1px solid #B4690E", color: "#7A4A08", borderRadius: 6, padding: "8px 12px", fontSize: 12, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
             <span>{syncError}</span>
@@ -924,7 +1063,7 @@ export default function InspectionWorkspace() {
             >
               Save as Word
             </button>
-            <button className="insp-btn insp-btn-outline" onClick={() => startNew(type)} title="Starts over from the Job Picker — for a different vessel, job, or equipment type.">New Certificate</button>
+            <button className="insp-btn insp-btn-outline" onClick={() => startNewDraft(type)} title="Starts over from the Job Picker — for a different vessel, job, or equipment type.">New Certificate</button>
           </div>
         </div>
       </div>
@@ -937,7 +1076,15 @@ export default function InspectionWorkspace() {
   if (cfg.kind === "calibration") {
     return (
       <div className="inspections-page" data-type={type}>
-        <TopBar type={type} onTypeChange={handleTypeChange} />
+        <TopBar
+          type={type}
+          onTypeChange={handleTypeChange}
+          jobTabs={openJobTabs}
+          activeJobNo={current.jobRef}
+          onActivateTab={activateJobTab}
+          onCloseTab={closeJobTab}
+          onNewJob={handleNewJob}
+        />
         {syncError && (
           <div style={{ margin: "10px 20px 0", background: "#FBF0E2", border: "1px solid #B4690E", color: "#7A4A08", borderRadius: 6, padding: "8px 12px", fontSize: 12, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
             <span>{syncError}</span>
@@ -987,7 +1134,7 @@ export default function InspectionWorkspace() {
             >
               Save as Word
             </button>
-            <button className="insp-btn insp-btn-outline" onClick={() => startNew(type)}>New Certificate</button>
+            <button className="insp-btn insp-btn-outline" onClick={() => startNewDraft(type)}>New Certificate</button>
           </div>
         </div>
       </div>
@@ -1003,7 +1150,15 @@ export default function InspectionWorkspace() {
   if (cfg.kind === "photoreport") {
     return (
       <div className="inspections-page" data-type={type}>
-        <TopBar type={type} onTypeChange={handleTypeChange} />
+        <TopBar
+          type={type}
+          onTypeChange={handleTypeChange}
+          jobTabs={openJobTabs}
+          activeJobNo={current.jobRef}
+          onActivateTab={activateJobTab}
+          onCloseTab={closeJobTab}
+          onNewJob={handleNewJob}
+        />
         {syncError && (
           <div style={{ margin: "10px 20px 0", background: "#FBF0E2", border: "1px solid #B4690E", color: "#7A4A08", borderRadius: 6, padding: "8px 12px", fontSize: 12, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
             <span>{syncError}</span>
@@ -1053,7 +1208,7 @@ export default function InspectionWorkspace() {
             >
               Save as Word
             </button>
-            <button className="insp-btn insp-btn-outline" onClick={() => startNew(type)}>New Certificate</button>
+            <button className="insp-btn insp-btn-outline" onClick={() => startNewDraft(type)}>New Certificate</button>
           </div>
         </div>
       </div>
@@ -1094,7 +1249,15 @@ export default function InspectionWorkspace() {
 
   return (
     <div className="inspections-page" data-type={type}>
-      <TopBar type={type} onTypeChange={handleTypeChange} />
+      <TopBar
+        type={type}
+        onTypeChange={handleTypeChange}
+        jobTabs={openJobTabs}
+        activeJobNo={current.jobRef}
+        onActivateTab={activateJobTab}
+        onCloseTab={closeJobTab}
+        onNewJob={handleNewJob}
+      />
       {syncError && (
         <div style={{ margin: "10px 20px 0", background: "#FBF0E2", border: "1px solid #B4690E", color: "#7A4A08", borderRadius: 6, padding: "8px 12px", fontSize: 12, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
           <span>{syncError}</span>
@@ -1281,38 +1444,83 @@ export default function InspectionWorkspace() {
           >
             Save as Word
           </button>
-          <button className="insp-btn insp-btn-outline" onClick={() => startNew(type)}>New Certificate</button>
+          <button className="insp-btn insp-btn-outline" onClick={() => startNewDraft(type)}>New Certificate</button>
         </div>
       </div>
     </div>
   );
 }
 
-function TopBar({ type, onTypeChange, viewOnly }: { type: EquipmentTypeKey; onTypeChange: (t: EquipmentTypeKey) => void; viewOnly?: boolean }) {
+function TopBar({
+  type, onTypeChange, viewOnly, jobTabs, activeJobNo, onActivateTab, onCloseTab, onNewJob,
+}: {
+  type: EquipmentTypeKey;
+  onTypeChange: (t: EquipmentTypeKey) => void;
+  viewOnly?: boolean;
+  jobTabs?: JobTab[];
+  activeJobNo?: string;
+  onActivateTab?: (tab: JobTab) => void;
+  onCloseTab?: (jobNo: string) => void;
+  onNewJob?: () => void;
+}) {
   return (
-    <div className="insp-topbar">
-      <div>
-        <h1>Inspection Checklists &amp; Certificates</h1>
-        <p>HMZC LTD — Marine Engineering Services</p>
+    <>
+      <div className="insp-topbar">
+        <div>
+          <h1>Inspection Checklists &amp; Certificates</h1>
+          <p>HMZC LTD — Marine Engineering Services</p>
+        </div>
+        {/* Switching type calls startNew(), which discards whatever's
+            currently loaded and starts a blank draft — fine for an editor,
+            but it would silently throw away the certificate a view-only
+            user just opened, with no way for them to get it back (they
+            can't save). Hidden rather than disabled so it's not a dead
+            control sitting in the header. */}
+        {!viewOnly && (
+          <select className="insp-type-select" value={type} onChange={(e) => onTypeChange(e.target.value as EquipmentTypeKey)}>
+            {TYPE_GROUPS.map((group) => (
+              <optgroup key={group.label} label={group.label}>
+                {group.keys.map((k) => (
+                  <option key={k} value={k}>{INSPECTION_TYPES[k].typeName}</option>
+                ))}
+              </optgroup>
+            ))}
+          </select>
+        )}
       </div>
-      {/* Switching type calls startNew(), which discards whatever's
-          currently loaded and starts a blank draft — fine for an editor,
-          but it would silently throw away the certificate a view-only
-          user just opened, with no way for them to get it back (they
-          can't save). Hidden rather than disabled so it's not a dead
-          control sitting in the header. */}
-      {!viewOnly && (
-        <select className="insp-type-select" value={type} onChange={(e) => onTypeChange(e.target.value as EquipmentTypeKey)}>
-          {TYPE_GROUPS.map((group) => (
-            <optgroup key={group.label} label={group.label}>
-              {group.keys.map((k) => (
-                <option key={k} value={k}>{INSPECTION_TYPES[k].typeName}</option>
-              ))}
-            </optgroup>
+      {/* Job Tabs — requested directly: "when you open one job number,
+          you can also open another job number and work on without
+          closing the other." Shown across every editing branch (this
+          component is rendered identically by all of them, including
+          the Job Picker screen) so a technician can always see and jump
+          back to a job they already have open, even while starting a
+          different one. */}
+      {!viewOnly && jobTabs && jobTabs.length > 0 && (
+        <div className="insp-job-tabs no-print">
+          {jobTabs.map((tab) => (
+            <div
+              key={tab.jobNo}
+              className={`insp-job-tab ${tab.jobNo === activeJobNo ? "active" : ""}`}
+              onClick={() => tab.jobNo !== activeJobNo && onActivateTab?.(tab)}
+              title={`${tab.jobNo}${tab.vesselName ? " — " + tab.vesselName : ""}`}
+            >
+              <span className="insp-job-tab-label">
+                {tab.jobNo}{tab.vesselName ? ` — ${tab.vesselName}` : ""}
+              </span>
+              <button
+                type="button"
+                className="insp-job-tab-close"
+                aria-label={`Close ${tab.jobNo} tab`}
+                onClick={(e) => { e.stopPropagation(); onCloseTab?.(tab.jobNo); }}
+              >
+                ×
+              </button>
+            </div>
           ))}
-        </select>
+          <button type="button" className="insp-job-tab insp-job-tab-new" onClick={onNewJob}>+ New Job</button>
+        </div>
       )}
-    </div>
+    </>
   );
 }
 
