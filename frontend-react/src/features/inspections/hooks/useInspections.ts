@@ -205,6 +205,48 @@ export function useInspections(initialType: EquipmentTypeKey = "lifeboat") {
     [current]
   );
 
+  // Requested directly: "create individual thorough report based on
+  // multiple items filled for the subject... after they are generated,
+  // technician can check each one and edit if the need be before
+  // printing them" — bulk-generates several NEW draft certificates
+  // (see InspectionWorkspace.tsx's handleGenerateStandardReports) while
+  // the technician stays on the Multiple Items page they're generating
+  // FROM; `current` must keep pointing at that page, not jump to
+  // whichever generated draft was created last, which is why this is a
+  // separate function from saveCurrent above rather than a loop calling
+  // setCurrent + saveCurrent per generated report.
+  const saveOther = useCallback((cert: InspectionCertificate) => {
+    const toSave: InspectionCertificate = { ...cert, status: "draft", savedAt: new Date().toISOString() };
+    setCertificates((prev) => {
+      const next = { ...prev, [toSave.certNo]: toSave };
+      persistCertificates(next);
+      return next;
+    });
+    setAllCertNos((prev) => new Set(prev).add(toSave.certNo));
+
+    saveCertificateRemote(toSave)
+      .then((synced) => {
+        setCertificates((prev) => {
+          const next = { ...prev, [synced.certNo]: synced };
+          persistCertificates(next);
+          return next;
+        });
+        pendingCount().then((n) => setSyncError((prev) => (n > 0 ? prev : null)));
+      })
+      .catch(async (e) => {
+        if (e instanceof CertificateConflictError) {
+          setSyncError(e.message);
+          return;
+        }
+        await queueSave(toSave);
+        const n = await pendingCount();
+        setPendingSyncCount(n);
+        setSyncError(`Saved on this device — ${n} certificate${n === 1 ? "" : "s"} waiting to sync, will retry automatically.`);
+      });
+
+    return toSave;
+  }, []);
+
   const startNew = useCallback(
     (type: EquipmentTypeKey, vesselName = "", imoNo = "", date?: string) => {
       const fresh = freshCertificate(type, allCertNos);
@@ -247,6 +289,7 @@ export function useInspections(initialType: EquipmentTypeKey = "lifeboat") {
     pendingSyncCount,
     retrySync: attemptFlush,
     saveCurrent,
+    saveOther,
     startNew,
     openCertificate,
     deleteCertificate,

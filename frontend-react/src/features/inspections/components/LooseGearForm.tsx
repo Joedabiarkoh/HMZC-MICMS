@@ -44,6 +44,14 @@ interface Props {
   // reopened for editing (see needsJobPicker below) — threaded down
   // from useInspections() in InspectionWorkspace.tsx.
   certificates: Record<string, InspectionCertificate>;
+  // Requested directly: "create individual thorough report based on
+  // multiple items filled for the subject... grouping should be done
+  // base on Description, SWL, Location" — only used by
+  // MultipleItemsForm below (see its own comment), threaded through
+  // this shared Props for the same reason `certificates` is: every
+  // loosegear sub-form shares one prop shape rather than each having
+  // its own bespoke one.
+  onGenerateStandardReports?: (rows: LooseGearRegisterRow[]) => Promise<{ certNo: string; description: string; swl: string; itemLocation: string; serialNos: string[] }[]>;
 }
 
 /**
@@ -63,7 +71,7 @@ interface Props {
  * in place — not deleted — purely so a certificate already saved with
  * it still opens and edits correctly.
  */
-export default function LooseGearForm({ current, updateField, openCertificate, certificates }: Props) {
+export default function LooseGearForm({ current, updateField, openCertificate, certificates, onGenerateStandardReports }: Props) {
   const looseGear = current.looseGear || freshLooseGearState();
 
   function changeSubType(id: LooseGearData["subType"]) {
@@ -115,7 +123,7 @@ export default function LooseGearForm({ current, updateField, openCertificate, c
           <StandardReportForm data={looseGear.standardReport} onChange={updateStandardReport} current={current} updateField={updateField} openCertificate={openCertificate} certificates={certificates} />
         )}
         {looseGear.subType === "multiple_items" && looseGear.multipleItems && (
-          <MultipleItemsForm data={looseGear.multipleItems} onChange={updateMultipleItems} current={current} updateField={updateField} openCertificate={openCertificate} certificates={certificates} />
+          <MultipleItemsForm data={looseGear.multipleItems} onChange={updateMultipleItems} current={current} updateField={updateField} openCertificate={openCertificate} certificates={certificates} onGenerateStandardReports={onGenerateStandardReports} />
         )}
       </>
     </>
@@ -627,8 +635,11 @@ const REASON_LABELS: Record<Exclude<LooseGearReasonForInspection, "">, string> =
 };
 
 function MultipleItemsForm({
-  data, onChange, current, updateField, openCertificate,
+  data, onChange, current, updateField, openCertificate, onGenerateStandardReports,
 }: { data: LooseGearMultipleItemsData; onChange: (patch: Partial<LooseGearMultipleItemsData>) => void } & Props) {
+  const [generating, setGenerating] = useState(false);
+  const [generated, setGenerated] = useState<{ certNo: string; description: string; swl: string; itemLocation: string; serialNos: string[] }[] | null>(null);
+
   function addRow() {
     onChange({ rows: [...data.rows, freshLooseGearRegisterRow()] });
   }
@@ -641,6 +652,17 @@ function MultipleItemsForm({
     const next = [...data.rows];
     next[i] = { ...next[i], ...patch };
     onChange({ rows: next });
+  }
+
+  async function handleGenerate() {
+    if (!onGenerateStandardReports) return;
+    setGenerating(true);
+    try {
+      const results = await onGenerateStandardReports(data.rows);
+      setGenerated(results);
+    } finally {
+      setGenerating(false);
+    }
   }
 
   return (
@@ -728,6 +750,61 @@ function MultipleItemsForm({
           + Add Row
         </button>
       </fieldset>
+
+      {/* Requested directly: "create individual thorough report based
+          on multiple items filled for the subject by using the
+          description, SWL and location of items to create report for
+          items of same details and others... for faster issuance of
+          standard report for individual items instead of doing them
+          one by one." Rows sharing the same Description/SWL/Location
+          become one Standard Report with all their serial numbers
+          together; each generated report is a real, independent draft
+          the technician opens, reviews, and edits before printing —
+          this panel never prints or finalizes anything itself. */}
+      {!!onGenerateStandardReports && (
+        <fieldset className="insp-fieldset">
+          <legend className="insp-legend">Generate Individual Reports</legend>
+          <p className="insp-help-note">
+            Groups the rows above by matching Description, SWL, and Location — each group becomes its own Standard
+            Report draft (all matching Serial Numbers on one report), ready to open, check, and edit before printing.
+          </p>
+          <button
+            type="button"
+            className="insp-btn insp-btn-primary"
+            onClick={handleGenerate}
+            disabled={generating || data.rows.length === 0 || !current.jobRef}
+            title={!current.jobRef ? "This certificate needs a Job attached first." : undefined}
+          >
+            {generating ? "Generating..." : "Generate Individual Reports"}
+          </button>
+          {generated !== null && (
+            <div style={{ marginTop: 10 }}>
+              {generated.length === 0 ? (
+                <p className="insp-help-note">No reports generated — every row was blank.</p>
+              ) : (
+                <>
+                  <p className="insp-help-note" style={{ marginBottom: 6 }}>
+                    {generated.length} draft report{generated.length === 1 ? "" : "s"} generated. Open each to review, sign, and print.
+                  </p>
+                  {generated.map((r) => (
+                    <div key={r.certNo} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", border: "1px solid #DCE1E5", borderRadius: 6, padding: "6px 10px", marginBottom: 6, fontSize: 11.5 }}>
+                      <span>
+                        <strong>{r.certNo}</strong> — {r.description || "(no description)"}
+                        {r.swl && ` · SWL ${r.swl}`}
+                        {r.itemLocation && ` · ${r.itemLocation}`}
+                        {" · "}{r.serialNos.length} item{r.serialNos.length === 1 ? "" : "s"}
+                      </span>
+                      <button type="button" className="insp-btn insp-btn-outline" style={{ padding: "2px 10px", fontSize: 11 }} onClick={() => openCertificate(r.certNo)}>
+                        Open
+                      </button>
+                    </div>
+                  ))}
+                </>
+              )}
+            </div>
+          )}
+        </fieldset>
+      )}
 
       <VesselLookupAndSignatures current={current} updateField={updateField} openCertificate={openCertificate} />
     </>

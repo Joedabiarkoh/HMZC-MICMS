@@ -3,7 +3,7 @@ import { useSearchParams } from "react-router-dom";
 import "../inspections.css";
 import { INSPECTION_TYPES } from "../data/inspectionChecklists";
 import { useInspections } from "../hooks/useInspections";
-import { EquipmentTypeKey, ChecklistSection, EquipResult, InspectionCertificate, PhotoEvidence } from "../types/inspection.types";
+import { EquipmentTypeKey, ChecklistSection, EquipResult, InspectionCertificate, PhotoEvidence, LooseGearRegisterRow } from "../types/inspection.types";
 import ChecklistGroup from "../components/ChecklistGroup";
 import CertificatePreview from "../components/CertificatePreview";
 import SignatureCanvas from "../components/SignatureCanvas";
@@ -16,7 +16,7 @@ import PhotoReportForm from "../components/PhotoReportForm";
 import { getFFEConfig } from "../data/ffeCertTypes";
 import { getCalibrationConfig } from "../data/calibrationCertTypes";
 import { exportCertificateDocx } from "../utils/certificateDocxExport";
-import { checklistProgress } from "../data/inspectionHelpers";
+import { checklistProgress, freshCertificate, freshLooseGearStandardReportData, freshLooseGearState } from "../data/inspectionHelpers";
 import { dirtyKey } from "../data/dirtyKey";
 import { useAuth } from "../../../context/AuthContext";
 import { hasPermission, PERM } from "../../auth/types/auth.types";
@@ -64,7 +64,7 @@ export default function InspectionWorkspace() {
   // this tab at least once" is the honest, achievable version of a
   // progress indicator without that larger change.
   const [visitedTabs, setVisitedTabs] = useState<Set<SubTab>>(new Set(["statement"]));
-  const { current, setCurrent, saveCurrent, startNew, openCertificate, certificates, syncError, pendingSyncCount, retrySync } = useInspections(type);
+  const { current, setCurrent, saveCurrent, saveOther, startNew, openCertificate, certificates, syncError, pendingSyncCount, retrySync } = useInspections(type);
   const { user } = useAuth();
 
   const cfg = INSPECTION_TYPES[type];
@@ -578,6 +578,91 @@ export default function InspectionWorkspace() {
     }
   }
 
+  // Requested directly: "look how possible to create individual
+  // thorough report based on multiple items filled for the subject by
+  // using the description, SWL and location of items to create report
+  // for items of same details and others... for me I want to be able
+  // to use it to make each standard report, but the grouping should be
+  // done base on Description, SWL, Location to make each standard
+  // report for all items listed on the multiple items, for faster
+  // issuance of standard report for individual items[,] instead of
+  // doing them one by one, and after they are generated, technician
+  // can check each one and edit if the need be before printing them."
+  //
+  // Rows sharing the same (Description, SWL, Location) — trimmed,
+  // case-insensitive — become ONE Standard Report with all their
+  // Serial Numbers listed together (the same "one report, many serial
+  // numbers" shape Standard Report already supports natively — see
+  // freshLooseGearStandardReportData's serialNos). Rows whose group
+  // members disagree on Result/Type of Inspection/Next Inspection
+  // Date/Safe to Use leave that field blank on the generated report
+  // rather than guessing, since it genuinely varies per item within
+  // the group and the technician needs to look at each one — this is
+  // a starting point to review and correct, explicitly not a
+  // fire-and-forget bulk-finalize. Every generated report is left as
+  // a DRAFT (never auto-finalized) for exactly that reason. Blank rows
+  // (no description and no serial number) are skipped rather than
+  // producing an empty report nobody asked for.
+  //
+  // saveOther (not saveCurrent/setCurrent) is used so the technician
+  // stays on this Multiple Items page throughout — generating 12
+  // reports shouldn't navigate them away 12 times.
+  async function handleGenerateStandardReports(rows: LooseGearRegisterRow[]) {
+    if (!current.jobRef) return [];
+    const groups = new Map<string, LooseGearRegisterRow[]>();
+    for (const row of rows) {
+      if (!row.description.trim() && !row.serialNo.trim()) continue;
+      const key = [row.description, row.swl, row.itemLocation].map((s) => s.trim().toLowerCase()).join("||");
+      const bucket = groups.get(key);
+      if (bucket) bucket.push(row);
+      else groups.set(key, [row]);
+    }
+
+    function agree(groupRows: LooseGearRegisterRow[], get: (r: LooseGearRegisterRow) => string): string {
+      const first = get(groupRows[0]);
+      return groupRows.every((r) => get(r) === first) ? first : "";
+    }
+
+    const results: { certNo: string; description: string; swl: string; itemLocation: string; serialNos: string[] }[] = [];
+    for (const groupRows of groups.values()) {
+      const first = groupRows[0];
+      let reserved: { cert_no: string };
+      try {
+        reserved = await reserveCertNo(current.jobRef);
+      } catch {
+        window.alert(`Couldn't reserve a certificate number under ${current.jobRef} for "${first.description || "(no description)"}" — it may have just been closed. Stopping here; already-generated reports above are unaffected.`);
+        break;
+      }
+      const serialNos = groupRows.map((r) => r.serialNo.trim()).filter(Boolean);
+      const draft: InspectionCertificate = {
+        ...freshCertificate("loosegear", new Set()),
+        certNo: reserved.cert_no,
+        jobRef: current.jobRef,
+        vesselName: current.vesselName,
+        imoNo: current.imoNo,
+        location: current.location,
+        looseGear: {
+          ...freshLooseGearState("standard_report"),
+          standardReport: {
+            ...freshLooseGearStandardReportData(),
+            description: first.description,
+            swl: first.swl,
+            itemLocation: first.itemLocation,
+            manufacturer: agree(groupRows, (r) => r.manufacturer),
+            serialNos: serialNos.length ? serialNos : [""],
+            examinationResult: agree(groupRows, (r) => r.result),
+            examinationCarriedOut: agree(groupRows, (r) => r.typeOfInspection) || "Thorough Examination",
+            nextExamDate: agree(groupRows, (r) => r.nextInspectionDate),
+            safeForUse: agree(groupRows, (r) => r.safeToUse) as "" | "yes" | "no",
+          },
+        },
+      };
+      saveOther(draft);
+      results.push({ certNo: draft.certNo, description: first.description, swl: first.swl, itemLocation: first.itemLocation, serialNos });
+    }
+    return results;
+  }
+
 
   // Sales, Administration, and Service Coordination (by default — see
   // core/permissions.py's ROLE_DEFAULT_PERMISSIONS) reach this page with
@@ -777,7 +862,7 @@ export default function InspectionWorkspace() {
           <div className="insp-panel">
             <div className="insp-panel-header">Loose Gear &amp; Lifting Equipment</div>
             <div className="insp-panel-body">
-              <LooseGearForm current={current} updateField={updateField} openCertificate={openCertificate} certificates={certificates} />
+              <LooseGearForm current={current} updateField={updateField} openCertificate={openCertificate} certificates={certificates} onGenerateStandardReports={handleGenerateStandardReports} />
             </div>
           </div>
           <div className="insp-panel">
