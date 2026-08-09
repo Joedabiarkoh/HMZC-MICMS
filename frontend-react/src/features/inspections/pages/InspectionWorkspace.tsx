@@ -491,15 +491,21 @@ export default function InspectionWorkspace() {
   // Standard Report only (see the button's own guard below) — the
   // one-item-per-certificate type this repetition problem actually
   // applies to; Multiple Items already handles a batch of items in a
-  // single record. Everything is copied from the currently-loaded
-  // certificate EXCEPT Serial Number(s), which resets to a single
-  // blank entry — the whole point is to never let two items
-  // accidentally end up sharing one physical item's serial number.
-  // Reuses the existing Job (jobRef carries over unchanged) and
-  // reserves a genuinely new certificate number from it the same way
-  // the Job Picker itself does (see handleJobSelected above) — never
-  // reused from the source certificate, and never require the Job
-  // Picker to run again since the job is already attached.
+  // single record. Everything descriptive/spec-related is copied from
+  // the currently-loaded certificate EXCEPT Serial Number(s) (resets
+  // to a single blank entry — the whole point is to never let two
+  // items accidentally end up sharing one physical item's serial
+  // number) and the examination OUTCOME fields — requested directly,
+  // as a follow-up: "reset it when duplicated" — Result, both defect
+  // fields, the immediate-danger flag, tests carried out, and
+  // additional comments all reset to unanswered/blank too, so a
+  // technician has to consciously assess THIS item rather than
+  // silently inherit a prior item's PASS/FAIL verdict. Reuses the
+  // existing Job (jobRef carries over unchanged) and reserves a
+  // genuinely new certificate number from it the same way the Job
+  // Picker itself does (see handleJobSelected above) — never reused
+  // from the source certificate, and never requires the Job Picker to
+  // run again since the job is already attached.
   async function handleDuplicateForNextItem() {
     if (!current.jobRef || !current.looseGear?.standardReport) return;
     try {
@@ -516,7 +522,16 @@ export default function InspectionWorkspace() {
         version: undefined,
         looseGear: {
           ...current.looseGear,
-          standardReport: { ...current.looseGear.standardReport, serialNos: [""] },
+          standardReport: {
+            ...current.looseGear.standardReport,
+            serialNos: [""],
+            result: "",
+            defectsImmediate: "",
+            defectImmediateDanger: "",
+            defectsObservation: "",
+            testsCarriedOut: "",
+            additionalComments: "",
+          },
         },
       };
       setCurrent(duplicate);
@@ -767,7 +782,7 @@ export default function InspectionWorkspace() {
               save anyone any typing. */}
           {current.looseGear?.subType === "standard_report" && current.jobRef && (current.savedAt || current.issuedAt) && (
             <div className="insp-btn-group insp-btn-group--secondary">
-              <button className="insp-btn insp-btn-outline" onClick={handleDuplicateForNextItem} title="Copies every field except Serial Number(s), which starts blank — reuses this same Job.">
+              <button className="insp-btn insp-btn-outline" onClick={handleDuplicateForNextItem} title="Copies the equipment details — Serial Number(s) and the examination outcome (Result, defects, tests) start blank for you to reassess. Reuses this same Job.">
                 Duplicate for Next Item
               </button>
             </div>

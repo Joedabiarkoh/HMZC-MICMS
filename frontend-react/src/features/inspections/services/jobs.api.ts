@@ -15,7 +15,6 @@ export interface Job {
   po_pending: boolean;
   customer_name: string | null;
   status: "open" | "closed";
-  next_item_seq: number;
   certificate_count: number;
   created_by: { id: number; email: string; full_name: string | null } | null;
   created_at: string;

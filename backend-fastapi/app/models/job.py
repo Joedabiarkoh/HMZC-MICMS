@@ -13,11 +13,12 @@ from app.models.base import BaseModel
 # regardless of type, is now tied to one of these (see
 # InspectionCertificate.jobRef, inspection.types.ts).
 #
-# next_item_seq is only actually used by Loose Gear's own cert_no
-# derivation ("{job_no}-{seq}", see api/routes/jobs.py's
-# reserve_cert_no) — every other equipment type keeps its own
-# existing cert_no scheme (generateCertNo, inspectionHelpers.ts) and
-# just carries this Job's job_no as a tag for grouping/tracking.
+# A certificate's own cert_no is never derived from job_no (see
+# models/cert_number_counter.py for how Loose Gear generates its own
+# clean "CERT/HMZC/LG/{date}-{seq}" number instead) — job_no exists
+# purely as a stable tag every certificate under it carries, for
+# grouping/tracking (Certificate Log, PO tracking), independent of
+# whatever each certificate's own number looks like.
 class Job(BaseModel):
     __tablename__ = "jobs"
 
@@ -44,7 +45,6 @@ class Job(BaseModel):
     # already issued under it (requested directly: "Yes, still
     # editable" — closing only ever stops NEW items being added).
     status = Column(String, nullable=False, default="open")
-    next_item_seq = Column(Integer, nullable=False, default=1)
 
     created_by_id = Column(Integer, ForeignKey("users.id"), nullable=True)
     created_by = relationship("User", foreign_keys=[created_by_id])

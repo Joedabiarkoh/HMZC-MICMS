@@ -8,6 +8,7 @@ from app.models.expense import Expense  # noqa: F401
 from app.models.finance_attachment import InvoiceAttachment  # noqa: F401
 from app.models.supplier_boarding import SupplierBoardingSubmission  # noqa: F401
 from app.models.job import Job  # noqa: F401
+from app.models.cert_number_counter import CertNumberCounter  # noqa: F401
 
 # Empty before this — meant Base.metadata.create_all(bind=engine) in
 # main.py only picked up whichever models happened to already be

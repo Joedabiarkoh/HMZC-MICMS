@@ -92,7 +92,12 @@ export function generateCertNo(type: EquipmentTypeKey, existingNumbers: Set<stri
   };
   const tag = tags[type];
   const count = Array.from(existingNumbers).filter((k) => k.includes(ymd) && k.includes(tag)).length + 1;
-  return `CERT/HMZCS/${tag}/${ymd}-${String(count).padStart(3, "0")}`;
+  // Requested directly: "CERT/HMZCS/RB/20260807-001 this certificate
+  // number for all certificate take out the (S)" — was HMZCS, now
+  // HMZC. Only affects newly-generated numbers going forward;
+  // certificates already issued keep their original number as
+  // printed/on file, never rewritten retroactively.
+  return `CERT/HMZC/${tag}/${ymd}-${String(count).padStart(3, "0")}`;
 }
 
 export function freshCertificate(type: EquipmentTypeKey, existingNumbers: Set<string>): InspectionCertificate {

@@ -3,6 +3,7 @@ from datetime import datetime, timezone
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy import text
 from sqlalchemy.orm import Session, joinedload
 
 from app.api.deps import require_permission
@@ -29,8 +30,8 @@ def _vessel_slug(vessel_name: str) -> str:
 
 
 # Requested directly: "so that all certificate issued will stay under
-# that job number and easy to track" — see JobResponse.certificate_count's
-# own comment for why this is a real query rather than next_item_seq - 1.
+# that job number and easy to track" — a real query, not a stored
+# counter (see JobResponse.certificate_count's own comment).
 def _job_response(db: Session, job: Job) -> JobResponse:
     resp = JobResponse.model_validate(job)
     resp.certificate_count = db.query(Certificate).filter(Certificate.job_no == job.job_no).count()
@@ -83,7 +84,6 @@ def create_job(
         po_pending=job_in.po_pending,
         customer_name=customer_name,
         status="open",
-        next_item_seq=1,
         created_by_id=current_user.id,
     )
     db.add(job)
@@ -150,24 +150,33 @@ def set_po(
     return _job_response(db, job)
 
 
-# Requested directly: cert_no for a Loose Gear item under a job is
-# "{job_no}-{seq}", assigned HERE rather than guessed client-side (the
-# way generateCertNo works for every other certificate type) — with
+# Requested directly: "make one certificate number which keep count
+# for the certificate of loose gear created under that job number
+# while the job number stays same for all those certificate" — a
+# Loose Gear item's cert_no is its own clean "CERT/HMZC/LG/{date}-
+# {seq}" number (see models/cert_number_counter.py for the full
+# reasoning), assigned HERE rather than guessed client-side (the way
+# generateCertNo works for every other certificate type) — with
 # multiple technicians potentially adding items to the same 300-item
 # job at once, two people computing "the next number" independently
-# by counting would collide. SELECT ... FOR UPDATE locks this job's
-# row for the rest of the transaction, so a second concurrent request
-# blocks until the first commits, guaranteeing every reservation gets
-# a distinct sequence number. Only Loose Gear calls this — every other
-# equipment type keeps its own existing cert_no scheme and just tags
-# jobRef (see InspectionWorkspace.tsx's handleJobSelected).
+# by counting would collide. The INSERT ... ON CONFLICT DO UPDATE
+# below is a single atomic statement — Postgres itself serializes
+# concurrent callers on the same (tag, date_key) row, so two
+# simultaneous reservations always get distinct sequence numbers
+# without an explicit application-level lock. date_key is the JOB's
+# own creation date (not "today"), so a job spanning several days
+# keeps drawing from the same day's counter throughout — the same
+# reasoning job_no's own date component uses (see create_job above).
+# Only Loose Gear calls this — every other equipment type keeps its
+# own existing cert_no scheme and just tags jobRef (see
+# InspectionWorkspace.tsx's handleJobSelected).
 @router.post("/{job_no}/reserve-cert-no", response_model=JobReserveResult)
 def reserve_cert_no(
     job_no: str,
     db: Session = Depends(get_database),
     _user: User = Depends(require_permission(CERT_EDIT)),
 ):
-    job = db.query(Job).filter(Job.job_no == job_no).with_for_update().first()
+    job = db.query(Job).filter(Job.job_no == job_no).first()
     if not job:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found")
     if job.status != "open":
@@ -175,10 +184,22 @@ def reserve_cert_no(
             status_code=status.HTTP_409_CONFLICT,
             detail=f"Job {job_no} is closed — no new certificates can be created under it.",
         )
-    seq = job.next_item_seq
-    job.next_item_seq = seq + 1
+    date_key = job.created_at.strftime("%Y%m%d")
+    result = db.execute(
+        text(
+            """
+            INSERT INTO cert_number_counters (tag, date_key, next_seq)
+            VALUES (:tag, :date_key, 2)
+            ON CONFLICT (tag, date_key) DO UPDATE SET next_seq = cert_number_counters.next_seq + 1
+            RETURNING next_seq - 1
+            """
+        ),
+        {"tag": "LG", "date_key": date_key},
+    )
+    seq = result.scalar_one()
     db.commit()
-    return JobReserveResult(cert_no=f"{job_no}-{seq:03d}", job_no=job_no)
+    cert_no = f"CERT/HMZC/LG/{date_key}-{seq:03d}"
+    return JobReserveResult(cert_no=cert_no, job_no=job_no)
 
 
 @router.post("/{job_no}/close", response_model=JobResponse)

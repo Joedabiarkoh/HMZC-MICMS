@@ -36,15 +36,11 @@ class JobResponse(BaseModel):
     po_pending: bool
     customer_name: Optional[str] = None
     status: str
-    next_item_seq: int
     # Requested directly: "so that all certificate issued will stay
     # under that job number and easy to track" — the real count of
     # certificates tagged with this job_no, across every equipment
-    # type. Deliberately NOT next_item_seq - 1: that counter only
-    # advances for Loose Gear's own reserve_cert_no calls (see Job
-    # model's own comment for why), so it undercounts a job that also
-    # has a lifeboat or crane certificate under it. Computed and
-    # attached in api/routes/jobs.py, not a real column here.
+    # type. Computed and attached in api/routes/jobs.py, not a real
+    # column here.
     certificate_count: int = 0
     created_by: Optional[UserResponse] = None
     created_at: datetime
@@ -55,10 +51,10 @@ class JobResponse(BaseModel):
         from_attributes = True
 
 
-# Response for reserving the next item's certificate number under a
-# job — only actually used by Loose Gear (see Job's own comment for
-# why); every other equipment type just tags jobRef and keeps its own
-# existing cert_no scheme.
+# Response for reserving a certificate number under a job — only
+# actually called by Loose Gear (see cert_number_counter.py for how
+# the number itself is generated); every other equipment type just
+# tags jobRef and keeps its own existing client-side cert_no scheme.
 class JobReserveResult(BaseModel):
     cert_no: str
     job_no: str
