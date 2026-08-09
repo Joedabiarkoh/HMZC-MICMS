@@ -483,6 +483,48 @@ export default function InspectionWorkspace() {
     window.alert(`Certificate ${saved.certNo} saved as ${status.toUpperCase()}.`);
   }
 
+  // Requested directly: "some equipment can have same details but
+  // only the serial number changes, allow to use previous and create
+  // a copy for the next item without stating all over again... so
+  // that once saved, you can still create a copy without affecting
+  // the serial number or duplicating a serial number." Loose Gear
+  // Standard Report only (see the button's own guard below) — the
+  // one-item-per-certificate type this repetition problem actually
+  // applies to; Multiple Items already handles a batch of items in a
+  // single record. Everything is copied from the currently-loaded
+  // certificate EXCEPT Serial Number(s), which resets to a single
+  // blank entry — the whole point is to never let two items
+  // accidentally end up sharing one physical item's serial number.
+  // Reuses the existing Job (jobRef carries over unchanged) and
+  // reserves a genuinely new certificate number from it the same way
+  // the Job Picker itself does (see handleJobSelected above) — never
+  // reused from the source certificate, and never require the Job
+  // Picker to run again since the job is already attached.
+  async function handleDuplicateForNextItem() {
+    if (!current.jobRef || !current.looseGear?.standardReport) return;
+    try {
+      const reserved = await reserveCertNo(current.jobRef);
+      const duplicate: InspectionCertificate = {
+        ...current,
+        certNo: reserved.cert_no,
+        status: "draft",
+        savedAt: null,
+        savedBy: "",
+        issuedBy: undefined,
+        issuedById: undefined,
+        issuedAt: undefined,
+        version: undefined,
+        looseGear: {
+          ...current.looseGear,
+          standardReport: { ...current.looseGear.standardReport, serialNos: [""] },
+        },
+      };
+      setCurrent(duplicate);
+    } catch {
+      window.alert(`Couldn't create a copy under ${current.jobRef} — it may have just been closed. Try again.`);
+    }
+  }
+
 
   // Sales, Administration, and Service Coordination (by default — see
   // core/permissions.py's ROLE_DEFAULT_PERMISSIONS) reach this page with
@@ -713,6 +755,23 @@ export default function InspectionWorkspace() {
             </button>
             <button className="insp-btn insp-btn-outline" onClick={() => startNew(type)}>New Certificate</button>
           </div>
+          {/* Requested directly: "some equipment can have same details
+              but only the serial number changes, allow to use previous
+              and create a copy for the next item... so that once
+              saved, you can still create a copy" — only for Standard
+              Report (the one-item-per-certificate type this repetition
+              problem applies to), and only once this certificate has
+              actually been saved at least once (current.jobRef is set
+              by the Job Picker; savedAt/issuedAt only get set by an
+              actual save) — duplicating a still-blank draft wouldn't
+              save anyone any typing. */}
+          {current.looseGear?.subType === "standard_report" && current.jobRef && (current.savedAt || current.issuedAt) && (
+            <div className="insp-btn-group insp-btn-group--secondary">
+              <button className="insp-btn insp-btn-outline" onClick={handleDuplicateForNextItem} title="Copies every field except Serial Number(s), which starts blank — reuses this same Job.">
+                Duplicate for Next Item
+              </button>
+            </div>
+          )}
         </div>
       </div>
     );
