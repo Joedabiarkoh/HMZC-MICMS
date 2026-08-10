@@ -4,6 +4,7 @@ import { EquipmentTypeConfig, InspectionCertificate, ChecklistStatus, EquipResul
 import { getFFEConfig } from "../data/ffeCertTypes";
 import { getCalibrationConfig } from "../data/calibrationCertTypes";
 import { ABS_LOGO_DATA_URI, BUREAU_VERITAS_LOGO_DATA_URI, CRALOG_LOGO_DATA_URI, DNV_LOGO_DATA_URI } from "../assets/approvalLogos";
+import { APP_BUILD_VERSION } from "../data/appVersion";
 import CertificateQR, { buildCertQrPayload } from "./CertificateQR";
 import { useFillToPageMultiple } from "../../../hooks/useFillToPageMultiple";
 // Side-effect only — sets --insp-watermark-url/--insp-stamp-url once
@@ -202,8 +203,51 @@ export default function CertificatePreview({ cert, config }: Props) {
       {!isBoat && cert.checklist && (
         <ChecklistPage title={config.checklistTitle || "Inspection Checklist"} config={config} cert={cert} sections={cert.checklist} outstandingKey="checklist" />
       )}
+      <ExplanatoryNotesPage cert={cert} config={config} />
       <PhotoReportPage cert={cert} />
     </>
+  );
+}
+
+// Requested directly, reviewing a real CRALOG-issued certificate for
+// comparison: theirs closes with an "Explanatory remarks" page defining
+// exactly what each result column means, plus the regulatory basis —
+// reads as a more complete, defensible document than ours, which never
+// explained its own Good/Part-Ex/Repair/N.A. vocabulary anywhere.
+// Deliberately NOT a point-by-point mapping of every checklist item to
+// a specific SOLAS/MSC.402(96) sub-paragraph the way CRALOG's is —
+// their document is written against their own checklist's exact
+// wording and numbering, which isn't the same as this app's (built
+// independently, referencing a different source form). Citing specific
+// paragraph numbers per item without verifying each one against this
+// checklist's actual wording would risk putting a wrong regulatory
+// citation on a real safety certificate, so this stays a general
+// glossary + the same regulatory basis the statement itself already
+// cites, not a fabricated per-item mapping. Scoped to boat/crane types
+// only for now (the ones that use this exact 4-way vocabulary) — FFE's
+// checklist uses a different, simpler 3-way one (see checklistResultLabel).
+function ExplanatoryNotesPage({ cert, config }: { cert: InspectionCertificate; config: EquipmentTypeConfig }) {
+  return (
+    <CertPageFrame cert={cert}>
+      <div className="insp-cert-title-row">
+        <h2>Explanatory Notes</h2>
+        <span className="insp-badge">{config.typeName.toUpperCase()}</span>
+      </div>
+      <p style={{ fontSize: 11.5, lineHeight: 1.6 }}>{config.statementIntro}</p>
+      <div style={{ fontWeight: 700, fontSize: 11.5, color: "var(--insp-navy)", margin: "10px 0 4px" }}>Checklist Result Key</div>
+      <table className="insp-id-table">
+        <tbody>
+          <tr><td className="insp-label-cell" style={{ width: "20%" }}>Good</td><td>Item inspected and found in satisfactory condition — no action required.</td></tr>
+          <tr><td className="insp-label-cell">Part-Ex</td><td>Partially exceptions taken — item is usable but has a noted defect or wear that should be monitored or addressed at the next opportunity.</td></tr>
+          <tr><td className="insp-label-cell">Repair</td><td>Item requires repair, adjustment, or replacement before it can be considered satisfactory.</td></tr>
+          <tr><td className="insp-label-cell">N/A</td><td>Not applicable to this particular installation or configuration.</td></tr>
+        </tbody>
+      </table>
+      <div style={{ fontSize: 10, color: "var(--insp-muted)", marginTop: 10 }}>
+        This inspection was carried out in accordance with the regulatory basis stated in this certificate's Statement page. Individual
+        checklist item results and any remarks recorded above reflect the condition found at the time of this inspection.
+      </div>
+    </CertPageFrame>
   );
 }
 
@@ -816,7 +860,7 @@ function VisualCertPage({ cert, data }: { cert: InspectionCertificate; data: Loo
           Issued by {cert.issuedBy}{cert.issuedAt ? ` — ${new Date(cert.issuedAt).toLocaleString()}` : ""}
         </div>
       )}
-      <SignatureGrid cert={cert} masterLabel="Master" techLabel="Inspector" />
+      <SignatureGrid cert={cert} masterLabel="Master" techLabel="Inspector" hideFitForPurpose />
       </div>
     </CertPageFrame>
   );
@@ -1109,7 +1153,7 @@ function MultipleItemsPage({ cert, data }: { cert: InspectionCertificate; data: 
           Issued by {cert.issuedBy}{cert.issuedAt ? ` — ${new Date(cert.issuedAt).toLocaleString()}` : ""}
         </div>
       )}
-      <SignatureGrid cert={cert} masterLabel="Master" techLabel="Inspector" />
+      <SignatureGrid cert={cert} masterLabel="Master" techLabel="Inspector" hideFitForPurpose />
       </div>
     </CertPageFrame>
   );
@@ -1206,9 +1250,23 @@ function Letterhead({ cert }: { cert: InspectionCertificate }) {
 // header and footer... the signature and technician name can move
 // with the page as it is now"). ApprovalLogosRow (rendered separately,
 // in CertPageFrame's own <tfoot>) is what repeats.
-function SignatureGrid({ cert, masterLabel, techLabel }: { cert: InspectionCertificate; masterLabel: string; techLabel: string }) {
+function SignatureGrid({ cert, masterLabel, techLabel, hideFitForPurpose }: { cert: InspectionCertificate; masterLabel: string; techLabel: string; hideFitForPurpose?: boolean }) {
   return (
-    // Requested directly: "include this stamp to all certificate...
+    <>
+    {/* Requested directly, reviewing a real CRALOG-issued certificate
+        for comparison: their statements close with one unambiguous
+        declaration — "The equipment remains FIT FOR PURPOSE: Yes/No" —
+        separate from any individual checklist item's own result. See
+        InspectionCertificate.fitForPurpose's own comment for which
+        certificate kinds carry this and why — hideFitForPurpose is set
+        for Loose Gear's Visual Certificate/Multiple Items pages, which
+        already ask their own per-item pass/fail question(s). */}
+    {!hideFitForPurpose && (
+      <div style={{ fontSize: 11, fontWeight: 600, color: "var(--insp-navy)", marginTop: 12 }}>
+        The equipment remains FIT FOR PURPOSE: {yesNoCheckboxes(cert.fitForPurpose || "")}
+      </div>
+    )}
+    {/* Requested directly: "include this stamp to all certificate...
     // this is supposed to be the digital stamp of HMZC" — then, asked
     // to make it "look it has been used to stamp over the signature of
     // the technician" rather than sit as its own separate block.
@@ -1229,7 +1287,7 @@ function SignatureGrid({ cert, masterLabel, techLabel }: { cert: InspectionCerti
     // either fits whole on the current page or the whole row moves to
     // the next one, which is exactly why the letterhead/footer above
     // and every data table in this file already use a table for
-    // anything that has to survive pagination intact.
+    // anything that has to survive pagination intact. */}
     <table style={{ width: "100%", borderCollapse: "collapse", marginTop: 12, breakInside: "avoid", pageBreakInside: "avoid" } as any}>
       <tbody>
         <tr style={{ breakInside: "avoid", pageBreakInside: "avoid" } as any}>
@@ -1242,6 +1300,7 @@ function SignatureGrid({ cert, masterLabel, techLabel }: { cert: InspectionCerti
         </tr>
       </tbody>
     </table>
+    </>
   );
 }
 
@@ -1257,13 +1316,26 @@ function ApprovalLogosRow() {
     { src: BUREAU_VERITAS_LOGO_DATA_URI, alt: "Bureau Veritas" },
     { src: CRALOG_LOGO_DATA_URI, alt: "CRALOG" },
   ];
+  // Requested directly, reviewing a real CRALOG-issued certificate for
+  // comparison: their printed pages carry a software build + issue-time
+  // stamp — useful to answer "was this PDF actually produced by our
+  // system, unedited" if a certificate's authenticity is ever
+  // questioned. Computed at render time (not read from the
+  // certificate's own savedAt) so a reprint months later honestly shows
+  // when THAT print happened, not when the certificate was last saved.
+  const printedAt = new Date().toLocaleString(undefined, { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
   return (
     <div style={{ borderTop: "1px solid #E4E7E9", marginTop: 16, paddingTop: 8 }}>
       <div style={{ fontSize: 8.5, color: "var(--insp-muted)", textTransform: "uppercase", letterSpacing: ".04em", marginBottom: 5 }}>Approvals</div>
-      <div style={{ display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
-        {logos.map((logo) => (
-          <img key={logo.alt} src={logo.src} alt={logo.alt} style={{ height: 24, objectFit: "contain" }} />
-        ))}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
+          {logos.map((logo) => (
+            <img key={logo.alt} src={logo.src} alt={logo.alt} style={{ height: 24, objectFit: "contain" }} />
+          ))}
+        </div>
+        <div style={{ fontSize: 7.5, color: "var(--insp-muted)" }}>
+          Generated by HMZC-MICMS (v{APP_BUILD_VERSION}) &middot; Printed {printedAt}
+        </div>
       </div>
     </div>
   );

@@ -307,12 +307,21 @@ async function signCellContent(label: string, name: string, sig: string, stamp: 
   return out;
 }
 
-async function signatureBlock(cert: InspectionCertificate, masterLabel: string, techLabel: string): Promise<Table> {
+// Requested directly, reviewing a real CRALOG-issued certificate for
+// comparison: their statements close with one unambiguous declaration —
+// "The equipment remains FIT FOR PURPOSE: Yes/No" — separate from any
+// individual checklist item's own result. Matches CertificatePreview.tsx's
+// SignatureGrid (see InspectionCertificate.fitForPurpose's own comment
+// for which certificate kinds carry this and why). hideFitForPurpose
+// mirrors that same component's prop for Loose Gear's Visual
+// Certificate/Multiple Items sections, which already ask their own
+// per-item pass/fail question(s).
+async function signatureBlock(cert: InspectionCertificate, masterLabel: string, techLabel: string, hideFitForPurpose?: boolean): Promise<Block[]> {
   const [masterContent, techContent] = await Promise.all([
     signCellContent(masterLabel, cert.captainName, cert.captainSig, false),
     signCellContent(techLabel, cert.engineerName, cert.engineerSig, true),
   ]);
-  return new Table({
+  const table = new Table({
     width: { size: 100, type: WidthType.PERCENTAGE },
     borders: { top: THIN_BORDER, bottom: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" }, left: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" }, right: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" }, insideHorizontal: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" }, insideVertical: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" } },
     rows: [
@@ -324,6 +333,15 @@ async function signatureBlock(cert: InspectionCertificate, masterLabel: string, 
       }),
     ],
   });
+  if (hideFitForPurpose) return [table];
+  const declaration = new Paragraph({
+    spacing: { before: 120 },
+    children: [
+      new TextRun({ text: "The equipment remains FIT FOR PURPOSE: ", bold: true, color: NAVY, size: 18 }),
+      new TextRun({ text: yesNoLabel(cert.fitForPurpose || ""), bold: true, size: 18 }),
+    ],
+  });
+  return [declaration, table];
 }
 
 // Requested directly: "make the examiner sign of section just as in
@@ -425,7 +443,7 @@ async function buildStatementSection(cert: InspectionCertificate, config: Equipm
   pairs.push(["Last Serviced", fmtDate(cert.lastServicing)], ["Port", cert.portServicing || "—"], ["Kind of Servicing", cert.kindOfServicing]);
 
   blocks.push(kvTable(pairs), new Paragraph({ text: "" }), remarksBox("Remarks", cert.remarks), new Paragraph({ text: "" }), ...issuedByLine(cert));
-  blocks.push(await signatureBlock(cert, "Captain Signature", "Service Engineer"));
+  blocks.push(...(await signatureBlock(cert, "Captain Signature", "Service Engineer")));
   return blocks;
 }
 
@@ -433,14 +451,41 @@ async function buildChecklistSection(title: string, cert: InspectionCertificate,
   const blocks: Block[] = [heading(title, true), checklistTable(cert.certNo, sections), new Paragraph({ text: "" })];
   const outstanding = (cert.outstanding && cert.outstanding[outstandingKey]) || "None";
   blocks.push(remarksBox("Outstanding Issues / Defects Raised", outstanding), new Paragraph({ text: "" }));
-  blocks.push(await signatureBlock(cert, "Captain Signature", "Service Engineer"));
+  blocks.push(...(await signatureBlock(cert, "Captain Signature", "Service Engineer")));
   return blocks;
+}
+
+// Requested directly, reviewing a real CRALOG-issued certificate for
+// comparison: theirs closes with an "Explanatory remarks" page defining
+// exactly what each result column means, plus the regulatory basis —
+// see CertificatePreview.tsx's identical ExplanatoryNotesPage for the
+// full reasoning on why this is a general glossary, not a fabricated
+// per-item paragraph citation. Boat/crane types only, matching that
+// component's own scoping.
+function buildExplanatoryNotesSection(config: EquipmentTypeConfig): Block[] {
+  return [
+    heading("Explanatory Notes", true),
+    textP(config.statementIntro || "", { size: 18 }),
+    new Paragraph({ text: "" }),
+    heading("Checklist Result Key"),
+    kvTable([
+      ["Good", "Item inspected and found in satisfactory condition — no action required."],
+      ["Part-Ex", "Partially exceptions taken — item is usable but has a noted defect or wear that should be monitored or addressed at the next opportunity."],
+      ["Repair", "Item requires repair, adjustment, or replacement before it can be considered satisfactory."],
+      ["N/A", "Not applicable to this particular installation or configuration."],
+    ]),
+    new Paragraph({ text: "" }),
+    textP(
+      "This inspection was carried out in accordance with the regulatory basis stated in this certificate's Statement page. Individual checklist item results and any remarks recorded above reflect the condition found at the time of this inspection.",
+      { size: 14, color: MUTED }
+    ),
+  ];
 }
 
 async function buildEquipmentListSection(cert: InspectionCertificate, config: EquipmentTypeConfig): Promise<Block[]> {
   const rows = (cert.equip || []).map((e) => [e.n, e.qty, e.unit, equipLabel(e.result), e.remark || "—"]);
   const blocks: Block[] = [heading(config.equipListTitle || "Equipment List", true), dataTable(["Item", "Qty", "Unit", "Result", "Remarks"], rows), new Paragraph({ text: "" })];
-  blocks.push(await signatureBlock(cert, "Captain Signature", "Service Engineer"));
+  blocks.push(...(await signatureBlock(cert, "Captain Signature", "Service Engineer")));
   return blocks;
 }
 
@@ -496,7 +541,7 @@ async function buildFFESection(cert: InspectionCertificate, ffe: FFEData): Promi
   blocks.push(new Paragraph({ text: "" }), remarksBox("Comments", ffe.comments || "None"), new Paragraph({ text: "" }));
   blocks.push(textP(`This Certificate is valid for ${cfg.validityYears === 2 ? "Two Years" : "One Year"} from the date of issue.`, { size: 16, color: MUTED }));
   blocks.push(...issuedByLine(cert));
-  blocks.push(await signatureBlock(cert, "Master", "Technician"));
+  blocks.push(...(await signatureBlock(cert, "Master", "Technician")));
   return blocks;
 }
 
@@ -521,7 +566,7 @@ async function buildCalibrationSection(cert: InspectionCertificate, calibration:
   blocks.push(new Paragraph({ text: "" }), remarksBox("Comments", calibration.comments || "None"), new Paragraph({ text: "" }));
   blocks.push(textP(`This Certificate is valid for ${cfg.validityYears === 2 ? "Two Years" : "One Year"} from the date of issue.`, { size: 16, color: MUTED }));
   blocks.push(...issuedByLine(cert));
-  blocks.push(await signatureBlock(cert, "Master", "Checked/Approved By"));
+  blocks.push(...(await signatureBlock(cert, "Master", "Checked/Approved By")));
   return blocks;
 }
 
@@ -615,7 +660,7 @@ async function buildLooseGearSection(cert: InspectionCertificate, looseGear: Loo
       ])
     );
     blocks.push(new Paragraph({ text: "" }), ...issuedByLine(cert));
-    blocks.push(await signatureBlock(cert, "Master", "Inspector"));
+    blocks.push(...(await signatureBlock(cert, "Master", "Inspector", true)));
     return blocks;
   }
 
@@ -747,7 +792,7 @@ async function buildLooseGearSection(cert: InspectionCertificate, looseGear: Loo
       )
     );
     blocks.push(new Paragraph({ text: "" }), ...issuedByLine(cert));
-    blocks.push(await signatureBlock(cert, "Master", "Inspector"));
+    blocks.push(...(await signatureBlock(cert, "Master", "Inspector", true)));
     return blocks;
   }
 
@@ -813,7 +858,7 @@ async function buildPhotoReportSection(cert: InspectionCertificate, config: Equi
   }
 
   blocks.push(...issuedByLine(cert));
-  blocks.push(await signatureBlock(cert, "Captain Signature", "Service Engineer"));
+  blocks.push(...(await signatureBlock(cert, "Captain Signature", "Service Engineer")));
   return blocks;
 }
 
@@ -888,6 +933,7 @@ export async function exportCertificateDocx(cert: InspectionCertificate, config:
     if (isBoat && cert.davitChecklist) children.push(...(await buildChecklistSection(config.davitTitle || "Davit Checklist", cert, cert.davitChecklist, "davitChecklist")));
     if (isBoat && cert.equip) children.push(...(await buildEquipmentListSection(cert, config)));
     if (!isBoat && cert.checklist) children.push(...(await buildChecklistSection(config.checklistTitle || "Inspection Checklist", cert, cert.checklist, "checklist")));
+    children.push(...buildExplanatoryNotesSection(config));
   }
 
   const doc = new Document({

@@ -127,6 +127,7 @@ export function freshCertificate(type: EquipmentTypeKey, existingNumbers: Set<st
     engineerName: "",
     captainSig: "",
     engineerSig: "",
+    fitForPurpose: "",
     savedAt: null,
     savedBy: "",
   };

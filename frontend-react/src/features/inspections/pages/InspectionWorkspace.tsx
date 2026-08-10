@@ -7,6 +7,7 @@ import { EquipmentTypeKey, ChecklistSection, EquipResult, InspectionCertificate,
 import ChecklistGroup from "../components/ChecklistGroup";
 import CertificatePreview from "../components/CertificatePreview";
 import SignatureCanvas from "../components/SignatureCanvas";
+import FitForPurposeField from "../components/FitForPurposeField";
 import PhotoUpload from "../components/PhotoUpload";
 import VesselLookupPanel from "../components/VesselLookupPanel";
 import FFEForm from "../components/FFEForm";
@@ -522,6 +523,9 @@ export default function InspectionWorkspace() {
       if (!current.engineerSig) {
         problems.push("Technician signature is required");
       }
+      if (!current.fitForPurpose) {
+        problems.push('"Equipment remains fit for purpose" must be answered');
+      }
       return problems;
     }
 
@@ -564,6 +568,9 @@ export default function InspectionWorkspace() {
       if (!current.engineerSig) {
         problems.push("Checked/Approved By signature is required");
       }
+      if (!current.fitForPurpose) {
+        problems.push('"Equipment remains fit for purpose" must be answered');
+      }
       return problems;
     }
 
@@ -579,6 +586,9 @@ export default function InspectionWorkspace() {
       if (!current.engineerSig) {
         problems.push("Technician signature is required");
       }
+      if (!current.fitForPurpose) {
+        problems.push('"Equipment remains fit for purpose" must be answered');
+      }
       return problems;
     }
 
@@ -587,6 +597,9 @@ export default function InspectionWorkspace() {
     }
     if (!current.engineerSig) {
       problems.push("Service Engineer signature is required");
+    }
+    if (!current.fitForPurpose) {
+      problems.push('"Equipment remains fit for purpose" must be answered');
     }
 
     const min = cfg.minPhotos || {};
@@ -1640,6 +1653,7 @@ function StatementForm({ type, current, updateField, updateNested, toggleAutoRem
 
       <fieldset className="insp-fieldset">
         <legend className="insp-legend">Signatures</legend>
+        <FitForPurposeField value={current.fitForPurpose || ""} onChange={(v) => updateField("fitForPurpose", v)} />
         <div className="insp-row2">
           <div className="insp-field"><label htmlFor="stmt-captain-name">Captain Name (optional)</label><input id="stmt-captain-name" value={current.captainName} onChange={(e) => updateField("captainName", e.target.value)} /></div>
           <div className="insp-field"><label htmlFor="stmt-engineer-name">Service Engineer Name</label><input id="stmt-engineer-name" value={current.engineerName} onChange={(e) => updateField("engineerName", e.target.value)} /></div>

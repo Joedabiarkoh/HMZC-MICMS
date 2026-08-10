@@ -184,6 +184,26 @@ export interface InspectionCertificate {
   captainSig: string;
   engineerSig: string;
 
+  // Requested directly, reviewing a real CRALOG-issued certificate for
+  // comparison: their statements close with one unambiguous
+  // declaration — "The equipment remains FIT FOR PURPOSE: Yes / No" —
+  // separate from any individual checklist item's own result. Boat/
+  // crane, FFE, Calibration, and Photo Report certificates all share
+  // this (see SignatureGrid in CertificatePreview.tsx); Loose Gear
+  // isn't included since it already has its own per-item Pass/Fail
+  // (Standard Report) or Safe-to-Use (Multiple Items) declaration —
+  // adding a second, certificate-wide yes/no there would just
+  // duplicate what's already being asked per item.
+  //
+  // Optional, not required — a certificate saved before this field
+  // existed has no key for it at all in its stored payload (see
+  // fromBackend in inspection.api.ts, a plain object spread), so it's
+  // genuinely `undefined` at runtime for that real, already-issued
+  // data, not just an unanswered "". Every reader treats undefined the
+  // same as "" (unanswered) rather than assuming the field is always
+  // present.
+  fitForPurpose?: "" | "yes" | "no";
+
   savedAt: string | null;
   savedBy: string;
 

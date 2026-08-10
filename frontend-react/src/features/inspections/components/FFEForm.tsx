@@ -3,6 +3,7 @@ import { freshFFEState } from "../data/inspectionHelpers";
 import { InspectionCertificate } from "../types/inspection.types";
 import VesselLookupPanel from "./VesselLookupPanel";
 import SignatureCanvas from "./SignatureCanvas";
+import FitForPurposeField from "./FitForPurposeField";
 
 interface Props {
   current: InspectionCertificate;
@@ -277,6 +278,7 @@ export default function FFEForm({ current, updateField, openCertificate }: Props
           FFE-only signature fields for what's functionally identical. */}
       <fieldset className="insp-fieldset">
         <legend className="insp-legend">Signatures</legend>
+        <FitForPurposeField value={current.fitForPurpose || ""} onChange={(v) => updateField("fitForPurpose", v)} />
         <div className="insp-row2">
           <div className="insp-field"><label htmlFor="ffe-master-name">Master Name (optional)</label><input id="ffe-master-name" value={current.captainName} onChange={(e) => updateField("captainName", e.target.value)} /></div>
           <div className="insp-field"><label htmlFor="ffe-technician-name">Technician Name</label><input id="ffe-technician-name" value={current.engineerName} onChange={(e) => updateField("engineerName", e.target.value)} /></div>

@@ -36,6 +36,7 @@ function baseCert(overrides: Partial<InspectionCertificate> = {}): InspectionCer
     engineerName: "",
     captainSig: "",
     engineerSig: "",
+    fitForPurpose: "",
     savedAt: null,
     savedBy: "Test User",
     ...overrides,

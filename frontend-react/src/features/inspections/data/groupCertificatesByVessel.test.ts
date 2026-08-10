@@ -24,6 +24,7 @@ function cert(overrides: Partial<InspectionCertificate> & { certNo: string }): I
     engineerName: "",
     captainSig: "",
     engineerSig: "",
+    fitForPurpose: "",
     savedAt: null,
     savedBy: "Test User",
     ...overrides,

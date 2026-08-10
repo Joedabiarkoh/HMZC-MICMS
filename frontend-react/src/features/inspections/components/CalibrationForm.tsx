@@ -3,6 +3,7 @@ import { freshCalibrationState } from "../data/inspectionHelpers";
 import { InspectionCertificate } from "../types/inspection.types";
 import VesselLookupPanel from "./VesselLookupPanel";
 import SignatureCanvas from "./SignatureCanvas";
+import FitForPurposeField from "./FitForPurposeField";
 
 interface Props {
   current: InspectionCertificate;
@@ -165,6 +166,7 @@ export default function CalibrationForm({ current, updateField, openCertificate 
           the source templates' "Checked By"/"Approved By" roles. */}
       <fieldset className="insp-fieldset">
         <legend className="insp-legend">Signatures</legend>
+        <FitForPurposeField value={current.fitForPurpose || ""} onChange={(v) => updateField("fitForPurpose", v)} />
         <div className="insp-row2">
           <div className="insp-field"><label htmlFor="cal-master-name">Master Name (optional)</label><input id="cal-master-name" value={current.captainName} onChange={(e) => updateField("captainName", e.target.value)} /></div>
           <div className="insp-field"><label htmlFor="cal-technician-name">Checked/Approved By</label><input id="cal-technician-name" value={current.engineerName} onChange={(e) => updateField("engineerName", e.target.value)} /></div>
