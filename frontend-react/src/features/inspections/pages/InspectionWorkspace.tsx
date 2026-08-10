@@ -523,9 +523,6 @@ export default function InspectionWorkspace() {
       if (!current.engineerSig) {
         problems.push("Technician signature is required");
       }
-      if (!current.fitForPurpose) {
-        problems.push('"Equipment remains fit for purpose" must be answered');
-      }
       return problems;
     }
 
@@ -568,9 +565,6 @@ export default function InspectionWorkspace() {
       if (!current.engineerSig) {
         problems.push("Checked/Approved By signature is required");
       }
-      if (!current.fitForPurpose) {
-        problems.push('"Equipment remains fit for purpose" must be answered');
-      }
       return problems;
     }
 
@@ -585,9 +579,6 @@ export default function InspectionWorkspace() {
       }
       if (!current.engineerSig) {
         problems.push("Technician signature is required");
-      }
-      if (!current.fitForPurpose) {
-        problems.push('"Equipment remains fit for purpose" must be answered');
       }
       return problems;
     }

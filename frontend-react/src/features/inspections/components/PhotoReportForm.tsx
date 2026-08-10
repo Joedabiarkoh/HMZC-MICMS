@@ -2,7 +2,6 @@ import { InspectionCertificate, PhotoEvidence } from "../types/inspection.types"
 import VesselLookupPanel from "./VesselLookupPanel";
 import PhotoUpload from "./PhotoUpload";
 import SignatureCanvas from "./SignatureCanvas";
-import FitForPurposeField from "./FitForPurposeField";
 
 interface Props {
   current: InspectionCertificate;
@@ -82,7 +81,6 @@ export default function PhotoReportForm({ current, updateField, openCertificate 
 
       <fieldset className="insp-fieldset">
         <legend className="insp-legend">Signatures</legend>
-        <FitForPurposeField value={current.fitForPurpose || ""} onChange={(v) => updateField("fitForPurpose", v)} />
         <div className="insp-row2">
           <div className="insp-field"><label htmlFor="pr-master-name">Master Name (optional)</label><input id="pr-master-name" value={current.captainName} onChange={(e) => updateField("captainName", e.target.value)} /></div>
           <div className="insp-field"><label htmlFor="pr-technician-name">Technician Name</label><input id="pr-technician-name" value={current.engineerName} onChange={(e) => updateField("engineerName", e.target.value)} /></div>

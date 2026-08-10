@@ -291,7 +291,7 @@ function PhotoReportCertificatePage({ cert, config }: { cert: InspectionCertific
             Issued by {cert.issuedBy}{cert.issuedAt ? ` — ${new Date(cert.issuedAt).toLocaleString()}` : ""}
           </div>
         )}
-        <SignatureGrid cert={cert} masterLabel="Captain Signature" techLabel="Service Engineer" />
+        <SignatureGrid cert={cert} masterLabel="Captain Signature" techLabel="Service Engineer" hideFitForPurpose />
       </CertPageFrame>
       <PhotoReportPage cert={cert} />
     </>
@@ -559,7 +559,7 @@ function FFECertificatePage({ cert, ffe }: { cert: InspectionCertificate; ffe: F
         )}
       </div>
 
-      <SignatureGrid cert={cert} masterLabel="Master" techLabel="Technician" />
+      <SignatureGrid cert={cert} masterLabel="Master" techLabel="Technician" hideFitForPurpose />
     </CertPageFrame>
   );
 }
@@ -640,7 +640,7 @@ function CalibrationCertificatePage({ cert, calibration }: { cert: InspectionCer
         )}
       </div>
 
-      <SignatureGrid cert={cert} masterLabel="Master" techLabel="Checked/Approved By" />
+      <SignatureGrid cert={cert} masterLabel="Master" techLabel="Checked/Approved By" hideFitForPurpose />
     </CertPageFrame>
   );
 }

@@ -541,7 +541,7 @@ async function buildFFESection(cert: InspectionCertificate, ffe: FFEData): Promi
   blocks.push(new Paragraph({ text: "" }), remarksBox("Comments", ffe.comments || "None"), new Paragraph({ text: "" }));
   blocks.push(textP(`This Certificate is valid for ${cfg.validityYears === 2 ? "Two Years" : "One Year"} from the date of issue.`, { size: 16, color: MUTED }));
   blocks.push(...issuedByLine(cert));
-  blocks.push(...(await signatureBlock(cert, "Master", "Technician")));
+  blocks.push(...(await signatureBlock(cert, "Master", "Technician", true)));
   return blocks;
 }
 
@@ -566,7 +566,7 @@ async function buildCalibrationSection(cert: InspectionCertificate, calibration:
   blocks.push(new Paragraph({ text: "" }), remarksBox("Comments", calibration.comments || "None"), new Paragraph({ text: "" }));
   blocks.push(textP(`This Certificate is valid for ${cfg.validityYears === 2 ? "Two Years" : "One Year"} from the date of issue.`, { size: 16, color: MUTED }));
   blocks.push(...issuedByLine(cert));
-  blocks.push(...(await signatureBlock(cert, "Master", "Checked/Approved By")));
+  blocks.push(...(await signatureBlock(cert, "Master", "Checked/Approved By", true)));
   return blocks;
 }
 
@@ -858,7 +858,7 @@ async function buildPhotoReportSection(cert: InspectionCertificate, config: Equi
   }
 
   blocks.push(...issuedByLine(cert));
-  blocks.push(...(await signatureBlock(cert, "Captain Signature", "Service Engineer")));
+  blocks.push(...(await signatureBlock(cert, "Captain Signature", "Service Engineer", true)));
   return blocks;
 }
 
