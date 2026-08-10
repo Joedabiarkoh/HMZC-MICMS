@@ -315,10 +315,22 @@ export default function InspectionWorkspace() {
   // Handoff from the Certificate Log page (a separate hook instance, so
   // state isn't shared directly — see the comment in CertificateLog.tsx):
   // it navigates here with ?open=<certNo> instead of calling
-  // openCertificate() on its own instance.
+  // openCertificate() on its own instance. Guarded by a ref so it only
+  // ever applies once — root-caused directly from a real report ("Loose
+  // Gear keeps changing to Statement" / "item register rows and serial
+  // numbers vanish"): without the guard, this re-ran every time
+  // `certificates` changed reference (every periodic sync refresh, every
+  // background save merge), and each re-run force-reset `current` back
+  // to that certNo's last-*synced* copy — silently discarding whatever
+  // the technician had typed since, and re-deriving the rendered
+  // template from whatever `type`/`cfg` the tab happened to be on at
+  // that later moment rather than the certificate's own stored type.
+  const appliedOpenHandoff = useRef(false);
   useEffect(() => {
+    if (appliedOpenHandoff.current) return;
     const openCertNo = searchParams.get("open");
     if (openCertNo && certificates[openCertNo]) {
+      appliedOpenHandoff.current = true;
       openCertificate(openCertNo);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
