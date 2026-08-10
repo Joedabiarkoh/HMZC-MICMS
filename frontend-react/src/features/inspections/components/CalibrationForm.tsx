@@ -52,6 +52,15 @@ export default function CalibrationForm({ current, updateField, openCertificate 
     updateCalibration({ [table]: next } as any);
   }
 
+  // Requested directly: "coping items across and pasting them below
+  // for the next item is not possible now... one cell at a time" —
+  // see FFEForm.tsx's identical duplicateItemRow for the full reasoning.
+  function duplicateItemRow(table: "items" | "items2", index: number) {
+    const next = [...cal[table]];
+    next.splice(index + 1, 0, { ...next[index] });
+    updateCalibration({ [table]: next } as any);
+  }
+
   function updateItemCell(table: "items" | "items2", index: number, key: string, value: string) {
     const next = [...cal[table]];
     next[index] = { ...next[index], [key]: value };
@@ -124,6 +133,7 @@ export default function CalibrationForm({ current, updateField, openCertificate 
         rows={cal.items}
         onAdd={() => addItemRow("items")}
         onRemove={(i) => removeItemRow("items", i)}
+        onDuplicate={(i) => duplicateItemRow("items", i)}
         onChange={(i, key, v) => updateItemCell("items", i, key, v)}
       />
 
@@ -133,6 +143,7 @@ export default function CalibrationForm({ current, updateField, openCertificate 
         rows={cal.items2}
         onAdd={() => addItemRow("items2")}
         onRemove={(i) => removeItemRow("items2", i)}
+        onDuplicate={(i) => duplicateItemRow("items2", i)}
         onChange={(i, key, v) => updateItemCell("items2", i, key, v)}
       />
 
@@ -168,13 +179,14 @@ export default function CalibrationForm({ current, updateField, openCertificate 
 }
 
 function ItemTable({
-  title, columns, rows, onAdd, onRemove, onChange,
+  title, columns, rows, onAdd, onRemove, onDuplicate, onChange,
 }: {
   title: string;
   columns: { key: string; label: string }[];
   rows: Record<string, string>[];
   onAdd: () => void;
   onRemove: (i: number) => void;
+  onDuplicate: (i: number) => void;
   onChange: (i: number, key: string, value: string) => void;
 }) {
   return (
@@ -186,7 +198,7 @@ function ItemTable({
             <tr style={{ textAlign: "left", borderBottom: "1px solid #DCE1E5" }}>
               <th style={{ padding: "4px 6px", width: 30 }}>#</th>
               {columns.map((c) => <th key={c.key} style={{ padding: "4px 6px" }}>{c.label}</th>)}
-              <th style={{ width: 40 }}></th>
+              <th style={{ width: 62 }}></th>
             </tr>
           </thead>
           <tbody>
@@ -198,8 +210,15 @@ function ItemTable({
                     <input value={row[c.key] || ""} onChange={(e) => onChange(i, c.key, e.target.value)} style={{ width: "100%" }} />
                   </td>
                 ))}
-                <td style={{ padding: "4px 6px" }}>
-                  <button type="button" className="insp-btn insp-btn-outline" style={{ padding: "2px 8px", fontSize: 11, color: "var(--insp-red)" }} onClick={() => onRemove(i)}>
+                <td style={{ padding: "4px 6px", display: "flex", gap: 4 }}>
+                  {/* Requested directly: "coping items across and
+                      pasting them below for the next item is not
+                      possible now... one cell at a time." Copies this
+                      row's values into a new row right below it. */}
+                  <button type="button" className="insp-btn insp-btn-outline" style={{ padding: "2px 8px", fontSize: 11 }} title="Duplicate this row" onClick={() => onDuplicate(i)}>
+                    ⧉
+                  </button>
+                  <button type="button" className="insp-btn insp-btn-outline" style={{ padding: "2px 8px", fontSize: 11, color: "var(--insp-red)" }} title="Remove this row" onClick={() => onRemove(i)}>
                     ✕
                   </button>
                 </td>

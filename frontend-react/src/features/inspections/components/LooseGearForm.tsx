@@ -648,6 +648,19 @@ function MultipleItemsForm({
     next.splice(i, 1);
     onChange({ rows: next });
   }
+  // Requested directly: "coping items across and pasting them below
+  // for the next item is not possible now... one cell at a time" —
+  // same reasoning as FFEForm.tsx's duplicateItemRow, except Serial
+  // No. resets blank here (like "+ Add Next Item to This Job" already
+  // does for Standard Report) since it's this register's one field
+  // that must stay unique per physical item — everything else
+  // (Description, SWL, Manufacturer, Location, etc.) usually IS
+  // identical for the next item, which is the whole point of copying.
+  function duplicateRow(i: number) {
+    const next = [...data.rows];
+    next.splice(i + 1, 0, { ...next[i], serialNo: "" });
+    onChange({ rows: next });
+  }
   function updateRow(i: number, patch: Partial<LooseGearRegisterRow>) {
     const next = [...data.rows];
     next[i] = { ...next[i], ...patch };
@@ -715,7 +728,7 @@ function MultipleItemsForm({
                 <th style={{ padding: "4px 6px" }}>Type of Inspection</th>
                 <th style={{ padding: "4px 6px" }}>Next Inspection Date</th>
                 <th style={{ padding: "4px 6px" }}>Safe to Use</th>
-                <th style={{ width: 40 }}></th>
+                <th style={{ width: 62 }}></th>
               </tr>
             </thead>
             <tbody>
@@ -738,8 +751,9 @@ function MultipleItemsForm({
                       <option value="no">No</option>
                     </select>
                   </td>
-                  <td style={{ padding: "4px 6px" }}>
-                    <button type="button" className="insp-btn insp-btn-outline" style={{ padding: "2px 8px", fontSize: 11, color: "var(--insp-red)" }} onClick={() => removeRow(i)}>✕</button>
+                  <td style={{ padding: "4px 6px", display: "flex", gap: 4 }}>
+                    <button type="button" className="insp-btn insp-btn-outline" style={{ padding: "2px 8px", fontSize: 11 }} title="Duplicate this row (Serial No. left blank)" onClick={() => duplicateRow(i)}>⧉</button>
+                    <button type="button" className="insp-btn insp-btn-outline" style={{ padding: "2px 8px", fontSize: 11, color: "var(--insp-red)" }} title="Remove this row" onClick={() => removeRow(i)}>✕</button>
                   </td>
                 </tr>
               ))}
