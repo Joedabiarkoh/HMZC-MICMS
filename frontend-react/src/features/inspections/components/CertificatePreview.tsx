@@ -1336,7 +1336,15 @@ function SignBox({ label, name, sig, stamp }: { label: string; name: string; sig
           own comment above for why that alignment matters). */}
       <div style={{ minHeight: 86 }}>
         {sig && <img src={sig} alt={label} style={{ height: 60 }} />}
-        {!sig && name && <div style={{ fontFamily: "cursive", fontSize: 26, color: "var(--insp-navy)" }}>{name}</div>}
+        {/* Requested directly: "the masters name when typed in should
+            have same size as the technician name font size" — Master
+            typically has no drawn signature (signs the printed page by
+            hand later), so their typed name rendered here in this
+            cursive fallback; Technician's typed name renders on the
+            other line below, once they've actually signed. Different
+            branches of the same box, so they'd drifted to different
+            sizes over past edits — matched to the same 11px now. */}
+        {!sig && name && <div style={{ fontFamily: "cursive", fontSize: 11, color: "var(--insp-navy)" }}>{name}</div>}
         {sig && name && <div style={{ fontSize: 11, color: "var(--insp-text)", marginTop: 2 }}>{name}</div>}
       </div>
       <div style={{ fontSize: 9.5, color: "var(--insp-muted)", textTransform: "uppercase" }}>{label}</div>

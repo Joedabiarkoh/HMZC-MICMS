@@ -157,11 +157,42 @@ export function useInspections(initialType: EquipmentTypeKey = "lifeboat") {
   // `!prev.savedAt` so it only ever touches a genuinely fresh draft, not
   // an existing certificate someone opened that happens to have no
   // signature yet — that should stay exactly as blank as they left it.
+  //
+  // Root-caused directly from a real report: "my signature seems to
+  // appear on other users['] signatures, overs[e]eding" — this used to
+  // fill in whoever was CURRENTLY LOGGED IN's saved signature
+  // regardless of what name was actually typed into "Service Engineer /
+  // Technician Name," so one login used to enter a certificate on
+  // behalf of a different named person (a shared device, someone
+  // assisting with data entry) silently attached the logged-in
+  // account's own signature to a certificate naming someone else —
+  // confirmed against real production data. Now only auto-fills when
+  // the typed name is blank or actually matches the logged-in account;
+  // if the name is later changed to someone else, the auto-filled
+  // signature is cleared rather than left misrepresenting who signed.
+  // Only ever clears a signature that's an EXACT match for the logged-in
+  // user's own saved default — a signature someone deliberately drew or
+  // uploaded for this specific certificate (anything else) is never
+  // touched here, regardless of what the name field says.
   useEffect(() => {
-    if (!user?.saved_signature_url) return;
-    const defaultSig = user.saved_signature_url;
-    setCurrent((prev) => (prev.status === "draft" && !prev.savedAt && !prev.engineerSig ? { ...prev, engineerSig: defaultSig } : prev));
-  }, [user]);
+    if (!user) return;
+    const myName = (user.full_name || user.email || "").trim().toLowerCase();
+    setCurrent((prev) => {
+      if (prev.status !== "draft" || prev.savedAt) return prev;
+      const typedName = (prev.engineerName || "").trim().toLowerCase();
+      const nameMatchesMe = !typedName || typedName === myName;
+      if (nameMatchesMe) {
+        if (!prev.engineerSig && user.saved_signature_url) {
+          return { ...prev, engineerSig: user.saved_signature_url };
+        }
+        return prev;
+      }
+      if (prev.engineerSig && prev.engineerSig === user.saved_signature_url) {
+        return { ...prev, engineerSig: "" };
+      }
+      return prev;
+    });
+  }, [user, current.engineerName]);
 
   const saveCurrent = useCallback(
     (status: "draft" | "final", savedBy: string) => {

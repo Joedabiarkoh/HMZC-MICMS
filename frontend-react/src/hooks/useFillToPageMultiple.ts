@@ -39,8 +39,20 @@ import type { RefObject } from "react";
 // to a later page — a smaller margin (a larger per-page budget) gives
 // that later page more of the shortfall back, without fully solving
 // the uneven distribution a forced break can cause.
+//
+// Requested directly again, reviewing a fresh printed PDF: "drop the
+// footer a more lower again as now there seems to be more allowance on
+// the paper when printed" — reduced further, 35 to 18. Also directly
+// addresses a second report from the same review — "some FFE also
+// force two pages even when the information inputed should be only
+// one page": the signature/stamp size increase requested just before
+// this (SignBox's image 44->60px, wrapper minHeight 64->86px) added
+// ~22px to every certificate's real content height, enough on its own
+// to tip a single-page-worth FFE certificate's `natural` height past
+// the old, larger per-page budget and force a padded second page. A
+// smaller safety margin gives that budget the room back.
 const PAGE_HEIGHT_PX = 1032; // @page A4 content area: (297mm - 24mm) at 96dpi
-const SAFETY_MARGIN_PX = 35;
+const SAFETY_MARGIN_PX = 18;
 
 export function useFillToPageMultiple(
   fillRef: RefObject<HTMLElement>,

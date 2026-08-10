@@ -320,7 +320,13 @@ table.insp-page-frame > tfoot > tr > td {
    With fixed layout, only the first row's cell widths matter — the two
    16%-wide label cells stay 16%, and the two unset value cells split
    the remaining 68% evenly (34% each), regardless of content length. */
-table.insp-id-table { width: 100%; table-layout: fixed; border-collapse: collapse; font-size: 11.5px; margin-bottom: 12px; }
+/* Requested directly: "increase the font size a bit" (reviewing a
+   printed certificate). Left table.insp-print-chk (the boat/crane/FFE
+   checklist tables just below) untouched on purpose — that one was
+   already tuned tight, row by row, to hit specific page counts (see
+   its own comment), and a font bump there would eat back into the
+   FFE two-page headroom just reclaimed by SAFETY_MARGIN_PX above. */
+table.insp-id-table { width: 100%; table-layout: fixed; border-collapse: collapse; font-size: 12.5px; margin-bottom: 12px; }
 table.insp-id-table td { border: 1px solid #CBD2D8; padding: 5px 8px; overflow-wrap: break-word; }
 table.insp-id-table td.insp-label-cell { background: #F4F6F7; font-weight: 700; color: var(--insp-navy); width: 16%; }
 
@@ -351,14 +357,14 @@ table.insp-id-table td.insp-label-cell { background: #F4F6F7; font-weight: 700; 
    than changing the shared rules every other certificate type relies
    on. */
 .tt-report { font-family: Arial, Helvetica, sans-serif; color: #000; }
-.tt-report .tt-title { text-align: center; font-size: 14.5px; font-weight: 700; margin: 4px 0 2px; }
-.tt-report .tt-subtitle { text-align: center; font-size: 9px; margin: 0 0 8px; }
+.tt-report .tt-title { text-align: center; font-size: 15.5px; font-weight: 700; margin: 4px 0 2px; }
+.tt-report .tt-subtitle { text-align: center; font-size: 10px; margin: 0 0 8px; }
 .tt-report table.tt-grid { width: 100%; border-collapse: collapse; margin-bottom: 8px; }
-.tt-report table.tt-grid td { border: 1px solid #000; padding: 3px 6px; vertical-align: top; font-size: 9.5px; overflow-wrap: break-word; }
-.tt-report table.tt-grid td .tt-label { display: block; font-weight: 700; font-size: 8px; text-transform: uppercase; margin-bottom: 1px; }
-.tt-report table.tt-grid td .tt-note { font-size: 7.5px; font-style: italic; margin-top: 2px; }
-.tt-report table.tt-grid td.tt-section-header { font-weight: 700; font-size: 9.5px; text-transform: uppercase; }
-.tt-report .tt-result-grid td { text-align: center; font-weight: 700; font-size: 12px; }
+.tt-report table.tt-grid td { border: 1px solid #000; padding: 3px 6px; vertical-align: top; font-size: 10.5px; overflow-wrap: break-word; }
+.tt-report table.tt-grid td .tt-label { display: block; font-weight: 700; font-size: 9px; text-transform: uppercase; margin-bottom: 1px; }
+.tt-report table.tt-grid td .tt-note { font-size: 8.5px; font-style: italic; margin-top: 2px; }
+.tt-report table.tt-grid td.tt-section-header { font-weight: 700; font-size: 10.5px; text-transform: uppercase; }
+.tt-report .tt-result-grid td { text-align: center; font-weight: 700; font-size: 13px; }
 .tt-report .tt-result-grid td:first-child { text-align: left; }
 .tt-report .tt-result-pass { color: var(--insp-green); text-decoration: underline; }
 .tt-report .tt-result-fail { color: var(--insp-red); text-decoration: underline; }
@@ -403,7 +409,7 @@ table.insp-print-chk tr.insp-section-row td { background: #EEF1F3; font-weight: 
 .insp-pill.repair, .insp-pill.missing, .insp-pill.damaged { background: var(--insp-red); }
 .insp-pill.na { background: #8B93A0; }
 
-.insp-remarks-box { border: 1px solid var(--insp-accent); background: var(--insp-accent-light); border-radius: 6px; padding: 8px 12px; font-size: 11px; font-weight: 600; color: var(--insp-navy); margin: 10px 0; }
+.insp-remarks-box { border: 1px solid var(--insp-accent); background: var(--insp-accent-light); border-radius: 6px; padding: 8px 12px; font-size: 12px; font-weight: 600; color: var(--insp-navy); margin: 10px 0; }
 
 /* ---- buttons ---- */
 .insp-btn {
