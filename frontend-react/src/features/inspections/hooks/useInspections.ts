@@ -85,6 +85,48 @@ export function useInspections(initialType: EquipmentTypeKey = "lifeboat") {
     }
   }, []);
 
+  // Root-caused directly from a real report: "When certificate are
+  // deleted it shows still on some users['] page." This used to only
+  // ever ADD/UPDATE local entries from a server fetch (`merged[cert.
+  // certNo] = cert` for each row `listCertificates()` returned) — a
+  // certificate someone else deleted just stayed in this device's own
+  // cache forever, since nothing ever removed a local entry that the
+  // server no longer had. It also only ran once, at page load — so
+  // even fixing the removal alone wouldn't help anyone who'd had the
+  // page open before the deletion happened. Pulled into its own
+  // function so it can run periodically and on tab focus, not just at
+  // mount, and now actually prunes local certificates the server
+  // doesn't have anymore.
+  const refreshCertificates = useCallback(() => {
+    return listCertificates()
+      .then(async (remote) => {
+        const stillPending = new Set(await pendingCertNos());
+        const remoteCertNos = new Set(remote.map((c) => c.certNo));
+        setCertificates((prev) => {
+          const merged: Record<string, InspectionCertificate> = {};
+          for (const cert of remote) {
+            // Don't let a server copy overwrite a save that's still queued
+            // (not yet synced) for the same certificate.
+            merged[cert.certNo] = stillPending.has(cert.certNo) ? prev[cert.certNo] || cert : cert;
+          }
+          // A local certificate the server no longer has, and that isn't
+          // itself a not-yet-synced local save (a brand new draft, or an
+          // edit still queued from an offline session) — deleted by
+          // someone else, or since removed from view by a permission
+          // change. Either way, this device shouldn't keep showing it.
+          for (const [certNo, cert] of Object.entries(prev)) {
+            if (!remoteCertNos.has(certNo) && stillPending.has(certNo)) merged[certNo] = cert;
+          }
+          persistCertificates(merged);
+          return merged;
+        });
+        setSyncError((prev) => (prev?.startsWith("Could not reach the server") ? null : prev));
+      })
+      .catch(() => {
+        setSyncError((prev) => prev || "Could not reach the server — showing certificates saved on this device only.");
+      });
+  }, []);
+
   useEffect(() => {
     const local = loadCertificates();
     setCertificates(local);
@@ -106,41 +148,40 @@ export function useInspections(initialType: EquipmentTypeKey = "lifeboat") {
     // Try to flush anything queued from a previous offline session first,
     // then pull the current server list — flushing first means a locally
     // queued edit isn't clobbered by a stale server copy of the same cert.
-    attemptFlush().then(() =>
-      listCertificates()
-        .then(async (remote) => {
-          const stillPending = new Set(await pendingCertNos());
-          setCertificates((prev) => {
-            const merged = { ...prev };
-            for (const cert of remote) {
-              // Don't let a server copy overwrite a save that's still queued
-              // (not yet synced) for the same certificate.
-              if (!stillPending.has(cert.certNo)) merged[cert.certNo] = cert;
-            }
-            persistCertificates(merged);
-            return merged;
-          });
-        })
-        .catch(() => {
-          setSyncError((prev) => prev || "Could not reach the server — showing certificates saved on this device only.");
-        })
-    );
+    attemptFlush().then(() => refreshCertificates());
 
     function handleOnline() {
       attemptFlush();
+      refreshCertificates();
     }
     window.addEventListener("online", handleOnline);
 
-    // Every 30s while online, in case something failed silently (server
-    // briefly down, not a browser-detected offline state) rather than
-    // relying solely on the `online` event, which only fires on an
-    // actual network-state transition.
+    // Requested directly, alongside the deletion-visibility fix above:
+    // switching back to a tab that's been open a while is the moment
+    // someone's most likely to notice it's showing something stale, so
+    // this is the fast path — no need to wait for the next periodic
+    // tick.
+    function handleVisibility() {
+      if (document.visibilityState === "visible" && navigator.onLine) {
+        attemptFlush();
+        refreshCertificates();
+      }
+    }
+    document.addEventListener("visibilitychange", handleVisibility);
+
+    // Every 30s while online: flushes anything queued, AND re-pulls the
+    // server list so a deletion (or any other edit) made by someone
+    // else shows up here without needing a full page reload.
     const interval = window.setInterval(() => {
-      if (navigator.onLine) attemptFlush();
+      if (navigator.onLine) {
+        attemptFlush();
+        refreshCertificates();
+      }
     }, PERIODIC_RETRY_MS);
 
     return () => {
       window.removeEventListener("online", handleOnline);
+      document.removeEventListener("visibilitychange", handleVisibility);
       window.clearInterval(interval);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
