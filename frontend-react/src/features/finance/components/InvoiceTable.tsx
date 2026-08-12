@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import { InvoiceDoc } from "../types/finance.types";
+import { formatMoney } from "../data/currencies";
 
 interface InvoiceTableProps {
   invoices: InvoiceDoc[];
@@ -28,7 +29,7 @@ export default function InvoiceTable({ invoices }: InvoiceTableProps) {
             <td>{inv.invoice_no}</td>
             <td>{inv.customer}</td>
             <td>{inv.vessel_name || "—"}</td>
-            <td>${inv.total.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
+            <td>{formatMoney(inv.total, inv.currency, inv.exchange_rate)}</td>
             <td><span className={`finance-status-pill ${inv.status}`}>{inv.status}</span></td>
             <td>{inv.issued_by?.full_name || inv.issued_by?.email || "—"}</td>
             <td>{new Date(inv.created_at).toLocaleDateString()}</td>

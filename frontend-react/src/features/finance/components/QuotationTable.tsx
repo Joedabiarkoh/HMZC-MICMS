@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import { QuotationDoc } from "../types/finance.types";
+import { formatMoney } from "../data/currencies";
 
 interface QuotationTableProps {
   quotations: QuotationDoc[];
@@ -30,7 +31,7 @@ export default function QuotationTable({ quotations }: QuotationTableProps) {
             <td>{q.quotation_no}</td>
             <td>{q.customer}</td>
             <td>{q.vessel_name || "—"}</td>
-            <td>${q.total.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
+            <td>{formatMoney(q.total, q.currency, q.exchange_rate)}</td>
             <td><span className={`finance-status-pill ${q.status}`}>{q.status}</span></td>
             <td>{q.issued_by?.full_name || q.issued_by?.email || "—"}</td>
             <td>{new Date(q.created_at).toLocaleDateString()}</td>

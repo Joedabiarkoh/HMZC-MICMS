@@ -11,6 +11,7 @@ import { queueQuotationSave } from "../../../offline/syncQueue";
 import { FinanceItem, LineItem, QuotationDoc, DEFAULT_QUOTATION_CONDITIONS } from "../types/finance.types";
 import { confirmAction } from "../../../components/ConfirmDialog";
 import { hasPermission, PERM } from "../../auth/types/auth.types";
+import { CURRENCIES, formatMoney } from "../data/currencies";
 
 function generateQuotationNo(existing: QuotationDoc[]): string {
   const ymd = new Date().toISOString().slice(0, 10).replace(/-/g, "");
@@ -39,6 +40,13 @@ export default function QuotationForm() {
   const [status, setStatus] = useState("draft");
   const [lineItems, setLineItems] = useState<LineItem[]>([]);
   const [conditions, setConditions] = useState<string[]>(DEFAULT_QUOTATION_CONDITIONS);
+  // Requested directly: "using the USD as the main price, invoice can be
+  // issued in any currency, have a section to change currency" — every
+  // amount above stays in USD (the catalog/entry currency); currency +
+  // exchangeRate (units of `currency` per 1 USD) only affect what's
+  // shown in the preview/PDF, via formatMoney().
+  const [currency, setCurrency] = useState("USD");
+  const [exchangeRate, setExchangeRate] = useState(1);
   const [version, setVersion] = useState<number | null>(null);
   const [issuedBy, setIssuedBy] = useState<string | null>(null);
   const [issuedAt, setIssuedAt] = useState<string | null>(null);
@@ -60,6 +68,8 @@ export default function QuotationForm() {
       setImoNo(found.imo_no || "");
       setStatus(found.status);
       setLineItems(found.line_items);
+      setCurrency(found.currency || "USD");
+      setExchangeRate(found.exchange_rate || 1);
       setConditions(found.conditions || []);
       setVersion(found.version);
       setIssuedBy(found.issued_by ? (found.issued_by.full_name || found.issued_by.email) : null);
@@ -97,6 +107,8 @@ export default function QuotationForm() {
       subtotal,
       discount_total: discountTotal,
       total,
+      currency,
+      exchange_rate: currency === "USD" ? 1 : exchangeRate,
       conditions,
       version,
     };
@@ -104,6 +116,8 @@ export default function QuotationForm() {
       const saved = await saveQuotation(payload);
       setVersion(saved.version);
       setStatus(saved.status);
+      setCurrency(saved.currency);
+      setExchangeRate(saved.exchange_rate);
       if (!quotationNo) navigate(`/finance/quotations/${encodeURIComponent(saved.quotation_no)}`, { replace: true });
     } catch (e: any) {
       if (e instanceof DocumentConflictError) {
@@ -162,6 +176,40 @@ export default function QuotationForm() {
             <div className="finance-field"><label htmlFor="quotation-imo">IMO No.</label><input id="quotation-imo" value={imoNo} onChange={(e) => setImoNo(e.target.value)} disabled={!canEdit} /></div>
           </div>
 
+          {/* Requested directly: "using the USD as the main price,
+              invoice can be issued in any currency, have a section to
+              change currency." Everything above (line items, totals) is
+              entered/stored in USD regardless of what's picked here —
+              this only controls what currency the printed quotation
+              shows. */}
+          <div className="finance-row2">
+            <div className="finance-field">
+              <label htmlFor="quotation-currency">Currency</label>
+              <select id="quotation-currency" value={currency} onChange={(e) => setCurrency(e.target.value)} disabled={!canEdit}>
+                {CURRENCIES.map((c) => <option key={c.code} value={c.code}>{c.code} — {c.label}</option>)}
+              </select>
+            </div>
+            {currency !== "USD" && (
+              <div className="finance-field">
+                <label htmlFor="quotation-rate">Exchange Rate (1 USD = ? {currency})</label>
+                <input
+                  id="quotation-rate"
+                  type="number"
+                  min="0"
+                  step="0.0001"
+                  value={exchangeRate}
+                  onChange={(e) => setExchangeRate(Number(e.target.value) || 0)}
+                  disabled={!canEdit}
+                />
+              </div>
+            )}
+          </div>
+          {currency !== "USD" && (
+            <p style={{ fontSize: 11, color: "var(--insp-muted)", marginTop: -8 }}>
+              Prices are entered in USD above; the printed quotation will show {formatMoney(total, currency, exchangeRate)} (USD {total.toFixed(2)} @ {exchangeRate || 0}).
+            </p>
+          )}
+
           {canEdit && (
             <>
               <h2 style={{ marginTop: 18 }}>Add Item</h2>
@@ -217,6 +265,8 @@ export default function QuotationForm() {
             subtotal={subtotal}
             discountTotal={discountTotal}
             total={total}
+            currency={currency}
+            exchangeRate={exchangeRate}
             conditions={conditions}
             issuedBy={issuedBy}
             issuedAt={issuedAt}

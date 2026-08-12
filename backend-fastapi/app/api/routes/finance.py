@@ -237,6 +237,8 @@ def save_quotation(
                 subtotal=q_in.subtotal,
                 discount_total=q_in.discount_total,
                 total=q_in.total,
+                currency=q_in.currency,
+                exchange_rate=q_in.exchange_rate,
                 conditions=q_in.conditions,
             ),
             "quotation",
@@ -255,6 +257,8 @@ def save_quotation(
         subtotal=q_in.subtotal,
         discount_total=q_in.discount_total,
         total=q_in.total,
+        currency=q_in.currency,
+        exchange_rate=q_in.exchange_rate,
         conditions=q_in.conditions,
         issued_by_id=current_user.id,
     )
@@ -343,6 +347,8 @@ def save_invoice(
                 subtotal=inv_in.subtotal,
                 discount_total=inv_in.discount_total,
                 total=inv_in.total,
+                currency=inv_in.currency,
+                exchange_rate=inv_in.exchange_rate,
             ),
             "invoice",
         )
@@ -361,6 +367,8 @@ def save_invoice(
         subtotal=inv_in.subtotal,
         discount_total=inv_in.discount_total,
         total=inv_in.total,
+        currency=inv_in.currency,
+        exchange_rate=inv_in.exchange_rate,
         issued_by_id=current_user.id,
     )
     db.add(invoice)

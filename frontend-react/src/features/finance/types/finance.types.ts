@@ -91,6 +91,11 @@ export interface QuotationDoc {
   subtotal: number;
   discount_total: number;
   total: number;
+  // Every amount above is always USD — see currencies.ts's own comment.
+  // currency/exchange_rate (units of `currency` per 1 USD) are display-
+  // only metadata, applied at print/preview time.
+  currency: string;
+  exchange_rate: number;
   // Short condition bullets printed beside the totals block (e.g.
   // "Overtime rate applies...", "Client is responsible for
   // technician's accommodation, local transportation, and flights") —
@@ -118,6 +123,8 @@ export interface InvoiceDoc {
   subtotal: number;
   discount_total: number;
   total: number;
+  currency: string;
+  exchange_rate: number;
   issued_by: FinanceUser | null;
   version: number;
   created_at: string;

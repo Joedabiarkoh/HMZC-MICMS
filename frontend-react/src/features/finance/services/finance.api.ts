@@ -109,6 +109,8 @@ export interface QuotationSavePayload {
   subtotal: number;
   discount_total: number;
   total: number;
+  currency: string;
+  exchange_rate: number;
   conditions: string[];
   version?: number | null;
 }
@@ -149,6 +151,8 @@ export interface InvoiceSavePayload {
   subtotal: number;
   discount_total: number;
   total: number;
+  currency: string;
+  exchange_rate: number;
   version?: number | null;
 }
 

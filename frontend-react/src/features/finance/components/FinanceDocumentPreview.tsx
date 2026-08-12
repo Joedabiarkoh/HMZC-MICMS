@@ -3,6 +3,7 @@ import CertificateQR from "../../inspections/components/CertificateQR";
 import { getCompanyInfo } from "../../auth/services/auth.api";
 import { CompanyInfo } from "../../auth/types/auth.types";
 import { LineItem } from "../types/finance.types";
+import { formatMoney } from "../data/currencies";
 import { useFillToPageMultiple } from "../../../hooks/useFillToPageMultiple";
 import "../../inspections/inspections.css"; // reuses .insp-letterhead/.insp-print-chk/.insp-badge etc. rather than duplicating them in finance.css
 // Side-effect only — see CertificatePreview.tsx's own import of this
@@ -22,6 +23,11 @@ interface Props {
   subtotal: number;
   discountTotal: number;
   total: number;
+  // Every amount above (and every line item's unit_price/line_total) is
+  // always USD — currency/exchangeRate (units of `currency` per 1 USD)
+  // are applied here, at display time, to show what actually prints.
+  currency: string;
+  exchangeRate: number;
   // Short condition bullets printed to the left of the totals block —
   // quotation-only (undefined/empty on an invoice), editable per
   // document (see ConditionsEditor.tsx), distinct from the company-wide
@@ -55,8 +61,9 @@ function renderTermsLine(line: string, i: number) {
  * (CertificatePreview.tsx), applied here to invoices and quotations.
  */
 export default function FinanceDocumentPreview({
-  kind, docNo, customer, vesselName, imoNo, status, lineItems, subtotal, discountTotal, total, conditions, issuedBy, issuedAt,
+  kind, docNo, customer, vesselName, imoNo, status, lineItems, subtotal, discountTotal, total, currency, exchangeRate, conditions, issuedBy, issuedAt,
 }: Props) {
+  const money = (usdAmount: number) => formatMoney(usdAmount, currency, exchangeRate);
   // Self-fetched rather than threaded down as a prop from InvoiceForm.tsx/
   // QuotationForm.tsx — this is a rarely-changing, company-wide constant
   // (see Settings' Company Information section), not per-document state
@@ -109,7 +116,7 @@ export default function FinanceDocumentPreview({
                 admin@hmzchealthinmarine.com&nbsp;|&nbsp;+244 972 320 300
                 {peppolId && <><br />PEPPOL ID: {peppolId}</>}
               </div>
-              <CertificateQR payload={`HMZC ${kind}\nNo: ${docNo}\nCustomer: ${customer || "—"}\nTotal: $${total.toFixed(2)}`} size={54} />
+              <CertificateQR payload={`HMZC ${kind}\nNo: ${docNo}\nCustomer: ${customer || "—"}\nTotal: ${money(total)}`} size={54} />
             </div>
           </div>
         </td></tr></thead>
@@ -141,9 +148,9 @@ export default function FinanceDocumentPreview({
               <td style={{ fontFamily: "monospace" }}>{item.code}</td>
               <td>{item.description}</td>
               <td>{item.quantity}</td>
-              <td>${item.unit_price.toFixed(2)}</td>
+              <td>{money(item.unit_price)}</td>
               <td>{item.discount_percent > 0 ? `${item.discount_percent}%` : "—"}</td>
-              <td>${item.line_total.toFixed(2)}</td>
+              <td>{money(item.line_total)}</td>
             </tr>
           ))}
         </tbody>
@@ -161,9 +168,14 @@ export default function FinanceDocumentPreview({
           </div>
         )}
         <div className="finance-totals" style={{ marginLeft: conditions?.length ? 0 : "auto" }}>
-          <div className="finance-totals-row"><span>Subtotal</span><span>${subtotal.toFixed(2)}</span></div>
-          <div className="finance-totals-row"><span>Discount</span><span>-${discountTotal.toFixed(2)}</span></div>
-          <div className="finance-totals-row grand"><span>Total</span><span>${total.toFixed(2)}</span></div>
+          <div className="finance-totals-row"><span>Subtotal</span><span>{money(subtotal)}</span></div>
+          <div className="finance-totals-row"><span>Discount</span><span>-{money(discountTotal)}</span></div>
+          <div className="finance-totals-row grand"><span>Total</span><span>{money(total)}</span></div>
+          {currency !== "USD" && (
+            <div className="finance-totals-row" style={{ fontSize: 9.5, color: "var(--insp-muted)" }}>
+              <span>USD Equivalent</span><span>${total.toFixed(2)} @ {exchangeRate || 0}</span>
+            </div>
+          )}
         </div>
       </div>
 

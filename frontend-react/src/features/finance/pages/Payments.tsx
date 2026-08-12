@@ -7,8 +7,16 @@ import { listInvoices, saveInvoice } from "../services/finance.api";
 import { InvoiceDoc } from "../types/finance.types";
 import { confirmAction } from "../../../components/ConfirmDialog";
 import { exportRowsToCsv } from "../../../utils/exportCsv";
+import { formatMoney } from "../data/currencies";
 
-function money(n: number): string {
+// Every invoice's `total` is always stored in USD regardless of what
+// currency it was issued in (see currencies.ts's own comment) — so
+// summing raw `total` across many invoices, like totalOutstanding below,
+// is already a correct USD figure with no conversion needed. Only used
+// for that cross-invoice aggregate; a single invoice's own row uses
+// formatMoney(inv.total, inv.currency, inv.exchange_rate) instead, to
+// show what that invoice was actually issued in.
+function usd(n: number): string {
   return `$${n.toLocaleString(undefined, { minimumFractionDigits: 2 })}`;
 }
 
@@ -61,7 +69,7 @@ export default function Payments() {
   async function markPaid(inv: InvoiceDoc) {
     const ok = await confirmAction({
       title: "Mark invoice as paid?",
-      message: `${inv.invoice_no} (${money(inv.total)}) will be recorded as paid and count toward Revenue on the Finance Dashboard.`,
+      message: `${inv.invoice_no} (${formatMoney(inv.total, inv.currency, inv.exchange_rate)}) will be recorded as paid and count toward Revenue on the Finance Dashboard.`,
       confirmLabel: "Mark as Paid",
     });
     if (!ok) return;
@@ -78,6 +86,8 @@ export default function Payments() {
         subtotal: inv.subtotal,
         discount_total: inv.discount_total,
         total: inv.total,
+        currency: inv.currency,
+        exchange_rate: inv.exchange_rate,
         version: inv.version,
       });
       setInvoices((prev) => prev.map((i) => (i.id === updated.id ? updated : i)));
@@ -122,7 +132,8 @@ export default function Payments() {
             </div>
             <div className="finance-card">
               <div className="finance-card__label">Total Outstanding</div>
-              <div className="finance-card__value">{money(totalOutstanding)}</div>
+              <div className="finance-card__value">{usd(totalOutstanding)}</div>
+              <div style={{ fontSize: 10.5, color: "var(--insp-muted)", marginTop: 2 }}>USD equivalent — invoices may be issued in other currencies</div>
             </div>
           </div>
 
@@ -147,7 +158,7 @@ export default function Payments() {
                     <td><Link to={`/finance/invoices/${encodeURIComponent(inv.invoice_no)}`}>{inv.invoice_no}</Link></td>
                     <td>{inv.customer}</td>
                     <td>{inv.vessel_name || "—"}</td>
-                    <td>{money(inv.total)}</td>
+                    <td>{formatMoney(inv.total, inv.currency, inv.exchange_rate)}</td>
                     <td>{daysSince(inv.updated_at || inv.created_at)}</td>
                     <td>
                       {canEdit && (
@@ -182,7 +193,7 @@ export default function Payments() {
                     <td><Link to={`/finance/invoices/${encodeURIComponent(inv.invoice_no)}`}>{inv.invoice_no}</Link></td>
                     <td>{inv.customer}</td>
                     <td>{inv.vessel_name || "—"}</td>
-                    <td>{money(inv.total)}</td>
+                    <td>{formatMoney(inv.total, inv.currency, inv.exchange_rate)}</td>
                   </tr>
                 ))}
               </tbody>

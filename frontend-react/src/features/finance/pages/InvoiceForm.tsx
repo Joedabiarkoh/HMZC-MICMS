@@ -12,6 +12,7 @@ import { queueInvoiceSave } from "../../../offline/syncQueue";
 import { FinanceItem, LineItem, InvoiceDoc } from "../types/finance.types";
 import { confirmAction } from "../../../components/ConfirmDialog";
 import { hasPermission, PERM } from "../../auth/types/auth.types";
+import { CURRENCIES, formatMoney } from "../data/currencies";
 
 function generateInvoiceNo(existing: InvoiceDoc[]): string {
   const ymd = new Date().toISOString().slice(0, 10).replace(/-/g, "");
@@ -39,6 +40,10 @@ export default function InvoiceForm() {
   const [imoNo, setImoNo] = useState("");
   const [status, setStatus] = useState("draft");
   const [lineItems, setLineItems] = useState<LineItem[]>([]);
+  // Same design as QuotationForm.tsx — every amount above stays in USD;
+  // currency/exchangeRate only affect what's shown in the preview/PDF.
+  const [currency, setCurrency] = useState("USD");
+  const [exchangeRate, setExchangeRate] = useState(1);
   const [stagedFiles, setStagedFiles] = useState<StagedAttachment[]>([]);
   const [version, setVersion] = useState<number | null>(null);
   const [issuedBy, setIssuedBy] = useState<string | null>(null);
@@ -61,6 +66,8 @@ export default function InvoiceForm() {
       setImoNo(found.imo_no || "");
       setStatus(found.status);
       setLineItems(found.line_items);
+      setCurrency(found.currency || "USD");
+      setExchangeRate(found.exchange_rate || 1);
       setVersion(found.version);
       setIssuedBy(found.issued_by ? (found.issued_by.full_name || found.issued_by.email) : null);
       setIssuedById(found.issued_by?.id ?? null);
@@ -92,12 +99,16 @@ export default function InvoiceForm() {
       subtotal,
       discount_total: discountTotal,
       total,
+      currency,
+      exchange_rate: currency === "USD" ? 1 : exchangeRate,
       version,
     };
     try {
       const saved = await saveInvoice(payload);
       setVersion(saved.version);
       setStatus(saved.status);
+      setCurrency(saved.currency);
+      setExchangeRate(saved.exchange_rate);
       // Requested directly: documents loaded while creating the invoice
       // (before it had a real invoice_id to attach to) get uploaded now,
       // right after the invoice that owns them actually exists. Best
@@ -190,6 +201,39 @@ export default function InvoiceForm() {
             <div className="finance-field"><label htmlFor="invoice-imo">IMO No.</label><input id="invoice-imo" value={imoNo} onChange={(e) => setImoNo(e.target.value)} disabled={!canEdit} /></div>
           </div>
 
+          {/* Requested directly: "using the USD as the main price,
+              invoice can be issued in any currency, have a section to
+              change currency." Everything above (line items, totals) is
+              entered/stored in USD regardless of what's picked here —
+              this only controls what currency the printed invoice shows. */}
+          <div className="finance-row2">
+            <div className="finance-field">
+              <label htmlFor="invoice-currency">Currency</label>
+              <select id="invoice-currency" value={currency} onChange={(e) => setCurrency(e.target.value)} disabled={!canEdit}>
+                {CURRENCIES.map((c) => <option key={c.code} value={c.code}>{c.code} — {c.label}</option>)}
+              </select>
+            </div>
+            {currency !== "USD" && (
+              <div className="finance-field">
+                <label htmlFor="invoice-rate">Exchange Rate (1 USD = ? {currency})</label>
+                <input
+                  id="invoice-rate"
+                  type="number"
+                  min="0"
+                  step="0.0001"
+                  value={exchangeRate}
+                  onChange={(e) => setExchangeRate(Number(e.target.value) || 0)}
+                  disabled={!canEdit}
+                />
+              </div>
+            )}
+          </div>
+          {currency !== "USD" && (
+            <p style={{ fontSize: 11, color: "var(--insp-muted)", marginTop: -8 }}>
+              Prices are entered in USD above; the printed invoice will show {formatMoney(total, currency, exchangeRate)} (USD {total.toFixed(2)} @ {exchangeRate || 0}).
+            </p>
+          )}
+
           {canEdit && (
             <>
               <h2 style={{ marginTop: 18 }}>Add Item</h2>
@@ -245,6 +289,8 @@ export default function InvoiceForm() {
             subtotal={subtotal}
             discountTotal={discountTotal}
             total={total}
+            currency={currency}
+            exchangeRate={exchangeRate}
             issuedBy={issuedBy}
             issuedAt={issuedAt}
           />
@@ -257,14 +303,13 @@ export default function InvoiceForm() {
               each one right after the invoice is created. Once saved,
               this switches to the real InvoiceAttachments (list/
               upload/delete/download-all against the actual invoice_id).
-              Gated on finance.edit specifically (not this page's own
-              `canEdit`, which is narrower — admin or the original
-              issuer only): the backend allows any finance.edit user to
-              attach supporting documents, since adding a PO/delivery
-              note is administrative, not a core financial edit to the
-              invoice itself. */}
+              Gated on this page's own `canEdit` (admin or the original
+              issuer) — an audit pass found the backend's attachment
+              upload/delete routes only checked finance.edit, letting any
+              Finance user tamper with another user's invoice's supporting
+              documents; both now agree on the same ownership rule. */}
           {invoiceNo ? (
-            <InvoiceAttachments invoiceNo={invoiceNo} canEdit={hasPermission(user, PERM.FIN_EDIT)} />
+            <InvoiceAttachments invoiceNo={invoiceNo} canEdit={canEdit} />
           ) : (
             hasPermission(user, PERM.FIN_EDIT) && <StagedInvoiceAttachments files={stagedFiles} onChange={setStagedFiles} />
           )}

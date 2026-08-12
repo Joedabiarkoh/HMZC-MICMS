@@ -48,6 +48,20 @@ LINE = colors.HexColor("#DCE1E5")
 # — the PDF's own header previously had no such border at all.
 ACCENT = colors.HexColor("#4C7A3A")
 
+# Matches ALLOWED_CURRENCIES in schemas/finance.py and CURRENCIES in the
+# frontend's currencies.ts — every stored amount on `doc` is USD (see
+# models/finance_document.py's own comment); this maps the document's
+# own currency/exchange_rate to the symbol and multiplier used to
+# convert those USD figures for display here, matching what
+# FinanceDocumentPreview.tsx shows on screen.
+_CURRENCY_SYMBOLS = {"USD": "$", "EUR": "€", "GBP": "£", "AOA": "Kz", "GHS": "GH₵"}
+
+
+def _money(usd_amount: float, currency: str, exchange_rate: float) -> str:
+    symbol = _CURRENCY_SYMBOLS.get(currency, currency + " ")
+    return f"{symbol}{usd_amount * exchange_rate:,.2f}"
+
+
 LOGO_PATH = Path(__file__).resolve().parent.parent / "static" / "hmzc_logo.jpeg"
 # HMZC's official digital stamp — requested directly: "include this
 # stamp to all certificate, and invoice." Invoice-only here (quotations
@@ -221,7 +235,8 @@ def build_document_pdf(doc, kind: str, company: Optional[NotificationSettings]) 
     story: list = []
 
     doc_no = doc.invoice_no if kind == "INVOICE" else doc.quotation_no
-    total = doc.total
+    currency = getattr(doc, "currency", None) or "USD"
+    exchange_rate = getattr(doc, "exchange_rate", None) or 1.0
 
     # ---- letterhead ----
     # Matches .insp-letterhead's actual layout (inspections.css), the
@@ -242,7 +257,7 @@ def build_document_pdf(doc, kind: str, company: Optional[NotificationSettings]) 
         _STYLE_LETTERHEAD,
     )
     logo_cell = _scaled_image(LOGO_PATH, 40, 17) if LOGO_PATH.is_file() else Paragraph("HMZC", _STYLE_TITLE)
-    qr_cell = _qr_image(f"HMZC {kind}\nNo: {doc_no}\nCustomer: {doc.customer or '—'}\nTotal: ${total:.2f}")
+    qr_cell = _qr_image(f"HMZC {kind}\nNo: {doc_no}\nCustomer: {doc.customer or '—'}\nTotal: {_money(doc.total, currency, exchange_rate)}")
 
     right_group = Table([[letterhead_text, qr_cell]], colWidths=[97 * mm, 25 * mm])
     right_group.setStyle(TableStyle([
@@ -286,9 +301,9 @@ def build_document_pdf(doc, kind: str, company: Optional[NotificationSettings]) 
             Paragraph(str(li.get("code", "")), _STYLE_NORMAL),
             Paragraph(str(li.get("description", "")), _STYLE_NORMAL),
             Paragraph(str(li.get("quantity", "")), _STYLE_NORMAL),
-            Paragraph(f"${float(li.get('unit_price', 0)):.2f}", _STYLE_NORMAL),
+            Paragraph(_money(float(li.get('unit_price', 0)), currency, exchange_rate), _STYLE_NORMAL),
             Paragraph(f"{li.get('discount_percent', 0)}%" if li.get("discount_percent") else "—", _STYLE_NORMAL),
-            Paragraph(f"${float(li.get('line_total', 0)):.2f}", _STYLE_NORMAL),
+            Paragraph(_money(float(li.get('line_total', 0)), currency, exchange_rate), _STYLE_NORMAL),
         ])
     items_table = Table(rows, colWidths=[60, 195, 30, 60, 55, 60], repeatRows=1)
     items_table.setStyle(TableStyle([
@@ -306,10 +321,12 @@ def build_document_pdf(doc, kind: str, company: Optional[NotificationSettings]) 
 
     # ---- totals (with per-invoice condition bullets to its left) ----
     totals_data = [
-        ["Subtotal", f"${doc.subtotal:.2f}"],
-        ["Discount", f"-${doc.discount_total:.2f}"],
-        [Paragraph("<b>Total</b>", _STYLE_NORMAL), Paragraph(f"<b>${doc.total:.2f}</b>", _STYLE_NORMAL)],
+        ["Subtotal", _money(doc.subtotal, currency, exchange_rate)],
+        ["Discount", f"-{_money(doc.discount_total, currency, exchange_rate)}"],
+        [Paragraph("<b>Total</b>", _STYLE_NORMAL), Paragraph(f"<b>{_money(doc.total, currency, exchange_rate)}</b>", _STYLE_NORMAL)],
     ]
+    if currency != "USD":
+        totals_data.append(["", Paragraph(f"(USD {doc.total:,.2f} @ {exchange_rate:g})", _STYLE_SMALL)])
     totals_table = Table(totals_data, colWidths=[80, 80], hAlign="RIGHT")
     totals_table.setStyle(TableStyle([
         ("LINEABOVE", (0, 2), (-1, 2), 1, NAVY),

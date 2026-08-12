@@ -36,6 +36,19 @@ class Quotation(BaseModel):
     subtotal = Column(Float, nullable=False, default=0)
     discount_total = Column(Float, nullable=False, default=0)
     total = Column(Float, nullable=False, default=0)
+    # Every stored amount above (line items, subtotal, discount_total,
+    # total) is always USD — "the main price," per the direct request —
+    # regardless of what currency this document is actually issued in.
+    # `currency`/`exchange_rate` (units of `currency` per 1 USD) are
+    # display-only metadata: FinanceDocumentPreview.tsx, invoice_pdf.py,
+    # and the list tables multiply the stored USD figures by this rate
+    # to show what the customer actually sees. Kept this way (rather
+    # than storing amounts in the issued currency directly) so the
+    # Finance Dashboard/Job Costing's SUM() queries across many documents
+    # stay correct without caring what currency any one of them was
+    # issued in.
+    currency = Column(String, nullable=False, default="USD")
+    exchange_rate = Column(Float, nullable=False, default=1.0)
     # Requested directly: short condition bullets ("Overtime rate
     # applies...", "Client is responsible for technician's
     # accommodation, local transportation, and flights") printed beside
@@ -72,6 +85,9 @@ class Invoice(BaseModel):
     subtotal = Column(Float, nullable=False, default=0)
     discount_total = Column(Float, nullable=False, default=0)
     total = Column(Float, nullable=False, default=0)
+    # Same USD-is-the-stored-truth design as Quotation.currency above.
+    currency = Column(String, nullable=False, default="USD")
+    exchange_rate = Column(Float, nullable=False, default=1.0)
 
     issued_by_id = Column(Integer, ForeignKey("users.id"), nullable=True)
     issued_by = relationship("User")

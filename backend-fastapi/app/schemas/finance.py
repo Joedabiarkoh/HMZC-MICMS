@@ -1,9 +1,17 @@
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 
 from app.schemas.user import UserResponse
+
+# Requested directly: "using the USD as the main price, invoice can be
+# issued in any currency, have a section to change currency" — USD plus
+# the currencies HMZC actually deals with (Angola and Ghana explicitly
+# named, EUR/GBP for other international customers). Validated server-
+# side too, not just in the frontend's dropdown, since this value flows
+# straight into the printed invoice.
+ALLOWED_CURRENCIES = {"USD", "EUR", "GBP", "AOA", "GHS"}
 
 
 # ---- Dashboard ----
@@ -98,8 +106,24 @@ class QuotationCreate(BaseModel):
     subtotal: float
     discount_total: float
     total: float
+    currency: str = "USD"
+    exchange_rate: float = 1.0
     conditions: List[str] = []
     version: Optional[int] = None
+
+    @field_validator("currency")
+    @classmethod
+    def _valid_currency(cls, v: str) -> str:
+        if v not in ALLOWED_CURRENCIES:
+            raise ValueError(f"Unsupported currency '{v}'. Must be one of: {', '.join(sorted(ALLOWED_CURRENCIES))}.")
+        return v
+
+    @field_validator("exchange_rate")
+    @classmethod
+    def _positive_rate(cls, v: float) -> float:
+        if v <= 0:
+            raise ValueError("Exchange rate must be greater than zero.")
+        return v
 
 
 class QuotationResponse(BaseModel):
@@ -113,6 +137,8 @@ class QuotationResponse(BaseModel):
     subtotal: float
     discount_total: float
     total: float
+    currency: str = "USD"
+    exchange_rate: float = 1.0
     conditions: List[str] = []
     issued_by: Optional[UserResponse] = None
     version: int
@@ -136,7 +162,23 @@ class InvoiceCreate(BaseModel):
     subtotal: float
     discount_total: float
     total: float
+    currency: str = "USD"
+    exchange_rate: float = 1.0
     version: Optional[int] = None
+
+    @field_validator("currency")
+    @classmethod
+    def _valid_currency(cls, v: str) -> str:
+        if v not in ALLOWED_CURRENCIES:
+            raise ValueError(f"Unsupported currency '{v}'. Must be one of: {', '.join(sorted(ALLOWED_CURRENCIES))}.")
+        return v
+
+    @field_validator("exchange_rate")
+    @classmethod
+    def _positive_rate(cls, v: float) -> float:
+        if v <= 0:
+            raise ValueError("Exchange rate must be greater than zero.")
+        return v
 
 
 class InvoiceResponse(BaseModel):
@@ -151,6 +193,8 @@ class InvoiceResponse(BaseModel):
     subtotal: float
     discount_total: float
     total: float
+    currency: str = "USD"
+    exchange_rate: float = 1.0
     issued_by: Optional[UserResponse] = None
     version: int
     created_at: datetime
