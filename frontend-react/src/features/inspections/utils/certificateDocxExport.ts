@@ -53,6 +53,8 @@ import {
   LooseGearData,
   LooseGearStatutoryAnswers,
   LooseGearYesNo,
+  NDTCommonData,
+  NDTFooterData,
 } from "../types/inspection.types";
 import { getFFEConfig } from "../data/ffeCertTypes";
 import { getCalibrationConfig } from "../data/calibrationCertTypes";
@@ -615,6 +617,44 @@ async function buildLooseGearItemPhotoBlocks(cert: InspectionCertificate): Promi
   ];
 }
 
+// ---- Load Test / NDT report types (MPI, PT, RT, UT, VT, ET) — shared
+// header pairs across all 6 NDT methods, mirroring NDTHeaderGrid in
+// CertificatePreview.tsx. Report No./Date of Testing/Vessel/IMO reuse
+// cert-level fields, not duplicated on NDTCommonData.
+function ndtHeaderPairs(cert: InspectionCertificate, common: NDTCommonData): Array<[string, string]> {
+  return [
+    ["Report No.", cert.certNo],
+    ["Date of Testing", fmtDate(cert.dateOfServicing)],
+    ["Vessel", cert.vesselName || "—"],
+    ["IMO No.", cert.imoNo || "—"],
+    ["Client", common.client || "—"],
+    ["Manufacturer", common.manufacturer || "—"],
+    ["Object of Control", common.objectOfControl || "—"],
+    ["PO No.", common.poNo || "—"],
+    ["Procedure Reference", common.procedureReference || "—"],
+    ["Drawing No.", common.drawingNo || "—"],
+    ["Extent of Testing", common.extentOfTesting || "—"],
+    ["Acceptance Standard", common.acceptanceStandard || "—"],
+    ["Operator", common.operator || "—"],
+  ];
+}
+
+function ndtFooterPairs(footer: NDTFooterData): Array<[string, string]> {
+  return [
+    ["Serial No.", footer.serialNo || "—"],
+    ["Repairs Marked On", [footer.repairsMarkedOnObject && "Object", footer.repairsMarkedOnSketch && "Sketch"].filter(Boolean).join(", ") || "None"],
+  ];
+}
+
+const MPI_METHOD_LABELS: Record<string, string> = { prods: "Prods", yoke: "Yoke", other: "Other", "": "—" };
+const MPI_MAGNETIZED_LABELS: Record<string, string> = { longitudinal: "Longitudinal Defects", transverse: "Transverse Defects", both: "Longitudinal + Transverse Defects", "": "—" };
+const PT_REMOVER_LABELS: Record<string, string> = { water: "Water", emulsifier: "Emulsifier", solvent: "Solvent", "": "—" };
+const PT_DEVELOPER_LABELS: Record<string, string> = { dry_powder: "1. Dry Powder", solution_water: "2. Solution in Water", suspension_water: "3. Suspension in Water", powder_solvent: "4. Powder in Volatile Solvent (Spray)", "": "—" };
+const RT_TECHNIQUE_LABELS: Record<string, string> = { swsi: "SWSI", dwsi: "DWSI", dwdi: "DWDI", "": "—" };
+const UT_SCANNING_LABELS: Record<string, string> = { contact: "Contact", immersion: "Immersion", "": "—" };
+const VT_STAGE_LABELS: Record<string, string> = { pre_weld: "Pre-Weld", in_process: "In-Process", final: "Final", "": "—" };
+const VT_DIRECT_LABELS: Record<string, string> = { direct: "Direct", remote: "Remote", "": "—" };
+
 async function buildLooseGearSection(cert: InspectionCertificate, looseGear: LooseGearData): Promise<Block[]> {
   if (looseGear.subType === "visual_certificate" && looseGear.visualCert) {
     const d = looseGear.visualCert;
@@ -793,6 +833,253 @@ async function buildLooseGearSection(cert: InspectionCertificate, looseGear: Loo
     );
     blocks.push(new Paragraph({ text: "" }), ...issuedByLine(cert));
     blocks.push(...(await signatureBlock(cert, "Master", "Inspector", true)));
+    return blocks;
+  }
+
+  if (looseGear.subType === "mpi" && looseGear.mpi) {
+    const d = looseGear.mpi;
+    const blocks: Block[] = [badgeLine("Magnetic Particle Testing Certificate", "LOOSE GEAR & LIFTING EQUIPMENT")];
+    blocks.push(kvTable(ndtHeaderPairs(cert, d.common)));
+    blocks.push(
+      heading("Material & Method"),
+      kvTable([
+        ["Material Type", d.materialType || "—"],
+        ["Surface", d.surface || "—"],
+        ["Groove/Geometry", d.grooveGeometry || "—"],
+        ["Welding Process", d.weldingProcess || "—"],
+        ["Welder's ID", d.weldersId || "—"],
+        ["Object Temperature", d.objectTemperature || "—"],
+        ["Method", `${MPI_METHOD_LABELS[d.method]}${d.methodSMax ? ` (S max ${d.methodSMax}mm)` : ""}`],
+        ["Current", d.current ? d.current.toUpperCase() : "—"],
+        ["Field Strength", d.fieldStrength || "—"],
+        ["Medium", [d.mediumWetDry, d.mediumType].filter(Boolean).map((s) => s![0].toUpperCase() + s!.slice(1)).join(" / ") || "—"],
+        ["Contrast Colour", d.contrastColour || "—"],
+        ["Field Indicator", d.fieldIndicator || "—"],
+        ["Magnetized For", MPI_MAGNETIZED_LABELS[d.magnetizedFor]],
+      ])
+    );
+    blocks.push(...(await buildLooseGearItemPhotoBlocks(cert)));
+    blocks.push(heading("Test Result"), kvTable([["Findings / Result Statement", d.footer.findingsStatement || "—"], ...ndtFooterPairs(d.footer)]));
+    blocks.push(new Paragraph({ text: "" }), ...issuedByLine(cert));
+    blocks.push(...(await signatureBlock(cert, "Approved By", "Operator/Technician", true)));
+    return blocks;
+  }
+
+  if (looseGear.subType === "pt" && looseGear.pt) {
+    const d = looseGear.pt;
+    const blocks: Block[] = [badgeLine("Liquid Penetrant Testing Certificate", "LOOSE GEAR & LIFTING EQUIPMENT")];
+    blocks.push(kvTable(ndtHeaderPairs(cert, d.common)));
+    blocks.push(
+      heading("Material & Penetrant"),
+      kvTable([
+        ["Material Type", d.materialType || "—"],
+        ["Surface", d.surface || "—"],
+        ["Groove/Geometry", d.grooveGeometry || "—"],
+        ["Welding Process", d.weldingProcess || "—"],
+        ["Welder's ID", d.weldersId || "—"],
+        ["Object Temperature", d.objectTemperature || "—"],
+        ["Penetrant Type", d.penetrantType || "—"],
+        ["Application Method", d.applicationMethod || "—"],
+        ["Fluorescent", yesNoLabel(d.fluorescent)],
+        ["Penetrant Remover", PT_REMOVER_LABELS[d.penetrantRemover]],
+        ["Developer", PT_DEVELOPER_LABELS[d.developer]],
+        ["Penetration Time", d.penetrationTime || "—"],
+        ["Developing Time", d.developingTime || "—"],
+      ])
+    );
+    blocks.push(...(await buildLooseGearItemPhotoBlocks(cert)));
+    blocks.push(heading("Test Result"), kvTable([["Findings / Result Statement", d.footer.findingsStatement || "—"], ...ndtFooterPairs(d.footer)]));
+    blocks.push(new Paragraph({ text: "" }), ...issuedByLine(cert));
+    blocks.push(...(await signatureBlock(cert, "Approved By", "Operator/Technician", true)));
+    return blocks;
+  }
+
+  if (looseGear.subType === "rt" && looseGear.rt) {
+    const d = looseGear.rt;
+    const blocks: Block[] = [badgeLine("Radiographic Testing Certificate", "LOOSE GEAR & LIFTING EQUIPMENT")];
+    blocks.push(kvTable(ndtHeaderPairs(cert, d.common)));
+    blocks.push(
+      heading("Material, Joint & Exposure Parameters"),
+      kvTable([
+        ["Material Type", d.materialType || "—"],
+        ["Thickness (mm)", d.thickness || "—"],
+        ["Joint/Weld Type", d.jointWeldType || "—"],
+        ["Welding Process", d.weldingProcess || "—"],
+        ["Welder's ID", d.weldersId || "—"],
+        ["Technique", RT_TECHNIQUE_LABELS[d.technique]],
+        ["Source Type", d.sourceType || "—"],
+        ["Focal Spot Size", d.focalSpotSize || "—"],
+        ["kV / Curie (Ci)", d.kvOrCurie || "—"],
+        ["mA / Exposure Time", d.maOrExposureTime || "—"],
+        ["Source-to-Film Distance", d.sourceToFilmDistance || "—"],
+        ["Screens (Front/Back)", d.screens || "—"],
+        ["Film Type / Detector", d.filmTypeOrDetector || "—"],
+        ["Density Range", d.densityRange || "—"],
+        ["IQI Type", d.iqiType || "—"],
+        ["Sensitivity Achieved (%)", d.sensitivityAchieved || "—"],
+        ["No. of Exposures", d.numberOfExposures || "—"],
+        ["Viewing Conditions", d.viewingConditions || "—"],
+      ])
+    );
+    blocks.push(
+      heading("Indications / Test Result"),
+      dataTable(
+        ["Film/Image No.", "Weld/Location", "Indication Type", "Size (mm)", "Evaluation"],
+        d.indications.map((r) => [r.filmImageNo || "—", r.weldLocation || "—", r.indicationType || "—", r.size || "—", r.evaluation || "—"])
+      )
+    );
+    blocks.push(...(await buildLooseGearItemPhotoBlocks(cert)));
+    blocks.push(new Paragraph({ text: "" }), heading("Test Result"), kvTable([["Findings / Result Statement", d.footer.findingsStatement || "—"], ...ndtFooterPairs(d.footer)]));
+    blocks.push(new Paragraph({ text: "" }), ...issuedByLine(cert));
+    blocks.push(...(await signatureBlock(cert, "Approved By", "Operator/Technician", true)));
+    return blocks;
+  }
+
+  if (looseGear.subType === "ut" && looseGear.ut) {
+    const d = looseGear.ut;
+    const blocks: Block[] = [badgeLine("Ultrasonic Testing Certificate", "LOOSE GEAR & LIFTING EQUIPMENT")];
+    blocks.push(kvTable(ndtHeaderPairs(cert, d.common)));
+    blocks.push(
+      heading("Material, Equipment & Calibration"),
+      kvTable([
+        ["Material Type", d.materialType || "—"],
+        ["Surface", d.surface || "—"],
+        ["Groove/Geometry", d.grooveGeometry || "—"],
+        ["Welding Process", d.weldingProcess || "—"],
+        ["Welder's ID", d.weldersId || "—"],
+        ["Object Temperature", d.objectTemperature || "—"],
+        ["Instrument Type / Model", d.instrumentTypeModel || "—"],
+        ["Instrument Serial No.", d.instrumentSerialNo || "—"],
+        ["Calibration Due Date", fmtDate(d.calibrationDueDate)],
+        ["Reference/Calibration Block", d.referenceBlock || "—"],
+        ["Probe Type", d.probeType || "—"],
+        ["Frequency (MHz)", d.probeFrequency || "—"],
+        ["Angle", d.probeAngle || "—"],
+        ["Size", d.probeSize || "—"],
+        ["Couplant", d.couplant || "—"],
+        ["Scanning Technique", UT_SCANNING_LABELS[d.scanningTechnique]],
+        ["Reference Level (dB)", d.referenceLevel || "—"],
+        ["Scanning Sensitivity (dB)", d.scanningSensitivity || "—"],
+        ["Recording Level (DAC/dB)", d.recordingLevel || "—"],
+        ["Reporting Level (dB)", d.reportingLevel || "—"],
+        ["Scan Coverage (%)", d.scanCoverage || "—"],
+        ["Beam Angle Check", d.beamAngleCheck || "—"],
+      ])
+    );
+    blocks.push(
+      heading("Indications / Test Result"),
+      dataTable(
+        ["Ind. No.", "Weld/Location", "Length (mm)", "Amplitude (dB)", "Depth (mm)", "Evaluation"],
+        d.indications.map((r) => [r.indNo || "—", r.weldLocation || "—", r.length || "—", r.amplitude || "—", r.depth || "—", r.evaluation || "—"])
+      )
+    );
+    blocks.push(...(await buildLooseGearItemPhotoBlocks(cert)));
+    blocks.push(new Paragraph({ text: "" }), heading("Test Result"), kvTable([["Findings / Result Statement", d.footer.findingsStatement || "—"], ...ndtFooterPairs(d.footer)]));
+    blocks.push(new Paragraph({ text: "" }), ...issuedByLine(cert));
+    blocks.push(...(await signatureBlock(cert, "Approved By", "Operator/Technician", true)));
+    return blocks;
+  }
+
+  if (looseGear.subType === "vt" && looseGear.vt) {
+    const d = looseGear.vt;
+    const blocks: Block[] = [badgeLine("Visual Testing Certificate", "LOOSE GEAR & LIFTING EQUIPMENT")];
+    blocks.push(kvTable(ndtHeaderPairs(cert, d.common)));
+    blocks.push(
+      heading("Material, Weld & Inspection Conditions"),
+      kvTable([
+        ["Material Type", d.materialType || "—"],
+        ["Joint/Weld Type", d.jointWeldType || "—"],
+        ["Surface Condition", d.surfaceCondition || "—"],
+        ["Welding Process", d.weldingProcess || "—"],
+        ["Welder's ID", d.weldersId || "—"],
+        ["Stage of Inspection", VT_STAGE_LABELS[d.stageOfInspection]],
+        ["Illumination Level (lux)", d.illuminationLevel || "—"],
+        ["Viewing Distance/Angle", d.viewingDistanceAngle || "—"],
+        ["Aids Used", d.aidsUsed || "—"],
+        ["Direct or Remote", VT_DIRECT_LABELS[d.directOrRemote]],
+      ])
+    );
+    blocks.push(
+      heading("Observations / Test Result"),
+      dataTable(
+        ["Item No.", "Location/Weld", "Observation", "Evaluation"],
+        d.observations.map((r) => [r.itemNo || "—", r.locationWeld || "—", r.observation || "—", r.evaluation || "—"])
+      )
+    );
+    blocks.push(...(await buildLooseGearItemPhotoBlocks(cert)));
+    blocks.push(new Paragraph({ text: "" }), heading("Test Result"), kvTable([["Findings / Result Statement", d.footer.findingsStatement || "—"], ...ndtFooterPairs(d.footer)]));
+    blocks.push(new Paragraph({ text: "" }), ...issuedByLine(cert));
+    blocks.push(...(await signatureBlock(cert, "Approved By", "Operator/Technician", true)));
+    return blocks;
+  }
+
+  if (looseGear.subType === "et" && looseGear.et) {
+    const d = looseGear.et;
+    const blocks: Block[] = [badgeLine("Eddy Current Testing Certificate", "LOOSE GEAR & LIFTING EQUIPMENT")];
+    blocks.push(kvTable(ndtHeaderPairs(cert, d.common)));
+    blocks.push(
+      heading("Material, Equipment & Probe Settings"),
+      kvTable([
+        ["Material Type", d.materialType || "—"],
+        ["Surface", d.surface || "—"],
+        ["Groove/Geometry", d.grooveGeometry || "—"],
+        ["Welding Process", d.weldingProcess || "—"],
+        ["Welder's ID", d.weldersId || "—"],
+        ["Object Temperature", d.objectTemperature || "—"],
+        ["Instrument Type / Model", d.instrumentTypeModel || "—"],
+        ["Instrument Serial No.", d.instrumentSerialNo || "—"],
+        ["Calibration Due Date", fmtDate(d.calibrationDueDate)],
+        ["Reference Standard/Block", d.referenceStandardBlock || "—"],
+        ["Probe Type", d.probeType || "—"],
+        ["Frequency (kHz)", d.frequency || "—"],
+        ["Gain (dB)", d.gain || "—"],
+        ["Phase Angle", d.phaseAngle || "—"],
+        ["Scan Coverage (%)", d.scanCoverage || "—"],
+        ["Scan Speed", d.scanSpeed || "—"],
+      ])
+    );
+    blocks.push(
+      heading("Indications / Test Result"),
+      dataTable(
+        ["Ind. No.", "Weld/Location", "Signal Amplitude", "Phase Angle", "Evaluation"],
+        d.indications.map((r) => [r.indNo || "—", r.weldLocation || "—", r.signalAmplitude || "—", r.phaseAngle || "—", r.evaluation || "—"])
+      )
+    );
+    blocks.push(...(await buildLooseGearItemPhotoBlocks(cert)));
+    blocks.push(new Paragraph({ text: "" }), heading("Test Result"), kvTable([["Findings / Result Statement", d.footer.findingsStatement || "—"], ...ndtFooterPairs(d.footer)]));
+    blocks.push(new Paragraph({ text: "" }), ...issuedByLine(cert));
+    blocks.push(...(await signatureBlock(cert, "Approved By", "Operator/Technician", true)));
+    return blocks;
+  }
+
+  if (looseGear.subType === "load_test" && looseGear.loadTest) {
+    const d = looseGear.loadTest;
+    const blocks: Block[] = [badgeLine("Load Test Report", "LOOSE GEAR & LIFTING EQUIPMENT")];
+    blocks.push(
+      textP("Report in accordance with SOLAS Chapter III Regulation 20.11.1.3, SOLAS Chapter III Regulation 20.11.2.3, and LSA Code Part 2, Production and Installation Tests, 6.1.5.", { size: 16, color: MUTED }),
+      new Paragraph({ text: "" })
+    );
+    blocks.push(
+      kvTable([
+        ["Report No.", cert.certNo],
+        ["Date", fmtDate(cert.dateOfServicing)],
+        ["Vessel Name", cert.vesselName || "—"],
+        ["IMO", cert.imoNo || "—"],
+        ["Flag", cert.flag || "—"],
+        ["Type of LSA Equipment", d.typeOfLsaEquipment || "—"],
+        ["LSA Location Onboard", d.lsaLocationOnboard || "—"],
+      ])
+    );
+    blocks.push(
+      heading("Load Calculation"),
+      dataTable(
+        ["", "Description", "Kg / Lbs / Bar"],
+        d.rows.map((r) => [r.label, r.description, r.value || "—"])
+      )
+    );
+    blocks.push(new Paragraph({ text: "" }), remarksBox("Remarks", d.remarks || "None"), new Paragraph({ text: "" }));
+    blocks.push(new Paragraph({ text: "" }), ...issuedByLine(cert));
+    blocks.push(...(await signatureBlock(cert, "RO/Class Witness", "Test Witness", true)));
     return blocks;
   }
 

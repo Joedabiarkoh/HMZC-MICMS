@@ -1,6 +1,6 @@
 import { useRef } from "react";
 import type { ReactNode } from "react";
-import { EquipmentTypeConfig, InspectionCertificate, ChecklistStatus, EquipResult, CalibrationData, FFEData, LooseGearData, LooseGearMultipleItemsData, LooseGearStandardReportData, LooseGearStatutoryAnswers, LooseGearVisualCertData, LooseGearYesNo } from "../types/inspection.types";
+import { EquipmentTypeConfig, InspectionCertificate, ChecklistStatus, EquipResult, CalibrationData, FFEData, LooseGearData, LooseGearMultipleItemsData, LooseGearStandardReportData, LooseGearStatutoryAnswers, LooseGearVisualCertData, LooseGearYesNo, NDTCommonData, NDTFooterData, MPIData, PTData, RTData, UTData, VTData, ETData, LoadTestData } from "../types/inspection.types";
 import { getFFEConfig } from "../data/ffeCertTypes";
 import { getCalibrationConfig } from "../data/calibrationCertTypes";
 import { ABS_LOGO_DATA_URI, BUREAU_VERITAS_LOGO_DATA_URI, CRALOG_LOGO_DATA_URI, DNV_LOGO_DATA_URI } from "../assets/approvalLogos";
@@ -677,6 +677,13 @@ function LooseGearCertificatePage({ cert, looseGear }: { cert: InspectionCertifi
   if (looseGear.subType === "multiple_items" && looseGear.multipleItems) {
     return <MultipleItemsPage cert={cert} data={looseGear.multipleItems} />;
   }
+  if (looseGear.subType === "mpi" && looseGear.mpi) return <MPIPage cert={cert} data={looseGear.mpi} />;
+  if (looseGear.subType === "pt" && looseGear.pt) return <PTPage cert={cert} data={looseGear.pt} />;
+  if (looseGear.subType === "rt" && looseGear.rt) return <RTPage cert={cert} data={looseGear.rt} />;
+  if (looseGear.subType === "ut" && looseGear.ut) return <UTPage cert={cert} data={looseGear.ut} />;
+  if (looseGear.subType === "vt" && looseGear.vt) return <VTPage cert={cert} data={looseGear.vt} />;
+  if (looseGear.subType === "et" && looseGear.et) return <ETPage cert={cert} data={looseGear.et} />;
+  if (looseGear.subType === "load_test" && looseGear.loadTest) return <LoadTestPage cert={cert} data={looseGear.loadTest} />;
   return null;
 }
 
@@ -1154,6 +1161,459 @@ function MultipleItemsPage({ cert, data }: { cert: InspectionCertificate; data: 
         </div>
       )}
       <SignatureGrid cert={cert} masterLabel="Master" techLabel="Inspector" hideFitForPurpose />
+      </div>
+    </CertPageFrame>
+  );
+}
+
+// ============================================================
+// Load Test / NDT report types (MPI, PT, RT, UT, VT, ET) — requested
+// directly: put HMZC's Load Test Report and 6 NDT method templates into
+// Loose Gear & Lifting Equipment, based on the MPI/PT templates' own
+// format, styled after a real reference report (dense bordered grid) —
+// reusing the same tt-grid/tt-label/tt-section-header/tt-report family
+// StandardReportPage already established for exactly that look, rather
+// than the looser insp-id-table convention VisualCertPage/
+// MultipleItemsPage use. Signatures reuse the shared SignatureGrid
+// component (relabeled) — same as MultipleItemsPage already does inside
+// this same lg-compact page family, just with different labels.
+// ============================================================
+
+const MPI_METHOD_LABELS: Record<string, string> = { prods: "Prods", yoke: "Yoke", other: "Other", "": "—" };
+const MPI_MAGNETIZED_LABELS: Record<string, string> = { longitudinal: "Longitudinal Defects", transverse: "Transverse Defects", both: "Longitudinal + Transverse Defects", "": "—" };
+const PT_REMOVER_LABELS: Record<string, string> = { water: "Water", emulsifier: "Emulsifier", solvent: "Solvent", "": "—" };
+const PT_DEVELOPER_LABELS: Record<string, string> = { dry_powder: "1. Dry Powder", solution_water: "2. Solution in Water", suspension_water: "3. Suspension in Water", powder_solvent: "4. Powder in Volatile Solvent (Spray)", "": "—" };
+const RT_TECHNIQUE_LABELS: Record<string, string> = { swsi: "SWSI", dwsi: "DWSI", dwdi: "DWDI", "": "—" };
+const UT_SCANNING_LABELS: Record<string, string> = { contact: "Contact", immersion: "Immersion", "": "—" };
+const VT_STAGE_LABELS: Record<string, string> = { pre_weld: "Pre-Weld", in_process: "In-Process", final: "Final", "": "—" };
+const VT_DIRECT_LABELS: Record<string, string> = { direct: "Direct", remote: "Remote", "": "—" };
+
+// Report No./Date of Testing/Vessel/IMO reuse cert-level fields (not
+// duplicated on NDTCommonData — see its own comment in inspection.types.ts).
+function NDTHeaderGrid({ cert, common }: { cert: InspectionCertificate; common: NDTCommonData }) {
+  return (
+    <table className="tt-grid">
+      <tbody>
+        <tr>
+          <td style={{ width: "25%" }}><span className="tt-label">Report No.</span>{cert.certNo}</td>
+          <td style={{ width: "25%" }}><span className="tt-label">Date of Testing</span>{fmtDate(cert.dateOfServicing)}</td>
+          <td style={{ width: "25%" }}><span className="tt-label">Vessel</span>{cert.vesselName || "—"}</td>
+          <td style={{ width: "25%" }}><span className="tt-label">IMO No.</span>{cert.imoNo || "—"}</td>
+        </tr>
+        <tr>
+          <td colSpan={2}><span className="tt-label">Client</span>{common.client || "—"}</td>
+          <td colSpan={2}><span className="tt-label">Manufacturer</span>{common.manufacturer || "—"}</td>
+        </tr>
+        <tr>
+          <td colSpan={4}><span className="tt-label">Object of Control</span>{common.objectOfControl || "—"}</td>
+        </tr>
+        <tr>
+          <td><span className="tt-label">PO No.</span>{common.poNo || "—"}</td>
+          <td colSpan={3}><span className="tt-label">Procedure Reference</span>{common.procedureReference || "—"}</td>
+        </tr>
+        <tr>
+          <td colSpan={2}><span className="tt-label">Drawing No.</span>{common.drawingNo || "—"}</td>
+          <td colSpan={2}><span className="tt-label">Extent of Testing</span>{common.extentOfTesting || "—"}</td>
+        </tr>
+        <tr>
+          <td colSpan={3}><span className="tt-label">Acceptance Standard</span>{common.acceptanceStandard || "—"}</td>
+          <td><span className="tt-label">Operator</span>{common.operator || "—"}</td>
+        </tr>
+      </tbody>
+    </table>
+  );
+}
+
+function NDTIndicationsGrid({ title, columns, rows }: { title: string; columns: { key: string; label: string }[]; rows: Record<string, string>[] }) {
+  return (
+    <table className="tt-grid">
+      <tbody>
+        <tr><td className="tt-section-header" colSpan={columns.length}>{title}</td></tr>
+        <tr>
+          {columns.map((c) => <td key={c.key} style={{ fontWeight: 700, fontSize: 9, textTransform: "uppercase" }}>{c.label}</td>)}
+        </tr>
+        {rows.length === 0 ? (
+          <tr><td colSpan={columns.length} style={{ color: "var(--insp-muted)" }}>None recorded.</td></tr>
+        ) : rows.map((row, i) => (
+          <tr key={i}>{columns.map((c) => <td key={c.key}>{row[c.key] || "—"}</td>)}</tr>
+        ))}
+      </tbody>
+    </table>
+  );
+}
+
+function NDTFooterGrid({ cert, footer }: { cert: InspectionCertificate; footer: NDTFooterData }) {
+  return (
+    <>
+      <table className="tt-grid">
+        <tbody>
+          <tr><td className="tt-section-header" colSpan={2}>Test Result</td></tr>
+          <tr>
+            <td colSpan={2}><span className="tt-label">Findings / Result Statement</span>{footer.findingsStatement || "—"}</td>
+          </tr>
+          <tr>
+            <td><span className="tt-label">Serial No.</span>{footer.serialNo || "—"}</td>
+            <td>
+              <span className="tt-label">Repairs Marked On</span>
+              <span aria-hidden="true">{footer.repairsMarkedOnObject ? "☒" : "☐"}</span> Object&nbsp;&nbsp;
+              <span aria-hidden="true">{footer.repairsMarkedOnSketch ? "☒" : "☐"}</span> Sketch
+            </td>
+          </tr>
+        </tbody>
+      </table>
+      <LooseGearItemPhoto cert={cert} />
+    </>
+  );
+}
+
+function MPIPage({ cert, data }: { cert: InspectionCertificate; data: MPIData }) {
+  return (
+    <CertPageFrame cert={cert}>
+      <div className="lg-compact tt-report">
+        <div className="tt-title">Magnetic Particle Testing Certificate</div>
+        <div className="tt-subtitle">ISO 9712 / SNT-TC-1A — Non-Destructive Testing (MT)</div>
+        <NDTHeaderGrid cert={cert} common={data.common} />
+        <table className="tt-grid">
+          <tbody>
+            <tr><td className="tt-section-header" colSpan={4}>Material &amp; Method</td></tr>
+            <tr>
+              <td><span className="tt-label">Material Type</span>{data.materialType || "—"}</td>
+              <td><span className="tt-label">Surface</span>{data.surface || "—"}</td>
+              <td><span className="tt-label">Groove/Geometry</span>{data.grooveGeometry || "—"}</td>
+              <td><span className="tt-label">Welding Process</span>{data.weldingProcess || "—"}</td>
+            </tr>
+            <tr>
+              <td><span className="tt-label">Welder's ID</span>{data.weldersId || "—"}</td>
+              <td><span className="tt-label">Object Temperature</span>{data.objectTemperature || "—"}</td>
+              <td><span className="tt-label">Method</span>{MPI_METHOD_LABELS[data.method]}{data.methodSMax ? ` (S max ${data.methodSMax}mm)` : ""}</td>
+              <td><span className="tt-label">Current</span>{data.current ? data.current.toUpperCase() : "—"}</td>
+            </tr>
+            <tr>
+              <td><span className="tt-label">Field Strength</span>{data.fieldStrength || "—"}</td>
+              <td><span className="tt-label">Medium</span>{[data.mediumWetDry, data.mediumType].filter(Boolean).map((s) => s![0].toUpperCase() + s!.slice(1)).join(" / ") || "—"}</td>
+              <td colSpan={2}><span className="tt-label">Magnetized For</span>{MPI_MAGNETIZED_LABELS[data.magnetizedFor]}</td>
+            </tr>
+            <tr>
+              <td colSpan={2}><span className="tt-label">Contrast Colour</span>{data.contrastColour || "—"}</td>
+              <td colSpan={2}><span className="tt-label">Field Indicator</span>{data.fieldIndicator || "—"}</td>
+            </tr>
+          </tbody>
+        </table>
+        <NDTFooterGrid cert={cert} footer={data.footer} />
+        <SignatureGrid cert={cert} masterLabel="Approved By" techLabel="Operator/Technician" hideFitForPurpose />
+      </div>
+    </CertPageFrame>
+  );
+}
+
+function PTPage({ cert, data }: { cert: InspectionCertificate; data: PTData }) {
+  return (
+    <CertPageFrame cert={cert}>
+      <div className="lg-compact tt-report">
+        <div className="tt-title">Liquid Penetrant Testing Certificate</div>
+        <div className="tt-subtitle">ISO 9712 / SNT-TC-1A — Non-Destructive Testing (PT)</div>
+        <NDTHeaderGrid cert={cert} common={data.common} />
+        <table className="tt-grid">
+          <tbody>
+            <tr><td className="tt-section-header" colSpan={4}>Material &amp; Penetrant</td></tr>
+            <tr>
+              <td><span className="tt-label">Material Type</span>{data.materialType || "—"}</td>
+              <td><span className="tt-label">Surface</span>{data.surface || "—"}</td>
+              <td><span className="tt-label">Groove/Geometry</span>{data.grooveGeometry || "—"}</td>
+              <td><span className="tt-label">Welding Process</span>{data.weldingProcess || "—"}</td>
+            </tr>
+            <tr>
+              <td><span className="tt-label">Welder's ID</span>{data.weldersId || "—"}</td>
+              <td><span className="tt-label">Object Temperature</span>{data.objectTemperature || "—"}</td>
+              <td><span className="tt-label">Penetrant Type</span>{data.penetrantType || "—"}</td>
+              <td><span className="tt-label">Application Method</span>{data.applicationMethod || "—"}</td>
+            </tr>
+            <tr>
+              <td><span className="tt-label">Fluorescent</span>{yesNoCheckboxes(data.fluorescent)}</td>
+              <td><span className="tt-label">Penetrant Remover</span>{PT_REMOVER_LABELS[data.penetrantRemover]}</td>
+              <td colSpan={2}><span className="tt-label">Developer</span>{PT_DEVELOPER_LABELS[data.developer]}</td>
+            </tr>
+            <tr>
+              <td colSpan={2}><span className="tt-label">Penetration Time</span>{data.penetrationTime || "—"}</td>
+              <td colSpan={2}><span className="tt-label">Developing Time</span>{data.developingTime || "—"}</td>
+            </tr>
+          </tbody>
+        </table>
+        <NDTFooterGrid cert={cert} footer={data.footer} />
+        <SignatureGrid cert={cert} masterLabel="Approved By" techLabel="Operator/Technician" hideFitForPurpose />
+      </div>
+    </CertPageFrame>
+  );
+}
+
+const RT_INDICATION_PRINT_COLUMNS = [
+  { key: "filmImageNo", label: "Film/Image No." },
+  { key: "weldLocation", label: "Weld/Location" },
+  { key: "indicationType", label: "Indication Type" },
+  { key: "size", label: "Size (mm)" },
+  { key: "evaluation", label: "Evaluation" },
+];
+
+function RTPage({ cert, data }: { cert: InspectionCertificate; data: RTData }) {
+  return (
+    <CertPageFrame cert={cert}>
+      <div className="lg-compact tt-report">
+        <div className="tt-title">Radiographic Testing Certificate</div>
+        <div className="tt-subtitle">ISO 17636 / ASME V Art. 2 — Non-Destructive Testing (RT)</div>
+        <NDTHeaderGrid cert={cert} common={data.common} />
+        <table className="tt-grid">
+          <tbody>
+            <tr><td className="tt-section-header" colSpan={4}>Material &amp; Joint</td></tr>
+            <tr>
+              <td><span className="tt-label">Material Type</span>{data.materialType || "—"}</td>
+              <td><span className="tt-label">Thickness (mm)</span>{data.thickness || "—"}</td>
+              <td><span className="tt-label">Joint/Weld Type</span>{data.jointWeldType || "—"}</td>
+              <td><span className="tt-label">Welding Process</span>{data.weldingProcess || "—"}</td>
+            </tr>
+            <tr>
+              <td><span className="tt-label">Welder's ID</span>{data.weldersId || "—"}</td>
+              <td colSpan={3}><span className="tt-label">Technique</span>{RT_TECHNIQUE_LABELS[data.technique]}</td>
+            </tr>
+            <tr><td className="tt-section-header" colSpan={4}>Exposure Parameters</td></tr>
+            <tr>
+              <td><span className="tt-label">Source Type</span>{data.sourceType || "—"}</td>
+              <td><span className="tt-label">Focal Spot Size</span>{data.focalSpotSize || "—"}</td>
+              <td><span className="tt-label">kV / Curie (Ci)</span>{data.kvOrCurie || "—"}</td>
+              <td><span className="tt-label">mA / Exposure Time</span>{data.maOrExposureTime || "—"}</td>
+            </tr>
+            <tr>
+              <td><span className="tt-label">Source-to-Film Distance</span>{data.sourceToFilmDistance || "—"}</td>
+              <td><span className="tt-label">Screens (Front/Back)</span>{data.screens || "—"}</td>
+              <td><span className="tt-label">Film Type / Detector</span>{data.filmTypeOrDetector || "—"}</td>
+              <td><span className="tt-label">Density Range</span>{data.densityRange || "—"}</td>
+            </tr>
+            <tr><td className="tt-section-header" colSpan={4}>Image Quality</td></tr>
+            <tr>
+              <td><span className="tt-label">IQI Type</span>{data.iqiType || "—"}</td>
+              <td><span className="tt-label">Sensitivity Achieved (%)</span>{data.sensitivityAchieved || "—"}</td>
+              <td><span className="tt-label">No. of Exposures</span>{data.numberOfExposures || "—"}</td>
+              <td><span className="tt-label">Viewing Conditions</span>{data.viewingConditions || "—"}</td>
+            </tr>
+          </tbody>
+        </table>
+        <NDTIndicationsGrid title="Indications / Test Result" columns={RT_INDICATION_PRINT_COLUMNS} rows={data.indications} />
+        <NDTFooterGrid cert={cert} footer={data.footer} />
+        <SignatureGrid cert={cert} masterLabel="Approved By" techLabel="Operator/Technician" hideFitForPurpose />
+      </div>
+    </CertPageFrame>
+  );
+}
+
+const UT_INDICATION_PRINT_COLUMNS = [
+  { key: "indNo", label: "Ind. No." },
+  { key: "weldLocation", label: "Weld/Location" },
+  { key: "length", label: "Length (mm)" },
+  { key: "amplitude", label: "Amplitude (dB)" },
+  { key: "depth", label: "Depth (mm)" },
+  { key: "evaluation", label: "Evaluation" },
+];
+
+function UTPage({ cert, data }: { cert: InspectionCertificate; data: UTData }) {
+  return (
+    <CertPageFrame cert={cert}>
+      <div className="lg-compact tt-report">
+        <div className="tt-title">Ultrasonic Testing Certificate</div>
+        <div className="tt-subtitle">ISO 17640 / ASME V Art. 4 — Non-Destructive Testing (UT)</div>
+        <NDTHeaderGrid cert={cert} common={data.common} />
+        <table className="tt-grid">
+          <tbody>
+            <tr><td className="tt-section-header" colSpan={4}>Material &amp; Weld</td></tr>
+            <tr>
+              <td><span className="tt-label">Material Type</span>{data.materialType || "—"}</td>
+              <td><span className="tt-label">Surface</span>{data.surface || "—"}</td>
+              <td><span className="tt-label">Groove/Geometry</span>{data.grooveGeometry || "—"}</td>
+              <td><span className="tt-label">Welding Process</span>{data.weldingProcess || "—"}</td>
+            </tr>
+            <tr>
+              <td><span className="tt-label">Welder's ID</span>{data.weldersId || "—"}</td>
+              <td colSpan={3}><span className="tt-label">Object Temperature</span>{data.objectTemperature || "—"}</td>
+            </tr>
+            <tr><td className="tt-section-header" colSpan={4}>Equipment &amp; Probe</td></tr>
+            <tr>
+              <td><span className="tt-label">Instrument Type / Model</span>{data.instrumentTypeModel || "—"}</td>
+              <td><span className="tt-label">Instrument Serial No.</span>{data.instrumentSerialNo || "—"}</td>
+              <td><span className="tt-label">Calibration Due Date</span>{fmtDate(data.calibrationDueDate)}</td>
+              <td><span className="tt-label">Reference/Calibration Block</span>{data.referenceBlock || "—"}</td>
+            </tr>
+            <tr>
+              <td><span className="tt-label">Probe Type</span>{data.probeType || "—"}</td>
+              <td><span className="tt-label">Frequency (MHz)</span>{data.probeFrequency || "—"}</td>
+              <td><span className="tt-label">Angle</span>{data.probeAngle || "—"}</td>
+              <td><span className="tt-label">Size</span>{data.probeSize || "—"}</td>
+            </tr>
+            <tr>
+              <td><span className="tt-label">Couplant</span>{data.couplant || "—"}</td>
+              <td colSpan={3}><span className="tt-label">Scanning Technique</span>{UT_SCANNING_LABELS[data.scanningTechnique]}</td>
+            </tr>
+            <tr><td className="tt-section-header" colSpan={4}>Calibration &amp; Sensitivity</td></tr>
+            <tr>
+              <td><span className="tt-label">Reference Level (dB)</span>{data.referenceLevel || "—"}</td>
+              <td><span className="tt-label">Scanning Sensitivity (dB)</span>{data.scanningSensitivity || "—"}</td>
+              <td><span className="tt-label">Recording Level (DAC/dB)</span>{data.recordingLevel || "—"}</td>
+              <td><span className="tt-label">Reporting Level (dB)</span>{data.reportingLevel || "—"}</td>
+            </tr>
+            <tr>
+              <td colSpan={2}><span className="tt-label">Scan Coverage (%)</span>{data.scanCoverage || "—"}</td>
+              <td colSpan={2}><span className="tt-label">Beam Angle Check</span>{data.beamAngleCheck || "—"}</td>
+            </tr>
+          </tbody>
+        </table>
+        <NDTIndicationsGrid title="Indications / Test Result" columns={UT_INDICATION_PRINT_COLUMNS} rows={data.indications} />
+        <NDTFooterGrid cert={cert} footer={data.footer} />
+        <SignatureGrid cert={cert} masterLabel="Approved By" techLabel="Operator/Technician" hideFitForPurpose />
+      </div>
+    </CertPageFrame>
+  );
+}
+
+const VT_OBSERVATION_PRINT_COLUMNS = [
+  { key: "itemNo", label: "Item No." },
+  { key: "locationWeld", label: "Location/Weld" },
+  { key: "observation", label: "Observation" },
+  { key: "evaluation", label: "Evaluation" },
+];
+
+function VTPage({ cert, data }: { cert: InspectionCertificate; data: VTData }) {
+  return (
+    <CertPageFrame cert={cert}>
+      <div className="lg-compact tt-report">
+        <div className="tt-title">Visual Testing Certificate</div>
+        <div className="tt-subtitle">ISO 17637 / ASME V Art. 9 — Non-Destructive Testing (VT)</div>
+        <NDTHeaderGrid cert={cert} common={data.common} />
+        <table className="tt-grid">
+          <tbody>
+            <tr><td className="tt-section-header" colSpan={4}>Material &amp; Weld</td></tr>
+            <tr>
+              <td><span className="tt-label">Material Type</span>{data.materialType || "—"}</td>
+              <td><span className="tt-label">Joint/Weld Type</span>{data.jointWeldType || "—"}</td>
+              <td><span className="tt-label">Surface Condition</span>{data.surfaceCondition || "—"}</td>
+              <td><span className="tt-label">Welding Process</span>{data.weldingProcess || "—"}</td>
+            </tr>
+            <tr>
+              <td><span className="tt-label">Welder's ID</span>{data.weldersId || "—"}</td>
+              <td colSpan={3}><span className="tt-label">Stage of Inspection</span>{VT_STAGE_LABELS[data.stageOfInspection]}</td>
+            </tr>
+            <tr><td className="tt-section-header" colSpan={4}>Inspection Conditions</td></tr>
+            <tr>
+              <td><span className="tt-label">Illumination Level (lux)</span>{data.illuminationLevel || "—"}</td>
+              <td><span className="tt-label">Viewing Distance/Angle</span>{data.viewingDistanceAngle || "—"}</td>
+              <td><span className="tt-label">Aids Used</span>{data.aidsUsed || "—"}</td>
+              <td><span className="tt-label">Direct or Remote</span>{VT_DIRECT_LABELS[data.directOrRemote]}</td>
+            </tr>
+          </tbody>
+        </table>
+        <NDTIndicationsGrid title="Observations / Test Result" columns={VT_OBSERVATION_PRINT_COLUMNS} rows={data.observations} />
+        <NDTFooterGrid cert={cert} footer={data.footer} />
+        <SignatureGrid cert={cert} masterLabel="Approved By" techLabel="Operator/Technician" hideFitForPurpose />
+      </div>
+    </CertPageFrame>
+  );
+}
+
+const ET_INDICATION_PRINT_COLUMNS = [
+  { key: "indNo", label: "Ind. No." },
+  { key: "weldLocation", label: "Weld/Location" },
+  { key: "signalAmplitude", label: "Signal Amplitude" },
+  { key: "phaseAngle", label: "Phase Angle" },
+  { key: "evaluation", label: "Evaluation" },
+];
+
+function ETPage({ cert, data }: { cert: InspectionCertificate; data: ETData }) {
+  return (
+    <CertPageFrame cert={cert}>
+      <div className="lg-compact tt-report">
+        <div className="tt-title">Eddy Current Testing Certificate</div>
+        <div className="tt-subtitle">ISO 17643 / ASME V Art. 8 — Non-Destructive Testing (ET)</div>
+        <NDTHeaderGrid cert={cert} common={data.common} />
+        <table className="tt-grid">
+          <tbody>
+            <tr><td className="tt-section-header" colSpan={4}>Material &amp; Weld</td></tr>
+            <tr>
+              <td><span className="tt-label">Material Type</span>{data.materialType || "—"}</td>
+              <td><span className="tt-label">Surface</span>{data.surface || "—"}</td>
+              <td><span className="tt-label">Groove/Geometry</span>{data.grooveGeometry || "—"}</td>
+              <td><span className="tt-label">Welding Process</span>{data.weldingProcess || "—"}</td>
+            </tr>
+            <tr>
+              <td><span className="tt-label">Welder's ID</span>{data.weldersId || "—"}</td>
+              <td colSpan={3}><span className="tt-label">Object Temperature</span>{data.objectTemperature || "—"}</td>
+            </tr>
+            <tr><td className="tt-section-header" colSpan={4}>Equipment &amp; Probe Settings</td></tr>
+            <tr>
+              <td><span className="tt-label">Instrument Type / Model</span>{data.instrumentTypeModel || "—"}</td>
+              <td><span className="tt-label">Instrument Serial No.</span>{data.instrumentSerialNo || "—"}</td>
+              <td><span className="tt-label">Calibration Due Date</span>{fmtDate(data.calibrationDueDate)}</td>
+              <td><span className="tt-label">Reference Standard/Block</span>{data.referenceStandardBlock || "—"}</td>
+            </tr>
+            <tr>
+              <td><span className="tt-label">Probe Type</span>{data.probeType || "—"}</td>
+              <td><span className="tt-label">Frequency (kHz)</span>{data.frequency || "—"}</td>
+              <td><span className="tt-label">Gain (dB)</span>{data.gain || "—"}</td>
+              <td><span className="tt-label">Phase Angle</span>{data.phaseAngle || "—"}</td>
+            </tr>
+            <tr>
+              <td colSpan={2}><span className="tt-label">Scan Coverage (%)</span>{data.scanCoverage || "—"}</td>
+              <td colSpan={2}><span className="tt-label">Scan Speed</span>{data.scanSpeed || "—"}</td>
+            </tr>
+          </tbody>
+        </table>
+        <NDTIndicationsGrid title="Indications / Test Result" columns={ET_INDICATION_PRINT_COLUMNS} rows={data.indications} />
+        <NDTFooterGrid cert={cert} footer={data.footer} />
+        <SignatureGrid cert={cert} masterLabel="Approved By" techLabel="Operator/Technician" hideFitForPurpose />
+      </div>
+    </CertPageFrame>
+  );
+}
+
+function LoadTestPage({ cert, data }: { cert: InspectionCertificate; data: LoadTestData }) {
+  return (
+    <CertPageFrame cert={cert}>
+      <div className="lg-compact tt-report">
+        <div className="tt-title">Load Test Report</div>
+        <div className="tt-subtitle">SOLAS Chapter III Regulation 20.11.1.3 / 20.11.2.3 — LSA Code Part 2, 6.1.5</div>
+        <table className="tt-grid">
+          <tbody>
+            <tr>
+              <td style={{ width: "25%" }}><span className="tt-label">Report No.</span>{cert.certNo}</td>
+              <td style={{ width: "25%" }}><span className="tt-label">Date</span>{fmtDate(cert.dateOfServicing)}</td>
+              <td style={{ width: "25%" }}><span className="tt-label">Vessel Name</span>{cert.vesselName || "—"}</td>
+              <td style={{ width: "25%" }}><span className="tt-label">IMO</span>{cert.imoNo || "—"}</td>
+            </tr>
+            <tr>
+              <td><span className="tt-label">Flag</span>{cert.flag || "—"}</td>
+              <td colSpan={2}><span className="tt-label">Type of LSA Equipment</span>{data.typeOfLsaEquipment || "—"}</td>
+              <td><span className="tt-label">LSA Location Onboard</span>{data.lsaLocationOnboard || "—"}</td>
+            </tr>
+          </tbody>
+        </table>
+        <div className="tt-note" style={{ margin: "6px 0" }}>
+          From LSA Code: the boat loaded with its normal equipment and a distributed mass equal to that of the number of
+          persons, each weighing the applicable weight + 10% of the working load.
+        </div>
+        <table className="tt-grid">
+          <tbody>
+            <tr>
+              <td className="tt-section-header" style={{ width: "10%" }}></td>
+              <td className="tt-section-header" colSpan={2}>Description</td>
+              <td className="tt-section-header" style={{ width: "22%" }}>Kg / Lbs / Bar</td>
+            </tr>
+            {data.rows.map((row) => (
+              <tr key={row.label}>
+                <td style={{ fontWeight: 700, color: "var(--insp-navy)" }}>{row.label}</td>
+                <td colSpan={2} style={{ fontSize: 10 }}>{row.description}</td>
+                <td>{row.value || "—"}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        <div className="tt-note" style={{ margin: "6px 0" }}>Note: when using a test kit for the load test, apply the applicable pressure conversion table.</div>
+        {data.remarks && <div className="insp-remarks-box">Remarks: {data.remarks}</div>}
+        <SignatureGrid cert={cert} masterLabel="RO/Class Witness" techLabel="Test Witness" hideFitForPurpose />
       </div>
     </CertPageFrame>
   );

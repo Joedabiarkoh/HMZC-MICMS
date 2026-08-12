@@ -13,7 +13,18 @@ import {
   LooseGearRegisterRow,
   LooseGearStandardReportData,
   LooseGearStatutoryAnswers,
+  LooseGearSubTypeId,
   LooseGearVisualCertData,
+  NDTCommonData,
+  NDTFooterData,
+  MPIData,
+  PTData,
+  RTData,
+  UTData,
+  VTData,
+  ETData,
+  LoadTestData,
+  LoadTestRow,
 } from "../types/inspection.types";
 
 // Requested directly: items used to default to "good" (matching the
@@ -82,7 +93,17 @@ export function checklistProgress(
 // each create a certificate on the same day. See listCertificateNumbers
 // in inspection.api.ts for where the caller gets the full, unfiltered
 // set this now expects.
-export function generateCertNo(type: EquipmentTypeKey, existingNumbers: Set<string>): string {
+// Requested directly: give the new Load Test/NDT Loose Gear report
+// types (see LooseGearSubTypeId) their own recognizable prefix in the
+// Certificate Log instead of sharing Loose Gear's flat "LG" tag — closer
+// to how real NDT report numbers are usually structured, and easier to
+// find/sort by method. Every OTHER loosegear sub-type (Visual
+// Certificate, Standard Report, Multiple Items) keeps "LG", unchanged.
+const LOOSE_GEAR_SUBTYPE_TAGS: Partial<Record<LooseGearSubTypeId, string>> = {
+  load_test: "LT", mpi: "MT", pt: "PT", rt: "RT", ut: "UT", vt: "VT", et: "ET",
+};
+
+export function generateCertNo(type: EquipmentTypeKey, existingNumbers: Set<string>, looseGearSubType?: LooseGearSubTypeId): string {
   const d = new Date();
   const ymd = `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, "0")}${String(d.getDate()).padStart(2, "0")}`;
   const tags: Record<EquipmentTypeKey, string> = {
@@ -94,7 +115,7 @@ export function generateCertNo(type: EquipmentTypeKey, existingNumbers: Set<stri
     // brand-new certificate anymore.
     photo_report: "PR", ffe_photo_report: "FPR", calibration_photo_report: "CPR",
   };
-  const tag = tags[type];
+  const tag = (type === "loosegear" && looseGearSubType && LOOSE_GEAR_SUBTYPE_TAGS[looseGearSubType]) || tags[type];
   const count = Array.from(existingNumbers).filter((k) => k.includes(ymd) && k.includes(tag)).length + 1;
   // Requested directly: "CERT/HMZCS/RB/20260807-001 this certificate
   // number for all certificate take out the (S)" — was HMZCS, now
@@ -230,6 +251,13 @@ export function freshCalibrationState(subTypeId: string): CalibrationData {
 export const LOOSE_GEAR_SUB_TYPES: { id: LooseGearData["subType"]; label: string }[] = [
   { id: "standard_report", label: "Report of Thorough Examination" },
   { id: "multiple_items", label: "Report of Thorough Examination (Multiple Items)" },
+  { id: "load_test", label: "Load Test Report" },
+  { id: "mpi", label: "Magnetic Particle Testing (MPI)" },
+  { id: "pt", label: "Liquid Penetrant Testing (PT)" },
+  { id: "rt", label: "Radiographic Testing (RT)" },
+  { id: "ut", label: "Ultrasonic Testing (UT)" },
+  { id: "vt", label: "Visual Testing (VT)" },
+  { id: "et", label: "Eddy Current Testing (ET)" },
 ];
 
 function freshLooseGearStatutoryAnswers(): LooseGearStatutoryAnswers {
@@ -332,6 +360,120 @@ export function freshLooseGearMultipleItemsData(): LooseGearMultipleItemsData {
   return { jobPoNo: "", inspectedBy: "", colourCode: "", reasonForInspection: "", rows: [] };
 }
 
+// Shared builders for the Load Test / NDT report types (MPI/PT/RT/UT/VT/ET)
+// — see NDTCommonData/NDTFooterData's own comments in inspection.types.ts.
+function freshNDTCommonData(): NDTCommonData {
+  return { client: "", manufacturer: "", objectOfControl: "", poNo: "", procedureReference: "", drawingNo: "", extentOfTesting: "", acceptanceStandard: "", operator: "" };
+}
+
+// "HMZC" matches every one of the source templates' own Serial no.
+// default (see the "Serial no.: HMZC" row on all 7).
+function freshNDTFooterData(): NDTFooterData {
+  return { findingsStatement: "", serialNo: "HMZC", repairsMarkedOnObject: false, repairsMarkedOnSketch: false };
+}
+
+export function freshMPIData(): MPIData {
+  return {
+    common: freshNDTCommonData(),
+    materialType: "", surface: "", grooveGeometry: "", weldingProcess: "", weldersId: "", objectTemperature: "",
+    method: "", methodSMax: "", current: "", fieldStrength: "",
+    mediumWetDry: "", mediumType: "", contrastColour: "", fieldIndicator: "",
+    magnetizedFor: "",
+    footer: freshNDTFooterData(),
+  };
+}
+
+export function freshPTData(): PTData {
+  return {
+    common: freshNDTCommonData(),
+    materialType: "", surface: "", grooveGeometry: "", weldingProcess: "", weldersId: "", objectTemperature: "",
+    penetrantType: "", applicationMethod: "", fluorescent: "",
+    penetrantRemover: "", developer: "", penetrationTime: "", developingTime: "",
+    footer: freshNDTFooterData(),
+  };
+}
+
+export function freshRTIndicationRow(): Record<string, string> {
+  return { filmImageNo: "", weldLocation: "", indicationType: "", size: "", evaluation: "" };
+}
+
+export function freshRTData(): RTData {
+  return {
+    common: freshNDTCommonData(),
+    materialType: "", thickness: "", jointWeldType: "", weldingProcess: "", weldersId: "", technique: "",
+    sourceType: "", focalSpotSize: "", kvOrCurie: "", maOrExposureTime: "", sourceToFilmDistance: "", screens: "", filmTypeOrDetector: "", densityRange: "",
+    iqiType: "", sensitivityAchieved: "", numberOfExposures: "", viewingConditions: "",
+    indications: [],
+    footer: freshNDTFooterData(),
+  };
+}
+
+export function freshUTIndicationRow(): Record<string, string> {
+  return { indNo: "", weldLocation: "", length: "", amplitude: "", depth: "", evaluation: "" };
+}
+
+export function freshUTData(): UTData {
+  return {
+    common: freshNDTCommonData(),
+    materialType: "", surface: "", grooveGeometry: "", weldingProcess: "", weldersId: "", objectTemperature: "",
+    instrumentTypeModel: "", instrumentSerialNo: "", calibrationDueDate: "", referenceBlock: "",
+    probeType: "", probeFrequency: "", probeAngle: "", probeSize: "", couplant: "", scanningTechnique: "",
+    referenceLevel: "", scanningSensitivity: "", recordingLevel: "", reportingLevel: "", scanCoverage: "", beamAngleCheck: "",
+    indications: [],
+    footer: freshNDTFooterData(),
+  };
+}
+
+export function freshVTObservationRow(): Record<string, string> {
+  return { itemNo: "", locationWeld: "", observation: "", evaluation: "" };
+}
+
+export function freshVTData(): VTData {
+  return {
+    common: freshNDTCommonData(),
+    materialType: "", jointWeldType: "", surfaceCondition: "", weldingProcess: "", weldersId: "", stageOfInspection: "",
+    illuminationLevel: "", viewingDistanceAngle: "", aidsUsed: "", directOrRemote: "",
+    observations: [],
+    footer: freshNDTFooterData(),
+  };
+}
+
+export function freshETIndicationRow(): Record<string, string> {
+  return { indNo: "", weldLocation: "", signalAmplitude: "", phaseAngle: "", evaluation: "" };
+}
+
+export function freshETData(): ETData {
+  return {
+    common: freshNDTCommonData(),
+    materialType: "", surface: "", grooveGeometry: "", weldingProcess: "", weldersId: "", objectTemperature: "",
+    instrumentTypeModel: "", instrumentSerialNo: "", calibrationDueDate: "", referenceStandardBlock: "",
+    probeType: "", frequency: "", gain: "", phaseAngle: "", scanCoverage: "", scanSpeed: "",
+    indications: [],
+    footer: freshNDTFooterData(),
+  };
+}
+
+// Matches the source template's own row set/order (rows A-G³) — labels
+// and description text are fixed (printed on the reference form), only
+// `value` is meant to be filled in per test.
+export function freshLoadTestRows(): LoadTestRow[] {
+  return [
+    { label: "A", description: "Insert weight of empty boat + inventory/equipment. (From LB Certificate/ID Plate).", value: "" },
+    { label: "B", description: "Insert total No. persons in lifeboat × applicable weight of persons.", value: "" },
+    { label: "C", description: "Insert total weight of fully loaded boat incl. total number of persons (C = A + B)", value: "" },
+    { label: "D", description: "Insert 10% of total weight. (D = C ÷ 10)", value: "" },
+    { label: "E", description: "Insert total of all applicable weights (E = C + D)", value: "" },
+    { label: "F", description: "Load to be applied, minus empty boat + inventory/equipment (F = E - A)", value: "" },
+    { label: "G¹", description: "Load to be applied per davit arm, when using water bags only (G¹ = E ÷ 2)", value: "" },
+    { label: "G²", description: "Load to be applied when using water bags and lifeboat (G² = F ÷ size of water bag)", value: "" },
+    { label: "G³", description: "Pressure to be applied per hook, when using hydraulic test kit (G³ = total bar based on F in conversion table)", value: "" },
+  ];
+}
+
+export function freshLoadTestData(): LoadTestData {
+  return { typeOfLsaEquipment: "", lsaLocationOnboard: "", rows: freshLoadTestRows(), remarks: "" };
+}
+
 // Rebuilds the loosegear-specific state for a given sub-type — called
 // both when a brand-new certificate starts and when the sub-type
 // selector changes on an existing draft (switching from, say, the
@@ -343,5 +485,12 @@ export function freshLooseGearState(subTypeId: LooseGearData["subType"] = "stand
   if (subTypeId === "visual_certificate") base.visualCert = freshLooseGearVisualCertData();
   else if (subTypeId === "standard_report") base.standardReport = freshLooseGearStandardReportData();
   else if (subTypeId === "multiple_items") base.multipleItems = freshLooseGearMultipleItemsData();
+  else if (subTypeId === "load_test") base.loadTest = freshLoadTestData();
+  else if (subTypeId === "mpi") base.mpi = freshMPIData();
+  else if (subTypeId === "pt") base.pt = freshPTData();
+  else if (subTypeId === "rt") base.rt = freshRTData();
+  else if (subTypeId === "ut") base.ut = freshUTData();
+  else if (subTypeId === "vt") base.vt = freshVTData();
+  else if (subTypeId === "et") base.et = freshETData();
   return base;
 }

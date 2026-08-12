@@ -289,7 +289,13 @@ export interface CalibrationData {
 // every fire safety certificate through one layout (see ffeCertTypes.ts).
 export type LooseGearYesNo = "yes" | "no" | "";
 
-export type LooseGearSubTypeId = "visual_certificate" | "standard_report" | "multiple_items";
+export type LooseGearSubTypeId =
+  | "visual_certificate" | "standard_report" | "multiple_items"
+  // Requested directly: add HMZC's Load Test / NDT (MPI, PT, RT, UT, VT, ET)
+  // report templates as part of Loose Gear & Lifting Equipment, styled
+  // after a real reference report (dense bordered grid) — see
+  // NDTCommonData/NDTFooterData below and each type's own interface.
+  | "load_test" | "mpi" | "pt" | "rt" | "ut" | "vt" | "et";
 
 // The LOLER 1998 statutory yes/no questions and defect/sign-off block
 // — still used by the legacy Visual Certificate template below
@@ -455,6 +461,200 @@ export interface LooseGearMultipleItemsData {
   rows: LooseGearRegisterRow[];
 }
 
+// Templates 4-9 — Load Test Report, MPI/PT/RT/UT/VT/ET NDT certificates
+// (HMZC's own QA/HMS document templates). The top identity block (Client/
+// Manufacturer/Object of control/PO no./Procedure reference/Drawing no./
+// Extent of testing/Acceptance standard/Operator) is worded identically
+// across all six NDT methods, so it's factored out here rather than
+// repeated six times — Report no./Date of testing/Vessel/IMO are NOT
+// duplicated here, they're cert.certNo/cert.dateOfServicing/
+// cert.vesselName/cert.imoNo, same convention every other equipment type
+// already uses. The second "material" block (Material type/Surface/
+// Groove-geometry/Welding process/Welder's ID/Object temperature) is
+// worded identically for MPI/PT/UT/ET only — RT and VT each swap a
+// couple of fields for their own equivalents, so those two keep their
+// own accurately-named fields instead of forcing a shared shape.
+export interface NDTCommonData {
+  client: string;
+  manufacturer: string;
+  objectOfControl: string;
+  poNo: string;
+  procedureReference: string;
+  drawingNo: string;
+  extentOfTesting: string;
+  acceptanceStandard: string;
+  operator: string;
+}
+
+// Shared footer across all six NDT methods (not Load Test, which has its
+// own simpler remarks/witness-signature ending). The report's own photo
+// reuses the existing top-level `photos` dict under a fixed key (see
+// NDT_PHOTO_KEY in inspectionHelpers.ts) — same convention
+// PhotoReportForm.tsx already uses for its own single photo slot.
+// Signatures reuse the existing captainName/captainSig (relabeled
+// "Approved By") and engineerName/engineerSig (relabeled "Operator/
+// Technician") fields on InspectionCertificate — same convention
+// VisualCertPage/MultipleItemsPage already use with their own relabeled
+// "Master"/"Inspector".
+export interface NDTFooterData {
+  findingsStatement: string;
+  serialNo: string;
+  repairsMarkedOnObject: boolean;
+  repairsMarkedOnSketch: boolean;
+}
+
+export interface MPIData {
+  common: NDTCommonData;
+  materialType: string;
+  surface: string;
+  grooveGeometry: string;
+  weldingProcess: string;
+  weldersId: string;
+  objectTemperature: string;
+  method: "" | "prods" | "yoke" | "other";
+  methodSMax: string; // S max (mm), for Prods/Yoke
+  current: "" | "ac" | "dc";
+  fieldStrength: string;
+  mediumWetDry: "" | "wet" | "dry";
+  mediumType: "" | "black" | "fluorescent";
+  contrastColour: string;
+  fieldIndicator: string;
+  magnetizedFor: "" | "longitudinal" | "transverse" | "both";
+  footer: NDTFooterData;
+}
+
+export interface PTData {
+  common: NDTCommonData;
+  materialType: string;
+  surface: string;
+  grooveGeometry: string;
+  weldingProcess: string;
+  weldersId: string;
+  objectTemperature: string;
+  penetrantType: string;
+  applicationMethod: string;
+  fluorescent: LooseGearYesNo;
+  penetrantRemover: "" | "water" | "emulsifier" | "solvent";
+  developer: "" | "dry_powder" | "solution_water" | "suspension_water" | "powder_solvent";
+  penetrationTime: string;
+  developingTime: string;
+  footer: NDTFooterData;
+}
+
+export interface RTData {
+  common: NDTCommonData;
+  materialType: string;
+  thickness: string;
+  jointWeldType: string;
+  weldingProcess: string;
+  weldersId: string;
+  technique: "" | "swsi" | "dwsi" | "dwdi";
+  sourceType: string;
+  focalSpotSize: string;
+  kvOrCurie: string;
+  maOrExposureTime: string;
+  sourceToFilmDistance: string;
+  screens: string;
+  filmTypeOrDetector: string;
+  densityRange: string;
+  iqiType: string;
+  sensitivityAchieved: string;
+  numberOfExposures: string;
+  viewingConditions: string;
+  // Repeating rows, editable like Calibration's ItemTable — column keys:
+  // filmImageNo, weldLocation, indicationType, size, evaluation.
+  indications: Record<string, string>[];
+  footer: NDTFooterData;
+}
+
+export interface UTData {
+  common: NDTCommonData;
+  materialType: string;
+  surface: string;
+  grooveGeometry: string;
+  weldingProcess: string;
+  weldersId: string;
+  objectTemperature: string;
+  instrumentTypeModel: string;
+  instrumentSerialNo: string;
+  calibrationDueDate: string;
+  referenceBlock: string;
+  probeType: string;
+  probeFrequency: string;
+  probeAngle: string;
+  probeSize: string;
+  couplant: string;
+  scanningTechnique: "" | "contact" | "immersion";
+  referenceLevel: string;
+  scanningSensitivity: string;
+  recordingLevel: string;
+  reportingLevel: string;
+  scanCoverage: string;
+  beamAngleCheck: string;
+  // Column keys: indNo, weldLocation, length, amplitude, depth, evaluation.
+  indications: Record<string, string>[];
+  footer: NDTFooterData;
+}
+
+export interface VTData {
+  common: NDTCommonData;
+  materialType: string;
+  jointWeldType: string;
+  surfaceCondition: string;
+  weldingProcess: string;
+  weldersId: string;
+  stageOfInspection: "" | "pre_weld" | "in_process" | "final";
+  illuminationLevel: string;
+  viewingDistanceAngle: string;
+  aidsUsed: string;
+  directOrRemote: "" | "direct" | "remote";
+  // Column keys: itemNo, locationWeld, observation, evaluation.
+  observations: Record<string, string>[];
+  footer: NDTFooterData;
+}
+
+export interface ETData {
+  common: NDTCommonData;
+  materialType: string;
+  surface: string;
+  grooveGeometry: string;
+  weldingProcess: string;
+  weldersId: string;
+  objectTemperature: string;
+  instrumentTypeModel: string;
+  instrumentSerialNo: string;
+  calibrationDueDate: string;
+  referenceStandardBlock: string;
+  probeType: string;
+  frequency: string;
+  gain: string;
+  phaseAngle: string;
+  scanCoverage: string;
+  scanSpeed: string;
+  // Column keys: indNo, weldLocation, signalAmplitude, phaseAngle, evaluation.
+  indications: Record<string, string>[];
+  footer: NDTFooterData;
+}
+
+// Load Test Report — structurally its own thing (SOLAS/LSA regulation
+// reference, a fixed A-G³ load-calculation table, a simpler remarks +
+// two-witness sign-off), not sharing NDTCommonData/NDTFooterData with
+// the six NDT methods above. Vessel/IMO reuse cert.vesselName/cert.imoNo
+// as usual. Signatures reuse captainName/captainSig (relabeled "RO/Class
+// Witness") and engineerName/engineerSig (relabeled "Test Witness").
+export interface LoadTestRow {
+  label: string; // "A", "B", "C", "D", "E", "F", "G¹", "G²", "G³"
+  description: string;
+  value: string; // Kg / Lbs / Bar, as applicable
+}
+
+export interface LoadTestData {
+  typeOfLsaEquipment: string;
+  lsaLocationOnboard: string;
+  rows: LoadTestRow[];
+  remarks: string;
+}
+
 // vesselName/imoNo/certNo/dateOfServicing/location live on
 // InspectionCertificate itself (same convention FFE already uses) —
 // only the sub-type actually selected has its data object populated.
@@ -463,6 +663,13 @@ export interface LooseGearData {
   visualCert?: LooseGearVisualCertData;
   standardReport?: LooseGearStandardReportData;
   multipleItems?: LooseGearMultipleItemsData;
+  loadTest?: LoadTestData;
+  mpi?: MPIData;
+  pt?: PTData;
+  rt?: RTData;
+  ut?: UTData;
+  vt?: VTData;
+  et?: ETData;
 }
 
 export interface EquipmentTypeConfig {

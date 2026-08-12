@@ -3,7 +3,7 @@ import { useSearchParams } from "react-router-dom";
 import "../inspections.css";
 import { INSPECTION_TYPES } from "../data/inspectionChecklists";
 import { useInspections } from "../hooks/useInspections";
-import { EquipmentTypeKey, ChecklistSection, EquipResult, InspectionCertificate, PhotoEvidence, LooseGearRegisterRow } from "../types/inspection.types";
+import { EquipmentTypeKey, ChecklistSection, EquipResult, InspectionCertificate, PhotoEvidence, LooseGearData, LooseGearRegisterRow } from "../types/inspection.types";
 import ChecklistGroup from "../components/ChecklistGroup";
 import CertificatePreview from "../components/CertificatePreview";
 import SignatureCanvas from "../components/SignatureCanvas";
@@ -66,7 +66,7 @@ export default function InspectionWorkspace() {
   // this tab at least once" is the honest, achievable version of a
   // progress indicator without that larger change.
   const [visitedTabs, setVisitedTabs] = useState<Set<SubTab>>(new Set(["statement"]));
-  const { current, setCurrent, saveCurrent, saveOther, startNew, openCertificate, certificates, syncError, pendingSyncCount, retrySync } = useInspections(type);
+  const { current, setCurrent, saveCurrent, saveOther, startNew, openCertificate, certificates, syncError, pendingSyncCount, retrySync, allCertNos } = useInspections(type);
   const { user } = useAuth();
 
   // Job Tabs — requested directly: "it is difficult to switch between
@@ -585,7 +585,17 @@ export default function InspectionWorkspace() {
           if (!row.safeToUse) problems.push(`Row ${i + 1}: "Safe to use" must be answered`);
         });
       }
-      const lgSignerLabel = lg?.subType === "standard_report" ? "Examiner" : "Inspector";
+      // Matches each sub-type's own signer label in LooseGearForm.tsx/
+      // CertificatePreview.tsx's SignatureGrid — was a flat "Examiner"/
+      // "Inspector" binary that predated the Load Test/NDT report types,
+      // which use their own accurate labels instead of the generic
+      // fallback ("Operator/Technician" for the 6 NDT methods matches
+      // the form; "Test Witness" for Load Test, not "Inspector").
+      const lgSignerLabel =
+        lg?.subType === "standard_report" ? "Examiner"
+        : lg?.subType === "load_test" ? "Test Witness"
+        : lg?.subType && (["mpi", "pt", "rt", "ut", "vt", "et"] as LooseGearData["subType"][]).includes(lg.subType) ? "Operator/Technician"
+        : "Inspector";
       if (!current.engineerName.trim()) {
         problems.push(`${lgSignerLabel} name is required`);
       }
@@ -1049,7 +1059,7 @@ export default function InspectionWorkspace() {
           <div className="insp-panel">
             <div className="insp-panel-header">Loose Gear &amp; Lifting Equipment</div>
             <div className="insp-panel-body">
-              <LooseGearForm current={current} updateField={updateField} openCertificate={openCertificateWithSave} certificates={certificates} onGenerateStandardReports={handleGenerateStandardReports} />
+              <LooseGearForm current={current} updateField={updateField} openCertificate={openCertificateWithSave} certificates={certificates} onGenerateStandardReports={handleGenerateStandardReports} allCertNos={allCertNos} />
             </div>
           </div>
           <div className="insp-panel">

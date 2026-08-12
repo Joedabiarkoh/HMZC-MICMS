@@ -371,5 +371,10 @@ export function useInspections(initialType: EquipmentTypeKey = "lifeboat") {
     startNew,
     openCertificate,
     deleteCertificate,
+    // Exposed so LooseGearForm.tsx can regenerate certNo with the right
+    // prefix when the report-type dropdown changes (see its own
+    // changeSubType) — every other caller of generateCertNo already had
+    // this via startNew's closure, this is the first one needed outside it.
+    allCertNos,
   };
 }
