@@ -610,6 +610,67 @@ export const FFE_CERT_TYPES: FFESubTypeConfig[] = [
     validityYears: 1,
     note: "Reference: SOLAS requirements and IMO MSC.1/Circ.1331 (Means of Access) guidance on accommodation ladder/gangway surveys.",
   },
+  {
+    // Requested directly: "create an inspection and certificate
+    // checklist for Gangway... check through the net and ensure you use
+    // the right industrial standards." Kept as its own sub-type rather
+    // than folded into accommodation_ladder above — MSC.1/Circ.1331
+    // itself treats them as two distinct classes of equipment with
+    // different angle limits (gangway ≤30° from horizontal vs an
+    // accommodation ladder's ≤55°, unless specially rated and marked),
+    // since a gangway is typically the shore-set access ramp/brow used
+    // for general crew, visitor, stevedore, and surveyor transfer, not
+    // just the ship's own pivoting boarding ladder. checklistItems
+    // researched against: SOLAS Regulation II-1/3-9 (Means of
+    // Embarkation and Disembarkation, in force since 1 Jan 2010); IMO
+    // MSC.1/Circ.1331 (Rev.1), Guidelines for Construction,
+    // Installation, Maintenance and Inspection/Survey of Means of
+    // Embarkation and Disembarkation (structural checks, angle/waterline
+    // limits); SOLAS Regulation III/20.7.2 and III/36 (monthly
+    // inspection/maintenance and onboard checklist requirement); SOLAS
+    // Regulation III/20.4 and MSC.1/Circ.1206/Rev.1 (fall wire
+    // inspection and 5-year renewal); and ISO 5488:2015, Ships and
+    // marine technology — Accommodation ladders (handrail height,
+    // structural design). Structural items 1-10 mirror the mechanical
+    // checks every one of these sources requires of ANY means of
+    // embarkation/disembarkation; items 11-17 are the gangway-specific
+    // safe-use-while-rigged requirements (safety net, lifebuoy,
+    // lighting, non-slip surface, angle, waterline clearance, watch)
+    // drawn from SOLAS/ISO and P&I Club loss-prevention guidance (e.g.
+    // Steamship Mutual RA13, Britannia P&I) for a gangway actually in
+    // service at the ship/shore interface — complementing rather than
+    // repeating accommodation_ladder's own structural-survey checklist
+    // above.
+    id: "gangway",
+    label: "Gangway",
+    archetype: "items",
+    itemColumns: [
+      { key: "serialNo", label: "S/N" }, { key: "manufacturer", label: "Manufacturer" },
+      { key: "yearOfMan", label: "Year of Man." }, { key: "lengthSteps", label: "Length/Steps" },
+      { key: "location", label: "Location" }, { key: "remarks", label: "Remarks" },
+    ],
+    checklistItems: [
+      { no: "1", description: "Platform, treads, and structure — no distortion, cracks, or corrosion" },
+      { no: "2", description: "Underside of gangway inspected for distortion, cracks, or corrosion" },
+      { no: "3", description: "Supporting points and winch bed — no distortion, cracks, or corrosion" },
+      { no: "4", description: "Stanchions upright, not bent, securely fitted" },
+      { no: "5", description: "Rigid handrails fitted, minimum 1000mm height, firm and complete" },
+      { no: "6", description: "Side/guard ropes inspected along their full length — no fraying or damage; kept taut if rope-type" },
+      { no: "7", description: "Moving parts (turntable, sheaves, tracks, bearings, rollers) free to turn and properly greased" },
+      { no: "8", description: "Winch brake in good condition; brake pads serviceable (where power-operated)" },
+      { no: "9", description: "Power supply, control system, and limit switches operate satisfactorily (where power-operated)" },
+      { no: "10", description: "Fall wires free of corrosion, kinks, or damage; properly greased; within 5-year renewal (SOLAS III/20.4 / MSC.1/Circ.1206)" },
+      { no: "11", description: "Safety net rigged in way of the gangway, free of holes, damage, UV degradation, or contamination" },
+      { no: "12", description: "Lifebuoy with self-igniting light and heaving line/quoit positioned at the gangway head" },
+      { no: "13", description: "Gangway, embarkation area, and quayside adequately lit for safe transit" },
+      { no: "14", description: "Steps and platform free of oil, grease, and obstructions (non-slip condition)" },
+      { no: "15", description: "Angle of inclination not more than 30° from horizontal, unless specially designed, constructed, and marked for a steeper angle" },
+      { no: "16", description: "Lowest platform less than 600mm above the waterline at lightest seagoing draft" },
+      { no: "17", description: "Gangway watch/watchman arrangements in place while rigged for use" },
+    ],
+    validityYears: 1,
+    note: "Reference: SOLAS Regulation II-1/3-9 (Means of Embarkation and Disembarkation); IMO MSC.1/Circ.1331 (Rev.1); SOLAS Regulations III/20.7.2, III/36, and III/20.4 with MSC.1/Circ.1206/Rev.1 (fall wires); and ISO 5488:2015 (Accommodation Ladders). A gangway found not to comply must not be used until the defect is rectified.",
+  },
 
   // ---------- Archetype: system (fixed installations) ----------
   {
