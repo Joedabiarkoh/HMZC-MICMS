@@ -13,6 +13,12 @@ import { pendingCount, flushQueue } from "./syncQueue";
 export default function SyncStatusBadge() {
   const [count, setCount] = useState(0);
   const [syncing, setSyncing] = useState(false);
+  // Set only right after a flush attempt actually finds items queued
+  // under a different signed-in account (see syncQueue.ts's
+  // queuedByUserId) — those will never sync no matter how many times
+  // "Retry" is clicked from THIS session, so the button needs to say
+  // that instead of implying a network problem.
+  const [blockedForOtherUser, setBlockedForOtherUser] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -32,8 +38,9 @@ export default function SyncStatusBadge() {
   async function retryNow() {
     setSyncing(true);
     try {
-      const { remaining } = await flushQueue();
+      const { remaining, blockedForOtherUser: blocked } = await flushQueue();
       setCount(remaining);
+      setBlockedForOtherUser(blocked);
     } finally {
       setSyncing(false);
     }
@@ -41,6 +48,17 @@ export default function SyncStatusBadge() {
 
   if (count === 0 && !syncing) {
     return <span style={{ fontSize: 10.5, color: "#8FA6B8" }} title="Everything is synced">● Synced</span>;
+  }
+
+  if (blockedForOtherUser > 0 && blockedForOtherUser >= count) {
+    return (
+      <span
+        style={{ fontSize: 10.5, color: "#F3C98A" }}
+        title="These were saved offline under a different account on this device. Sign in as that user here to sync them."
+      >
+        {count} pending — different account
+      </span>
+    );
   }
 
   return (

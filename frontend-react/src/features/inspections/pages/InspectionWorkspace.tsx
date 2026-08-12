@@ -290,7 +290,15 @@ export default function InspectionWorkspace() {
       const hasJob = currentRef.current.jobRef.trim() || wasExistingCertRef.current;
       if (!hasJob) return; // don't auto-save while still in the Job Picker — nothing real to save yet
       const savedByName = user ? (user.full_name || user.email) : currentRef.current.savedBy;
-      const saved = saveCurrentRef.current("draft", savedByName);
+      // Root-caused from a real report: this used to hardcode "draft"
+      // unconditionally — reopening an already-finalized certificate
+      // (admins/the original issuer can, see isLockedToCreator below) to
+      // fix something, then pausing 20s, silently downgraded it back to
+      // draft before the user got a chance to hit "Finalize" again.
+      // Preserve "final" if that's what it already was; only a genuinely
+      // new/in-progress certificate autosaves as "draft".
+      const autoSaveStatus = currentRef.current.status === "final" ? "final" : "draft";
+      const saved = saveCurrentRef.current(autoSaveStatus, savedByName);
       // Baseline from what was actually saved (includes the new
       // status/savedAt this very call set), not the pre-save snapshot
       // — using the pre-save one would itself immediately look "dirty"
@@ -358,6 +366,11 @@ export default function InspectionWorkspace() {
   }, []);
 
   function handleTypeChange(next: EquipmentTypeKey) {
+    // Root-caused from a real report of vanishing item-register rows —
+    // switching the equipment-type dropdown used to blow away whatever
+    // was unsaved in `current` with no warning, unlike "+ New Job" and
+    // the Job Tabs, which already force-save first.
+    forceSaveIfDirty();
     setType(next);
     setSub("statement");
     startNewDraft(next);
@@ -374,7 +387,12 @@ export default function InspectionWorkspace() {
   function forceSaveIfDirty() {
     if (current.jobRef && dirtyKey(current) !== lastSavedSnapshot.current) {
       const savedByName = user ? (user.full_name || user.email) : current.savedBy;
-      const saved = saveCurrent("draft", savedByName);
+      // Same fix as the autosave interval above: preserve "final" rather
+      // than hardcoding "draft", so force-saving a dirty edit on an
+      // already-finalized certificate (e.g. right before switching to a
+      // different certificate) can't silently downgrade its status.
+      const status = current.status === "final" ? "final" : "draft";
+      const saved = saveCurrent(status, savedByName);
       lastSavedSnapshot.current = dirtyKey(saved);
     }
   }
@@ -383,6 +401,20 @@ export default function InspectionWorkspace() {
     forceSaveIfDirty();
     setSub("statement");
     startNewDraft(type);
+  }
+
+  // Root-caused from a real report of item-register rows/serial numbers
+  // "vanishing": every form's embedded VesselLookupPanel lets someone
+  // jump straight to a DIFFERENT certificate (same tab, no page reload)
+  // via onOpenCertificate — which used to call openCertificate(certNo)
+  // directly, unconditionally overwriting `current` with zero regard for
+  // whatever unsaved edits were sitting in it. Wrapping here, once,
+  // rather than editing every form component, so every "jump to another
+  // certificate" path gets the same "save my work first" guarantee
+  // "+ New Job"/Job Tabs already have.
+  function openCertificateWithSave(certNo: string) {
+    forceSaveIfDirty();
+    openCertificate(certNo);
   }
 
   // Resumes the target tab's most recently active certificate if one
@@ -945,7 +977,7 @@ export default function InspectionWorkspace() {
           <div className="insp-panel">
             <div className="insp-panel-header">FFE Certificate & Checklist</div>
             <div className="insp-panel-body">
-              <FFEForm current={current} updateField={updateField} openCertificate={openCertificate} />
+              <FFEForm current={current} updateField={updateField} openCertificate={openCertificateWithSave} />
             </div>
           </div>
           <div className="insp-panel">
@@ -982,7 +1014,7 @@ export default function InspectionWorkspace() {
             >
               Save as Word
             </button>
-            <button className="insp-btn insp-btn-outline" onClick={() => startNewDraft(type)}>New Certificate</button>
+            <button className="insp-btn insp-btn-outline" onClick={() => { forceSaveIfDirty(); startNewDraft(type); }}>New Certificate</button>
           </div>
         </div>
       </div>
@@ -1017,7 +1049,7 @@ export default function InspectionWorkspace() {
           <div className="insp-panel">
             <div className="insp-panel-header">Loose Gear &amp; Lifting Equipment</div>
             <div className="insp-panel-body">
-              <LooseGearForm current={current} updateField={updateField} openCertificate={openCertificate} certificates={certificates} onGenerateStandardReports={handleGenerateStandardReports} />
+              <LooseGearForm current={current} updateField={updateField} openCertificate={openCertificateWithSave} certificates={certificates} onGenerateStandardReports={handleGenerateStandardReports} />
             </div>
           </div>
           <div className="insp-panel">
@@ -1079,7 +1111,7 @@ export default function InspectionWorkspace() {
             >
               Save as Word
             </button>
-            <button className="insp-btn insp-btn-outline" onClick={() => startNewDraft(type)} title="Starts over from the Job Picker — for a different vessel, job, or equipment type.">New Certificate</button>
+            <button className="insp-btn insp-btn-outline" onClick={() => { forceSaveIfDirty(); startNewDraft(type); }} title="Starts over from the Job Picker — for a different vessel, job, or equipment type.">New Certificate</button>
           </div>
         </div>
       </div>
@@ -1113,7 +1145,7 @@ export default function InspectionWorkspace() {
           <div className="insp-panel">
             <div className="insp-panel-header">Calibration Certificate</div>
             <div className="insp-panel-body">
-              <CalibrationForm current={current} updateField={updateField} openCertificate={openCertificate} />
+              <CalibrationForm current={current} updateField={updateField} openCertificate={openCertificateWithSave} />
             </div>
           </div>
           <div className="insp-panel">
@@ -1150,7 +1182,7 @@ export default function InspectionWorkspace() {
             >
               Save as Word
             </button>
-            <button className="insp-btn insp-btn-outline" onClick={() => startNewDraft(type)}>New Certificate</button>
+            <button className="insp-btn insp-btn-outline" onClick={() => { forceSaveIfDirty(); startNewDraft(type); }}>New Certificate</button>
           </div>
         </div>
       </div>
@@ -1187,7 +1219,7 @@ export default function InspectionWorkspace() {
           <div className="insp-panel">
             <div className="insp-panel-header">FFE &amp; Calibration Photo Report</div>
             <div className="insp-panel-body">
-              <PhotoReportForm current={current} updateField={updateField} openCertificate={openCertificate} />
+              <PhotoReportForm current={current} updateField={updateField} openCertificate={openCertificateWithSave} />
             </div>
           </div>
           <div className="insp-panel">
@@ -1224,7 +1256,7 @@ export default function InspectionWorkspace() {
             >
               Save as Word
             </button>
-            <button className="insp-btn insp-btn-outline" onClick={() => startNewDraft(type)}>New Certificate</button>
+            <button className="insp-btn insp-btn-outline" onClick={() => { forceSaveIfDirty(); startNewDraft(type); }}>New Certificate</button>
           </div>
         </div>
       </div>
@@ -1340,7 +1372,7 @@ export default function InspectionWorkspace() {
                 updateNested={updateNested}
                 toggleAutoRemarks={toggleAutoRemarks}
                 updateSignature={updateSignature}
-                openCertificate={openCertificate}
+                openCertificate={openCertificateWithSave}
               />
             )}
 
@@ -1460,7 +1492,7 @@ export default function InspectionWorkspace() {
           >
             Save as Word
           </button>
-          <button className="insp-btn insp-btn-outline" onClick={() => startNewDraft(type)}>New Certificate</button>
+          <button className="insp-btn insp-btn-outline" onClick={() => { forceSaveIfDirty(); startNewDraft(type); }}>New Certificate</button>
         </div>
       </div>
     </div>

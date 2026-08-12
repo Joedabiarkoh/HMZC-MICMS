@@ -23,6 +23,37 @@ function nextAttemptDelay(attempts: number): number {
   return BACKOFF_SCHEDULE_MS[Math.min(attempts, BACKOFF_SCHEDULE_MS.length - 1)];
 }
 
+// Root-caused from a real report: on a shared device, a save queued
+// offline by one technician was being silently replayed under whoever
+// happened to be logged in when the periodic flush next fired — the
+// queue had no idea it was ever tied to a particular person. Every op
+// is now tagged with the id of whoever queued it (read straight off the
+// JWT already in localStorage — no need for AuthContext, which this
+// module has no access to and shouldn't need to import) so flushQueue()
+// can refuse to replay an item under the wrong account. Decodes the
+// token's own claims rather than trusting anything else, since the
+// token IS the credential every queued request will actually be sent
+// with.
+function getCurrentUserId(): string | null {
+  try {
+    const token = localStorage.getItem("hmzc_token");
+    if (!token) return null;
+    const payload = token.split(".")[1];
+    if (!payload) return null;
+    const base64 = payload.replace(/-/g, "+").replace(/_/g, "/");
+    const json = decodeURIComponent(
+      atob(base64)
+        .split("")
+        .map((c) => "%" + c.charCodeAt(0).toString(16).padStart(2, "0"))
+        .join("")
+    );
+    const claims = JSON.parse(json);
+    return claims?.sub != null ? String(claims.sub) : null;
+  } catch {
+    return null;
+  }
+}
+
 let migrated: Promise<void> | null = null;
 function ensureMigrated(): Promise<void> {
   if (!migrated) migrated = migrateLegacyQueue();
@@ -49,6 +80,7 @@ export async function queueSave(cert: InspectionCertificate): Promise<void> {
     queuedAt: new Date().toISOString(),
     attempts: 0,
     nextAttemptAt: new Date().toISOString(),
+    queuedByUserId: getCurrentUserId() || undefined,
   });
 }
 
@@ -64,6 +96,7 @@ export async function queueDelete(certNo: string): Promise<void> {
     queuedAt: new Date().toISOString(),
     attempts: 0,
     nextAttemptAt: new Date().toISOString(),
+    queuedByUserId: getCurrentUserId() || undefined,
   });
 }
 
@@ -91,6 +124,7 @@ export async function queueInvoiceSave(payload: InvoiceSavePayload): Promise<voi
     queuedAt: new Date().toISOString(),
     attempts: 0,
     nextAttemptAt: new Date().toISOString(),
+    queuedByUserId: getCurrentUserId() || undefined,
   });
 }
 
@@ -107,6 +141,7 @@ export async function queueQuotationSave(payload: QuotationSavePayload): Promise
     queuedAt: new Date().toISOString(),
     attempts: 0,
     nextAttemptAt: new Date().toISOString(),
+    queuedByUserId: getCurrentUserId() || undefined,
   });
 }
 
@@ -136,6 +171,12 @@ export interface FlushResult {
   conflicted: { resourceType: QueueOp["resourceType"]; resourceId: string; message: string }[];
   failedPermanently: { resourceType: QueueOp["resourceType"]; resourceId: string; kind: string }[];
   remaining: number;
+  // Items left untouched this flush because they were queued by a
+  // DIFFERENT account than the one currently signed in on this device —
+  // see queuedByUserId's comment above. They stay queued (nothing is
+  // lost) and will sync automatically once that original account signs
+  // back in here, but must never be replayed under the current session.
+  blockedForOtherUser: number;
 }
 
 /**
@@ -152,13 +193,24 @@ export async function flushQueue(): Promise<FlushResult> {
   await ensureMigrated();
   const all = await getAllOps();
   const now = Date.now();
-  const due = all.filter((op) => new Date(op.nextAttemptAt).getTime() <= now);
+  const currentUserId = getCurrentUserId();
+  // An op with no queuedByUserId at all is a legacy/migrated entry from
+  // before this field existed — allowed through rather than getting
+  // permanently stuck, since there's no account to defer to. An op
+  // that DOES carry a queuedByUserId is only eligible when it matches
+  // whoever is signed in right now.
+  const dueForCurrentUser = all.filter(
+    (op) => new Date(op.nextAttemptAt).getTime() <= now && (!op.queuedByUserId || op.queuedByUserId === currentUserId)
+  );
+  const blockedForOtherUser = all.filter(
+    (op) => new Date(op.nextAttemptAt).getTime() <= now && op.queuedByUserId && op.queuedByUserId !== currentUserId
+  ).length;
 
   const succeeded: FlushResult["succeeded"] = [];
   const conflicted: FlushResult["conflicted"] = [];
   const failedPermanently: FlushResult["failedPermanently"] = [];
 
-  for (const op of due) {
+  for (const op of dueForCurrentUser) {
     try {
       if (op.resourceType === "certificate" && op.kind === "save") {
         const synced = await saveCertificateRemote(op.cert);
@@ -200,5 +252,5 @@ export async function flushQueue(): Promise<FlushResult> {
     }
   }
 
-  return { succeeded, conflicted, failedPermanently, remaining: (await getAllOps()).length };
+  return { succeeded, conflicted, failedPermanently, remaining: (await getAllOps()).length, blockedForOtherUser };
 }

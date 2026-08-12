@@ -50,7 +50,7 @@ export function useInspections(initialType: EquipmentTypeKey = "lifeboat") {
     if (flushing.current) return; // avoid overlapping flushes from multiple triggers firing close together
     flushing.current = true;
     try {
-      const { succeeded, conflicted, failedPermanently, remaining } = await flushQueue();
+      const { succeeded, conflicted, failedPermanently, remaining, blockedForOtherUser } = await flushQueue();
       // flushQueue() now covers Invoices/Quotations too (see syncQueue.ts)
       // — filter down to certificates here, since this hook only owns
       // certificate state. Their own pending counts are tracked
@@ -77,6 +77,12 @@ export function useInspections(initialType: EquipmentTypeKey = "lifeboat") {
         setSyncError(`Couldn't sync ${certConflicted.map((c) => c.resourceId).join(", ")} — changed by someone else while offline. Reopen and re-apply those changes.`);
       } else if (certFailed.length > 0) {
         setSyncError(`Gave up syncing ${certFailed.map((f) => f.resourceId).join(", ")} after repeated failures — check the certificate and try saving it again.`);
+      } else if (blockedForOtherUser > 0) {
+        // Deliberately does NOT say "will retry automatically" — retrying
+        // won't help until the account that queued these signs back in on
+        // this device, and that message previously made it look like a
+        // transient network issue.
+        setSyncError(`${blockedForOtherUser} item${blockedForOtherUser === 1 ? "" : "s"} saved offline under a different account on this device — sign in as that user here to sync them.`);
       } else {
         setSyncError(remaining > 0 ? `${remaining} item${remaining === 1 ? "" : "s"} waiting to sync — will retry automatically.` : null);
       }

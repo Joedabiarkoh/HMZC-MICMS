@@ -22,11 +22,20 @@ import { InvoiceSavePayload, QuotationSavePayload } from "../features/finance/se
 // this only generalizes *storage*, not into a generic "replay any HTTP
 // call" queue, which is the same reasoning the root README gives for
 // not building a generic /api/sync/push endpoint on the backend.
+// `queuedByUserId` is optional so items already queued before this field
+// existed (migrated legacy entries, or anything queued by an older
+// deployed bundle) still flush normally rather than getting stuck —
+// see syncQueue.ts's flushQueue() for how it's used to stop a queued
+// item from ever being replayed under a DIFFERENT logged-in user than
+// the one who made the edit (root-caused from a real report: on a
+// shared device, an offline save queued by one technician was being
+// silently submitted under whichever account happened to be logged in
+// when connectivity returned and the periodic flush fired).
 export type QueueOp =
-  | { id: string; resourceType: "certificate"; kind: "save"; resourceId: string; cert: InspectionCertificate; queuedAt: string; attempts: number; nextAttemptAt: string }
-  | { id: string; resourceType: "certificate"; kind: "delete"; resourceId: string; queuedAt: string; attempts: number; nextAttemptAt: string }
-  | { id: string; resourceType: "invoice"; kind: "save"; resourceId: string; payload: InvoiceSavePayload; queuedAt: string; attempts: number; nextAttemptAt: string }
-  | { id: string; resourceType: "quotation"; kind: "save"; resourceId: string; payload: QuotationSavePayload; queuedAt: string; attempts: number; nextAttemptAt: string };
+  | { id: string; resourceType: "certificate"; kind: "save"; resourceId: string; cert: InspectionCertificate; queuedAt: string; attempts: number; nextAttemptAt: string; queuedByUserId?: string }
+  | { id: string; resourceType: "certificate"; kind: "delete"; resourceId: string; queuedAt: string; attempts: number; nextAttemptAt: string; queuedByUserId?: string }
+  | { id: string; resourceType: "invoice"; kind: "save"; resourceId: string; payload: InvoiceSavePayload; queuedAt: string; attempts: number; nextAttemptAt: string; queuedByUserId?: string }
+  | { id: string; resourceType: "quotation"; kind: "save"; resourceId: string; payload: QuotationSavePayload; queuedAt: string; attempts: number; nextAttemptAt: string; queuedByUserId?: string };
 
 interface HmzcOfflineDB extends DBSchema {
   syncQueue: {

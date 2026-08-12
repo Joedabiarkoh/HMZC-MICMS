@@ -5,6 +5,7 @@ from typing import List
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
 from fastapi.responses import StreamingResponse
+from sqlalchemy import update
 from sqlalchemy.orm import Session, joinedload
 
 from app.api.deps import require_permission
@@ -166,6 +167,29 @@ def _check_version(existing_version: int, incoming_version: int | None, kind: st
         )
 
 
+# `_check_version` above only catches a STALE read — the client's own
+# declared version doesn't match what we just read. It does nothing for
+# two saves racing each other in the gap between that read and the plain
+# `existing.version += 1; db.commit()` that used to follow it: both could
+# read the same version, both pass the check, and the second would
+# silently overwrite the first's entire payload with no error to either
+# party. Doing the update as a single conditional UPDATE keyed on the
+# version this request actually read closes that gap — the database
+# re-evaluates the WHERE clause at write time, so only the first of two
+# racing saves can ever match a row and apply. Shared between quotations
+# and invoices since both need the identical fix.
+def _apply_versioned_update(db: Session, model, filter_clause, existing_version: int, values: dict, kind: str):
+    result = db.execute(
+        update(model).where(filter_clause, model.version == existing_version).values(**values, version=model.version + 1)
+    )
+    if result.rowcount == 0:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"This {kind} was updated by someone else at the same moment you saved. Reload it and re-apply your changes.",
+        )
+
+
 def _can_edit(record_issued_by_id: int | None, current_user: User) -> bool:
     # Admins can edit any finance record; a Finance-role user can edit
     # their own. Matches the "admin must have power to work on the
@@ -199,16 +223,24 @@ def save_quotation(
         if not _can_edit(existing.issued_by_id, current_user):
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Only an Administrator or the original issuer can edit this quotation.")
         _check_version(existing.version, q_in.version, "quotation")
-        existing.customer = q_in.customer
-        existing.vessel_name = q_in.vessel_name
-        existing.imo_no = q_in.imo_no
-        existing.status = q_in.status
-        existing.line_items = [li.model_dump() for li in q_in.line_items]
-        existing.subtotal = q_in.subtotal
-        existing.discount_total = q_in.discount_total
-        existing.total = q_in.total
-        existing.conditions = q_in.conditions
-        existing.version += 1
+        _apply_versioned_update(
+            db,
+            Quotation,
+            Quotation.quotation_no == q_in.quotation_no,
+            existing.version,
+            dict(
+                customer=q_in.customer,
+                vessel_name=q_in.vessel_name,
+                imo_no=q_in.imo_no,
+                status=q_in.status,
+                line_items=[li.model_dump() for li in q_in.line_items],
+                subtotal=q_in.subtotal,
+                discount_total=q_in.discount_total,
+                total=q_in.total,
+                conditions=q_in.conditions,
+            ),
+            "quotation",
+        )
         db.commit()
         db.refresh(existing)
         return existing
@@ -296,16 +328,24 @@ def save_invoice(
         if not _can_edit(existing.issued_by_id, current_user):
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Only an Administrator or the original issuer can edit this invoice.")
         _check_version(existing.version, inv_in.version, "invoice")
-        existing.quotation_id = inv_in.quotation_id
-        existing.customer = inv_in.customer
-        existing.vessel_name = inv_in.vessel_name
-        existing.imo_no = inv_in.imo_no
-        existing.status = inv_in.status
-        existing.line_items = [li.model_dump() for li in inv_in.line_items]
-        existing.subtotal = inv_in.subtotal
-        existing.discount_total = inv_in.discount_total
-        existing.total = inv_in.total
-        existing.version += 1
+        _apply_versioned_update(
+            db,
+            Invoice,
+            Invoice.invoice_no == inv_in.invoice_no,
+            existing.version,
+            dict(
+                quotation_id=inv_in.quotation_id,
+                customer=inv_in.customer,
+                vessel_name=inv_in.vessel_name,
+                imo_no=inv_in.imo_no,
+                status=inv_in.status,
+                line_items=[li.model_dump() for li in inv_in.line_items],
+                subtotal=inv_in.subtotal,
+                discount_total=inv_in.discount_total,
+                total=inv_in.total,
+            ),
+            "invoice",
+        )
         db.commit()
         db.refresh(existing)
         return existing

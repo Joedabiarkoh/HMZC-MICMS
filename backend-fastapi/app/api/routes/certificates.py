@@ -1,7 +1,7 @@
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
-from sqlalchemy import or_
+from sqlalchemy import or_, update
 from sqlalchemy.orm import Session, joinedload
 
 from app.api.deps import require_permission
@@ -95,14 +95,39 @@ def save_certificate(
         new_files = set(collect_photo_filenames(externalized_payload))
         removed_files = old_files - new_files
 
-        existing.equipment_type = cert_in.equipment_type
-        existing.vessel_name = cert_in.vessel_name
-        existing.imo_no = cert_in.imo_no
-        existing.status = cert_in.status
-        existing.date_of_servicing = cert_in.date_of_servicing
-        existing.job_no = cert_in.job_no
-        existing.payload = externalized_payload
-        existing.version += 1
+        # The version check above only guards against a STALE read (the
+        # client's declared version doesn't match what we just read) — it
+        # does nothing for two requests racing each other in the gap
+        # between that read and this write, since `existing.version += 1`
+        # was a plain Python attribute mutation applied to whichever row
+        # object each request happened to hold, with no re-check at commit
+        # time. Two saves issued moments apart could both read version 5,
+        # both pass the check above, and both commit — the second
+        # silently discarding the first's entire payload with no error to
+        # either party. Doing the increment as a conditional UPDATE keyed
+        # on the version this request actually read closes that gap: it's
+        # re-evaluated by the database at write time, so only the first of
+        # two racing saves can ever match and apply.
+        result = db.execute(
+            update(Certificate)
+            .where(Certificate.cert_no == cert_in.cert_no, Certificate.version == existing.version)
+            .values(
+                equipment_type=cert_in.equipment_type,
+                vessel_name=cert_in.vessel_name,
+                imo_no=cert_in.imo_no,
+                status=cert_in.status,
+                date_of_servicing=cert_in.date_of_servicing,
+                job_no=cert_in.job_no,
+                payload=externalized_payload,
+                version=Certificate.version + 1,
+            )
+        )
+        if result.rowcount == 0:
+            db.rollback()
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="This certificate was updated by someone else at the same moment you saved. Reload it and re-apply your changes.",
+            )
         db.commit()
         db.refresh(existing)
         if removed_files:
