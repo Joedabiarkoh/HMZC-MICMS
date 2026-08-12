@@ -404,6 +404,13 @@ def upload_invoice_attachment(
     current_user: User = Depends(require_permission(FIN_EDIT)),
 ):
     invoice = _get_invoice_or_404(invoice_no, db)
+    # save_invoice (above) restricts editing the invoice itself to an
+    # admin or its original issuer via _can_edit — this route only
+    # checked FIN_EDIT, a permission every Finance-role user has by
+    # default, so any Finance user could attach documents to an invoice
+    # they don't own even though they couldn't otherwise touch it.
+    if not _can_edit(invoice.issued_by_id, current_user):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Only an Administrator or the original issuer can add supporting documents to this invoice.")
     raw = file.file.read()
     stored_filename = save_upload(file, settings.ATTACHMENTS_DIR, raw)
     attachment = InvoiceAttachment(
@@ -527,12 +534,22 @@ def delete_invoice_attachment(
     invoice_no: str,
     attachment_id: int,
     db: Session = Depends(get_database),
-    _user: User = Depends(require_permission(FIN_EDIT)),
+    current_user: User = Depends(require_permission(FIN_EDIT)),
 ):
+    invoice = _get_invoice_or_404(invoice_no, db)
+    # Same ownership gap as upload_invoice_attachment above — FIN_EDIT
+    # alone isn't the same as "can edit THIS invoice".
+    if not _can_edit(invoice.issued_by_id, current_user):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Only an Administrator or the original issuer can remove supporting documents from this invoice.")
     attachment = _get_attachment_or_404(invoice_no, attachment_id, db)
-    delete_upload(settings.ATTACHMENTS_DIR, attachment.stored_filename)
+    stored_filename = attachment.stored_filename
+    # Delete the DB row first, then the file — if the file delete were
+    # first and the commit below somehow failed, the DB row would be
+    # left pointing at a file that no longer exists. Matches the order
+    # already used for signature/photo cleanup in photo_storage.py.
     db.delete(attachment)
     db.commit()
+    delete_upload(settings.ATTACHMENTS_DIR, stored_filename)
 
 
 # `DELETE /invoices/{invoice_no:path}` has to be registered AFTER every
@@ -562,11 +579,17 @@ def delete_invoice(invoice_no: str, db: Session = Depends(get_database), _user: 
     # delete pattern delete_boarding_submission and certificate deletion
     # already use elsewhere in this app.
     attachments = db.query(InvoiceAttachment).filter(InvoiceAttachment.invoice_id == inv.id).all()
+    stored_filenames = [a.stored_filename for a in attachments]
     for a in attachments:
-        delete_upload(settings.ATTACHMENTS_DIR, a.stored_filename)
         db.delete(a)
     db.delete(inv)
+    # Commit the DB deletion first, then remove the files — same ordering
+    # fix as delete_invoice_attachment above, for the same reason: if the
+    # files were deleted first and this commit failed, the invoice/
+    # attachment rows would survive pointing at files that no longer exist.
     db.commit()
+    for stored_filename in stored_filenames:
+        delete_upload(settings.ATTACHMENTS_DIR, stored_filename)
 
 
 # ============================================================

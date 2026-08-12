@@ -68,7 +68,16 @@ export default function QuotationForm() {
     });
   }, [quotationNo]);
 
-  const canEdit = !quotationNo || user?.role === "admin" || issuedById === user?.id;
+  // Root-caused from an audit pass: ownership alone used to be enough to
+  // edit — if an admin revokes someone's finance.edit permission (view-
+  // only demotion) while leaving finance.view, they could still open a
+  // quotation they originally issued (the route only requires FIN_VIEW)
+  // and this form rendered fully editable, purely because issuedById
+  // matched. The backend independently re-checks _can_edit on save, so
+  // this was a frontend-only UX gap (a confusing 403 rather than an
+  // actual security hole) — but every other edit gate in this app checks
+  // hasPermission(...) too, so this now matches.
+  const canEdit = hasPermission(user, PERM.FIN_EDIT) && (!quotationNo || user?.role === "admin" || issuedById === user?.id);
   const { subtotal, discountTotal, total } = computeTotals(lineItems);
 
   function addItem(item: FinanceItem) {

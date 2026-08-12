@@ -2,8 +2,10 @@ import asyncio
 import logging
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from sqlalchemy.exc import IntegrityError
 
 import app.models  # noqa: F401 — registers every model with Base for relationship resolution
 from app.api.routes import auth, backup as backup_routes, certificates, finance, health, jobs, photos, reports, settings as settings_routes, suppliers
@@ -115,6 +117,26 @@ async def add_security_headers(request, call_next):
     response.headers["Content-Security-Policy"] = "frame-ancestors 'none'"
     response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
     return response
+
+
+# Root-caused from an audit pass: nowhere in this app caught
+# IntegrityError, even though several routes generate a candidate unique
+# value (job_no, cert_no, a finance item's code) by reading existing rows
+# and picking the next free one, then insert — a genuine TOCTOU race
+# between two concurrent requests choosing the same candidate ends in an
+# uncaught IntegrityError, which FastAPI turns into a raw 500 with no
+# useful message. A global handler is simpler and more robust than
+# fixing each call site individually (and catches any future one written
+# the same way): the client gets a clean 409 asking it to retry, exactly
+# the same shape as the deliberate version-conflict 409s already used
+# elsewhere in this app, instead of a generic server-error page.
+@app.exception_handler(IntegrityError)
+async def integrity_error_handler(_: Request, exc: IntegrityError) -> JSONResponse:
+    logger.warning("IntegrityError on %s: %s", exc.__class__.__name__, str(exc.orig) if exc.orig else exc)
+    return JSONResponse(
+        status_code=409,
+        content={"detail": "That couldn't be saved because of a conflicting change (likely two requests at the same moment). Please try again."},
+    )
 
 
 app.add_middleware(

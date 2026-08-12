@@ -68,7 +68,11 @@ export default function InvoiceForm() {
     });
   }, [invoiceNo]);
 
-  const canEdit = !invoiceNo || user?.role === "admin" || issuedById === user?.id;
+  // Same fix as QuotationForm.tsx's canEdit — ownership alone used to be
+  // enough to edit, inconsistent with InvoiceAttachments below (which
+  // already checked FIN_EDIT for its own canEdit prop) and with the
+  // backend, which independently re-checks _can_edit on save regardless.
+  const canEdit = hasPermission(user, PERM.FIN_EDIT) && (!invoiceNo || user?.role === "admin" || issuedById === user?.id);
   const { subtotal, discountTotal, total } = computeTotals(lineItems);
 
   function addItem(item: FinanceItem) {

@@ -3,7 +3,7 @@ from datetime import datetime, timezone
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import text
+from sqlalchemy import func, text
 from sqlalchemy.orm import Session, joinedload
 
 from app.api.deps import require_permission
@@ -105,7 +105,28 @@ def list_jobs(
     if status_filter:
         query = query.filter(Job.status == status_filter)
     jobs = query.order_by(Job.created_at.desc()).all()
-    return [_job_response(db, job) for job in jobs]
+
+    # Root-caused from an audit pass: this used to call _job_response()
+    # per job, each issuing its own `SELECT COUNT(*) FROM certificates
+    # WHERE job_no = ...` — N+1 queries on every load of the Jobs page.
+    # One grouped count query for every job_no in this result set instead.
+    job_nos = [job.job_no for job in jobs]
+    counts_by_job_no: dict[str, int] = {}
+    if job_nos:
+        rows = (
+            db.query(Certificate.job_no, func.count(Certificate.id))
+            .filter(Certificate.job_no.in_(job_nos))
+            .group_by(Certificate.job_no)
+            .all()
+        )
+        counts_by_job_no = {job_no: count for job_no, count in rows}
+
+    responses = []
+    for job in jobs:
+        resp = JobResponse.model_validate(job)
+        resp.certificate_count = counts_by_job_no.get(job.job_no, 0)
+        responses.append(resp)
+    return responses
 
 
 @router.get("/{job_no}", response_model=JobResponse)
