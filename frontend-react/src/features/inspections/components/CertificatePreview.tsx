@@ -1613,6 +1613,7 @@ function LoadTestPage({ cert, data }: { cert: InspectionCertificate; data: LoadT
         </table>
         <div className="tt-note" style={{ margin: "6px 0" }}>Note: when using a test kit for the load test, apply the applicable pressure conversion table.</div>
         {data.remarks && <div className="insp-remarks-box">Remarks: {data.remarks}</div>}
+        <LooseGearItemPhoto cert={cert} />
         <SignatureGrid cert={cert} masterLabel="RO/Class Witness" techLabel="Test Witness" hideFitForPurpose />
       </div>
     </CertPageFrame>

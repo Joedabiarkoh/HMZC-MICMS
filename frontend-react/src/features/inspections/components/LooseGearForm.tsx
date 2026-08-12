@@ -289,8 +289,13 @@ function VesselLookupAndSignatures({ current, updateField, openCertificate }: Pi
           certificates, only reachable if an existing one already has
           it — see LOOSE_GEAR_SUB_TYPES in inspectionHelpers.ts) still
           shows it, rather than an upload control that silently went
-          nowhere. */}
-      {(current.looseGear?.subType === "visual_certificate" || (current.looseGear?.subType && NDT_METHOD_SUBTYPES.includes(current.looseGear.subType))) && (
+          nowhere. The 6 NDT methods and Load Test (requested directly:
+          "the NDT documents test result section should accept photo")
+          all want it, attached to their own Test Result/Remarks
+          section — same shared PHOTO_KEY slot, rendered here since
+          this component sits directly below that section in every one
+          of their forms. */}
+      {(current.looseGear?.subType === "visual_certificate" || current.looseGear?.subType === "load_test" || (current.looseGear?.subType && NDT_METHOD_SUBTYPES.includes(current.looseGear.subType))) && (
         <PhotoUpload
           photos={current.photos[PHOTO_KEY] || []}
           onAdd={addPhotos}

@@ -671,6 +671,82 @@ export const FFE_CERT_TYPES: FFESubTypeConfig[] = [
     validityYears: 1,
     note: "Reference: SOLAS Regulation II-1/3-9 (Means of Embarkation and Disembarkation); IMO MSC.1/Circ.1331 (Rev.1); SOLAS Regulations III/20.7.2, III/36, and III/20.4 with MSC.1/Circ.1206/Rev.1 (fall wires); and ISO 5488:2015 (Accommodation Ladders). A gangway found not to comply must not be used until the defect is rectified.",
   },
+  {
+    // Requested directly: "add pilot ladder and gangway load test to the
+    // same certificate" — a pilot ladder is routinely rigged together
+    // with the gangway/accommodation ladder as one combination transfer
+    // arrangement (SOLAS/ISO 5488 both describe an accommodation ladder
+    // "used in combination with pilot ladder"), and a 5-yearly gangway
+    // survey (SOLAS I/7 & I/8) requires the gangway itself to be
+    // operationally load tested — so this covers both in one visit/one
+    // certificate rather than as two separate ones. Reuses
+    // pilot_ladder's own register/checklist above (items 1-14, verbatim)
+    // and adds a proper Gangway Static Load Test: technicalFields for
+    // the test's own parameters, a second item register (items2) shaped
+    // exactly like the real test data sheet used to run this exact test
+    // (NOAA Test Procedure SWBS-623, "Gangway Static Load Test" — one
+    // row per ballast-weight location, deflection measured before/after
+    // loading), and checklist items 15-21 that encode ISO 7061:2015's
+    // own pass/fail method: Type A (solid-deck) gangways loaded to
+    // 4000 N/m² evenly distributed, Type B (stepped) gangways loaded to
+    // 735 N per step, held 15 minutes, and the test passes only if
+    // calculated deflection (measured deflection minus initial sag)
+    // does not exceed the gangway's own length (mm) divided by 75.
+    id: "pilot_ladder_gangway_load_test",
+    label: "Pilot Ladder & Gangway Load Test",
+    archetype: "items",
+    technicalFields: [
+      { key: "gangwayType", label: "Gangway Type (ISO 7061 — Type A solid deck / Type B stepped)" },
+      { key: "gangwayLength", label: "Gangway Length Between Connection Points (mm)" },
+      { key: "maxAllowableDeflection", label: "Maximum Allowable Deflection (Length ÷ 75, mm)" },
+      { key: "testLoadApplied", label: "Test Load Applied (4000 N/m² Type A, or 735 N per step Type B)" },
+      { key: "loadHeldDuration", label: "Load Held For" },
+      { key: "witnessedBy", label: "Witnessed By (Class/Surveyor)" },
+    ],
+    itemColumns: [
+      { key: "serialNo", label: "S/N" }, { key: "manufacturer", label: "Manufacturer" },
+      { key: "yearOfMan", label: "Year of Man." }, { key: "lengthSteps", label: "Length/Steps" },
+      { key: "location", label: "Location" }, { key: "remarks", label: "Remarks" },
+    ],
+    itemTableLabel: "Pilot Ladder Details",
+    items2Columns: [
+      { key: "location", label: "Location of Ballast Weight" },
+      { key: "initialSag1", label: "Initial Sag — Stringer 1 (mm)" },
+      { key: "initialSag2", label: "Initial Sag — Stringer 2 (mm)" },
+      { key: "avgInitialSag", label: "Average Initial Sag (mm)" },
+      { key: "measuredDeflection1", label: "Measured Deflection — Stringer 1 (mm)" },
+      { key: "measuredDeflection2", label: "Measured Deflection — Stringer 2 (mm)" },
+      { key: "avgMeasuredDeflection", label: "Average Measured Deflection (mm)" },
+      { key: "calculatedDeflection", label: "Calculated Deflection (mm)" },
+      { key: "result", label: "Pass/Fail" },
+    ],
+    items2Label: "Gangway Static Load Test — Test Data (ISO 7061)",
+    checklistItems: [
+      { no: "1", description: "Side ropes clean, in serviceable condition — no cuts, wear, rot, or damage" },
+      { no: "2", description: "Side ropes free of knots, splices, or joins, except above the top step" },
+      { no: "3", description: "Steps not cracked, broken, bent, or warped" },
+      { no: "4", description: "Steps clean, anti-slip surface intact — free of paint, grease, or contamination" },
+      { no: "5", description: "Steps horizontal and evenly spaced 310-350mm apart" },
+      { no: "6", description: "Spreaders fitted at correct intervals; steps and spreaders lie horizontal when rigged" },
+      { no: "7", description: "Step fixtures/seizings secure and tight" },
+      { no: "8", description: "No more than 2 replacement steps, each secured by an approved method" },
+      { no: "9", description: "Manropes (28-32mm) available, free of knots, joins, and splices" },
+      { no: "10", description: "Retrieval line fastened at or above the last spreader step, leading forward" },
+      { no: "11", description: "Pilot ladder length adequate for the freeboard/height of transfer" },
+      { no: "12", description: "Marking, identification, and date of manufacture visible" },
+      { no: "13", description: "Proper storage condition" },
+      { no: "14", description: "Ancillary equipment (lifebuoy with self-igniting light, heaving line, handhold stanchions) present and in good condition" },
+      { no: "15", description: "Gangway installed/supported per manufacturer's assembly drawings; test area clear of obstructions before testing" },
+      { no: "16", description: "Static load applied per ISO 7061:2015 — Type A loaded to 4000 N/m² evenly distributed, or Type B loaded to 735 N per step" },
+      { no: "17", description: "Test load held for 15 minutes at each interval before deflection recorded" },
+      { no: "18", description: "Calculated deflection (measured deflection minus initial sag) does not exceed gangway length (mm) ÷ 75" },
+      { no: "19", description: "Gangway inspected after test — no damage or permanent deformation found; any defect corrected and gangway retested" },
+      { no: "20", description: "Safety net, lifebuoy with self-igniting light, adequate lighting, and gangway watch in place for the combined rig" },
+      { no: "21", description: "Load test witnessed and gangway formally accepted by class/surveyor" },
+    ],
+    validityYears: 1,
+    note: "Reference — pilot ladder: SOLAS Chapter V, Regulation 23 and IMO Resolution A.1045(27) (Pilot Transfer Arrangements). Reference — gangway load test: ISO 7061:2015 (Ships and Marine Technology — Aluminium Shore Gangways for Seagoing Vessels), ISO 5488:2015 (Accommodation Ladders), IMO MSC.1/Circ.1331 (Rev.1), and SOLAS Regulations I/7 & I/8 (5-yearly operational load test at appliance survey). A pilot ladder or gangway found not to comply must not be used until the defect is rectified.",
+  },
 
   // ---------- Archetype: system (fixed installations) ----------
   {
