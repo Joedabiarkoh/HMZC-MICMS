@@ -257,7 +257,7 @@ export interface FFEData {
   placeOfService: string; // harmonized header's "Place of Service" field
   technicalValues: Record<string, string>; // keyed by FFESubTypeConfig.technicalFields[].key
   items: FFEItemRow[]; // the primary incrementable item/cylinder register
-  items2: FFEItemRow[]; // second table — only MO2 Set uses this (set details + cylinder specs)
+  items2: FFEItemRow[]; // second table — used by MO2 Set (set details + cylinder specs) and Pilot Ladder & Gangway Load Test (gangway deflection test data)
   checklist: FFEChecklistResult[];
   comments: string;
 }
