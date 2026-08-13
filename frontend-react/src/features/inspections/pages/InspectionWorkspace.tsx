@@ -365,15 +365,42 @@ export default function InspectionWorkspace() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  function handleTypeChange(next: EquipmentTypeKey) {
+  async function handleTypeChange(next: EquipmentTypeKey) {
     // Root-caused from a real report of vanishing item-register rows —
     // switching the equipment-type dropdown used to blow away whatever
     // was unsaved in `current` with no warning, unlike "+ New Job" and
     // the Job Tabs, which already force-save first.
     forceSaveIfDirty();
-    setType(next);
     setSub("statement");
-    startNewDraft(next);
+
+    // Requested directly: "once you reach the vessel with its correct
+    // open jobs and select the open job... you will have access to all
+    // the available options without needing to go back to select
+    // report type and search for open job again." Previously this
+    // always started a totally blank draft (no vessel, no Job), which
+    // dropped straight back into the Job Picker for the new type even
+    // if a Job was already active — forcing a re-search for the same
+    // vessel and the same open job just to add a different certificate
+    // type to it. When a Job is already attached, carry the vessel
+    // identity and re-attach that same Job instead (same re-attach
+    // logic activateJobTab above already uses when jumping between Job
+    // Tabs) so the new type's form/Job context is ready immediately.
+    const jobRef = current.jobRef;
+    setType(next);
+    if (jobRef) {
+      startNewDraft(next, current.vesselName, current.imoNo);
+      updateField("jobRef", jobRef);
+      if (INSPECTION_TYPES[next].kind === "loosegear") {
+        try {
+          const reserved = await reserveCertNo(jobRef);
+          updateField("certNo", reserved.cert_no);
+        } catch {
+          window.alert(`Couldn't reserve a certificate number under ${jobRef} — it may have just been closed. Try again.`);
+        }
+      }
+    } else {
+      startNewDraft(next);
+    }
   }
 
   function updateField<K extends keyof typeof current>(key: K, value: (typeof current)[K]) {
