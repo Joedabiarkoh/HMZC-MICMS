@@ -298,8 +298,13 @@ function PhotoReportCertificatePage({ cert, config }: { cert: InspectionCertific
           </tr>
         </tbody>
       </table>
+      {entries.length > 0 && <PhotoGrid entries={entries} showHeading={false} />}
+      {/* Requested directly: "move the Comment on photo report below
+          after the photos" — was rendered right after the vessel-info
+          table, above the photos; moved to sit with the sign-off
+          instead, after everything the comment might actually be
+          describing. */}
       <div className="insp-remarks-box">Comments: {cert.remarks || "None"}</div>
-      {entries.length > 0 && <PhotoGrid entries={entries} />}
       {cert.issuedBy && (
         <div style={{ fontSize: 10, color: "var(--insp-muted)", marginTop: 8 }}>
           Issued by {cert.issuedBy}{cert.issuedAt ? ` — ${new Date(cert.issuedAt).toLocaleString()}` : ""}
@@ -2052,13 +2057,24 @@ function PhotoReportPage({ cert }: { cert: InspectionCertificate }) {
 // before it. Boat/crane's own use of PhotoReportPage (after a
 // multi-page Statement/checklist/equipment-list run) keeps its own
 // separate page, unaffected by this change.
-function PhotoGrid({ entries }: { entries: { key: string; photo: PhotoEvidence; index: number }[] }) {
+function PhotoGrid({ entries, showHeading = true }: { entries: { key: string; photo: PhotoEvidence; index: number }[]; showHeading?: boolean }) {
   return (
     <>
-      <div className="insp-cert-title-row">
-        <h2>Photo Report</h2>
-        <span className="insp-badge">EVIDENCE</span>
-      </div>
+      {/* Requested directly: "remove PHOTO REPORT written before the
+          comment, as it appears twice now on report" — PhotoReportPage
+          (boat/crane's own separate photo page, after a full Statement/
+          checklist run) still wants this heading, since it's the only
+          thing marking that a new page/section has started there.
+          PhotoReportCertificatePage already has its own "Photo Report"
+          title at the top of the same page frame this now renders
+          inside — a second one immediately above the comment (which
+          used to sit right where this heading is) was pure repetition. */}
+      {showHeading && (
+        <div className="insp-cert-title-row">
+          <h2>Photo Report</h2>
+          <span className="insp-badge">EVIDENCE</span>
+        </div>
+      )}
       <table style={{ width: "100%", borderCollapse: "collapse" }}>
         <tbody>
           {chunk2(entries).map((pair, ri) => (
@@ -2070,9 +2086,22 @@ function PhotoGrid({ entries }: { entries: { key: string; photo: PhotoEvidence; 
                     alt={photo.caption || `Evidence ${index + 1}`}
                     style={{ width: "100%", height: 190, objectFit: "cover", borderRadius: 5, border: "1px solid #C9D1D8", display: "block" }}
                   />
-                  <div style={{ fontSize: 9, color: "var(--insp-muted)", textTransform: "uppercase", marginTop: 4 }}>
-                    {PHOTO_SECTION_LABELS[key] || key}
-                  </div>
+                  {/* Meaningful on PhotoReportPage's own use (boat/crane,
+                      where photos from several different sections —
+                      Davit Checklist, Boat Checklist — get merged onto
+                      one page, so which section each came from is real
+                      information). PhotoReportCertificatePage only ever
+                      has "general"-keyed photos (see PhotoReportForm.tsx's
+                      own PHOTO_KEY), so this always resolved to the same
+                      "Photo Report" text repeated under every single
+                      photo — the other half of "PHOTO REPORT... appears
+                      twice," gated by the same showHeading flag as the
+                      section title above. */}
+                  {showHeading && (
+                    <div style={{ fontSize: 9, color: "var(--insp-muted)", textTransform: "uppercase", marginTop: 4 }}>
+                      {PHOTO_SECTION_LABELS[key] || key}
+                    </div>
+                  )}
                   <div style={{ fontSize: 11, marginTop: 2 }}>{photo.caption || "No description provided."}</div>
                 </td>
               ))}
