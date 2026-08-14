@@ -1,6 +1,6 @@
 import { useRef } from "react";
 import type { ReactNode } from "react";
-import { EquipmentTypeConfig, InspectionCertificate, ChecklistStatus, EquipResult, CalibrationData, FFEData, LooseGearData, LooseGearMultipleItemsData, LooseGearStandardReportData, LooseGearStatutoryAnswers, LooseGearVisualCertData, LooseGearYesNo, NDTCommonData, NDTFooterData, MPIData, PTData, RTData, UTData, VTData, ETData, LoadTestData } from "../types/inspection.types";
+import { EquipmentTypeConfig, InspectionCertificate, ChecklistStatus, EquipResult, CalibrationData, FFEData, LooseGearData, LooseGearMultipleItemsData, LooseGearStandardReportData, LooseGearStatutoryAnswers, LooseGearVisualCertData, LooseGearYesNo, NDTCommonData, NDTFooterData, MPIData, PTData, RTData, UTData, VTData, ETData, LoadTestData, PhotoEvidence } from "../types/inspection.types";
 import { getFFEConfig } from "../data/ffeCertTypes";
 import { getCalibrationConfig } from "../data/calibrationCertTypes";
 import { ABS_LOGO_DATA_URI, BUREAU_VERITAS_LOGO_DATA_URI, CRALOG_LOGO_DATA_URI, DNV_LOGO_DATA_URI } from "../assets/approvalLogos";
@@ -265,36 +265,48 @@ function checklistResultLabel(r: string) {
 // an appendix at the end of a longer certificate), followed by
 // sign-off.
 function PhotoReportCertificatePage({ cert, config }: { cert: InspectionCertificate; config: EquipmentTypeConfig }) {
+  // Root-caused from a real report: "photos loaded to the FFE photo
+  // report goes to the second page not the first page." This
+  // certificate type's vessel-info block above is nearly empty (a
+  // 2-row ID table, a comments box, a signature grid) — plenty of
+  // room left on page 1 — but the photos used to render via a
+  // separate PhotoReportPage, which wraps in its own CertPageFrame
+  // and therefore always started a fresh physical page, even for a
+  // single uploaded photo. Rendering PhotoGrid directly inside this
+  // same CertPageFrame instead lets natural browser pagination decide
+  // whether photos need their own page, the same convention every
+  // other section in this file already follows.
+  const entries = Object.entries(cert.photos || {}).flatMap(([key, photos]) =>
+    (photos || []).map((photo, index) => ({ key, photo, index }))
+  );
   return (
-    <>
-      <CertPageFrame cert={cert}>
-        <div className="insp-cert-title-row">
-          <h2>Photo Report</h2>
-          <span className="insp-badge">{config.typeName.toUpperCase()}</span>
+    <CertPageFrame cert={cert}>
+      <div className="insp-cert-title-row">
+        <h2>Photo Report</h2>
+        <span className="insp-badge">{config.typeName.toUpperCase()}</span>
+      </div>
+      <p style={{ fontSize: 11.5, lineHeight: 1.6 }}>{config.statementIntro}</p>
+      <table className="insp-id-table">
+        <tbody>
+          <tr>
+            <td className="insp-label-cell">Certificate No</td><td>{cert.certNo}</td>
+            <td className="insp-label-cell">Date</td><td>{fmtDate(cert.dateOfServicing)}</td>
+          </tr>
+          <tr>
+            <td className="insp-label-cell">Name of Ship</td><td>{cert.vesselName || "—"}</td>
+            <td className="insp-label-cell">IMO No.</td><td>{cert.imoNo || "—"}</td>
+          </tr>
+        </tbody>
+      </table>
+      <div className="insp-remarks-box">Comments: {cert.remarks || "None"}</div>
+      {entries.length > 0 && <PhotoGrid entries={entries} />}
+      {cert.issuedBy && (
+        <div style={{ fontSize: 10, color: "var(--insp-muted)", marginTop: 8 }}>
+          Issued by {cert.issuedBy}{cert.issuedAt ? ` — ${new Date(cert.issuedAt).toLocaleString()}` : ""}
         </div>
-        <p style={{ fontSize: 11.5, lineHeight: 1.6 }}>{config.statementIntro}</p>
-        <table className="insp-id-table">
-          <tbody>
-            <tr>
-              <td className="insp-label-cell">Certificate No</td><td>{cert.certNo}</td>
-              <td className="insp-label-cell">Date</td><td>{fmtDate(cert.dateOfServicing)}</td>
-            </tr>
-            <tr>
-              <td className="insp-label-cell">Name of Ship</td><td>{cert.vesselName || "—"}</td>
-              <td className="insp-label-cell">IMO No.</td><td>{cert.imoNo || "—"}</td>
-            </tr>
-          </tbody>
-        </table>
-        <div className="insp-remarks-box">Comments: {cert.remarks || "None"}</div>
-        {cert.issuedBy && (
-          <div style={{ fontSize: 10, color: "var(--insp-muted)", marginTop: 8 }}>
-            Issued by {cert.issuedBy}{cert.issuedAt ? ` — ${new Date(cert.issuedAt).toLocaleString()}` : ""}
-          </div>
-        )}
-        <SignatureGrid cert={cert} masterLabel="Captain Signature" techLabel="Service Engineer" hideFitForPurpose />
-      </CertPageFrame>
-      <PhotoReportPage cert={cert} />
-    </>
+      )}
+      <SignatureGrid cert={cert} masterLabel="Captain Signature" techLabel="Service Engineer" hideFitForPurpose />
+    </CertPageFrame>
   );
 }
 
@@ -478,7 +490,7 @@ function FFECertificatePage({ cert, ffe }: { cert: InspectionCertificate; ffe: F
         </>
       )}
 
-      {cfg.note && <div style={{ fontSize: 10, color: "var(--insp-muted)", marginTop: 8 }}>{cfg.note}</div>}
+      {cfg.note && <div style={{ fontSize: 10, color: "var(--insp-muted)", marginTop: 3 }}>{cfg.note}</div>}
 
       {!cfg.itemsAfterChecklist && (
         <>
@@ -2021,6 +2033,28 @@ function PhotoReportPage({ cert }: { cert: InspectionCertificate }) {
 
   return (
     <CertPageFrame cert={cert}>
+      <PhotoGrid entries={entries} />
+    </CertPageFrame>
+  );
+}
+
+// Extracted from PhotoReportPage above — same photo grid markup, but
+// without its own CertPageFrame, so PhotoReportCertificatePage (the
+// dedicated "FFE Photo Report"/"Calibration Photo Report" type) can
+// render it inside the SAME page frame as the vessel-info/comments/
+// signature block above it, instead of always forcing photos onto
+// their own separate physical page. Root-caused from a real report:
+// that dedicated type's vessel-info page is nearly empty (just a
+// 2-row ID table, a comments box, and a signature grid) — plenty of
+// room left on page 1 — yet even a single uploaded photo always
+// landed on page 2, because PhotoReportPage's own CertPageFrame
+// forced a hard page break regardless of how little content came
+// before it. Boat/crane's own use of PhotoReportPage (after a
+// multi-page Statement/checklist/equipment-list run) keeps its own
+// separate page, unaffected by this change.
+function PhotoGrid({ entries }: { entries: { key: string; photo: PhotoEvidence; index: number }[] }) {
+  return (
+    <>
       <div className="insp-cert-title-row">
         <h2>Photo Report</h2>
         <span className="insp-badge">EVIDENCE</span>
@@ -2047,6 +2081,6 @@ function PhotoReportPage({ cert }: { cert: InspectionCertificate }) {
           ))}
         </tbody>
       </table>
-    </CertPageFrame>
+    </>
   );
 }
