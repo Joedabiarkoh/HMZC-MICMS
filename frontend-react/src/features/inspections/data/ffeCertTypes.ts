@@ -829,7 +829,7 @@ export const FFE_CERT_TYPES: FFESubTypeConfig[] = [
   },
   {
     id: "watermist_system",
-    label: "Watermist System",
+    label: "Watermist/Sprinkler/Deluge System",
     archetype: "system",
     technicalFields: [
       { key: "manufacturer", label: "Manufacturer" }, { key: "tanks", label: "No. of tanks" },
