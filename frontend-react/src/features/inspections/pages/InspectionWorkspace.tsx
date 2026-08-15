@@ -365,6 +365,29 @@ export default function InspectionWorkspace() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Shared by handleTypeChange (switching type mid-job) and
+  // addCertificateToCurrentJob (starting another certificate under the
+  // same job, same type) — starts a fresh draft of `nextType` and
+  // re-attaches it to `jobRef`/vessel identity instead of dropping into
+  // a blank Job Picker, mirroring the re-attach logic activateJobTab
+  // already uses when jumping between Job Tabs. Loose Gear derives its
+  // own cert_no from the Job (see handleJobSelected's own comment on
+  // why), so it needs the extra reservation round-trip; every other
+  // type already got a fresh cert_no from startNewDraft itself.
+  async function startDraftAttachedToJob(nextType: EquipmentTypeKey, jobRef: string, vesselName: string, imoNo: string) {
+    setType(nextType);
+    startNewDraft(nextType, vesselName, imoNo);
+    updateField("jobRef", jobRef);
+    if (INSPECTION_TYPES[nextType].kind === "loosegear") {
+      try {
+        const reserved = await reserveCertNo(jobRef);
+        updateField("certNo", reserved.cert_no);
+      } catch {
+        window.alert(`Couldn't reserve a certificate number under ${jobRef} — it may have just been closed. Try again.`);
+      }
+    }
+  }
+
   async function handleTypeChange(next: EquipmentTypeKey) {
     // Root-caused from a real report of vanishing item-register rows —
     // switching the equipment-type dropdown used to blow away whatever
@@ -382,25 +405,30 @@ export default function InspectionWorkspace() {
     // if a Job was already active — forcing a re-search for the same
     // vessel and the same open job just to add a different certificate
     // type to it. When a Job is already attached, carry the vessel
-    // identity and re-attach that same Job instead (same re-attach
-    // logic activateJobTab above already uses when jumping between Job
-    // Tabs) so the new type's form/Job context is ready immediately.
+    // identity and re-attach that same Job instead of dropping into a
+    // blank Job Picker.
     const jobRef = current.jobRef;
-    setType(next);
     if (jobRef) {
-      startNewDraft(next, current.vesselName, current.imoNo);
-      updateField("jobRef", jobRef);
-      if (INSPECTION_TYPES[next].kind === "loosegear") {
-        try {
-          const reserved = await reserveCertNo(jobRef);
-          updateField("certNo", reserved.cert_no);
-        } catch {
-          window.alert(`Couldn't reserve a certificate number under ${jobRef} — it may have just been closed. Try again.`);
-        }
-      }
+      await startDraftAttachedToJob(next, jobRef, current.vesselName, current.imoNo);
     } else {
+      setType(next);
       startNewDraft(next);
     }
+  }
+
+  // Requested directly: "there should be an option in the same job once
+  // opened to add certificate without going back through job search to
+  // add another certificate." "New Certificate" (below) is deliberately
+  // a full reset — see its own title text — for switching to a
+  // different vessel/job entirely; this is the narrower action of
+  // starting another certificate of the SAME type under the job already
+  // open, without leaving it.
+  async function addCertificateToCurrentJob() {
+    forceSaveIfDirty();
+    setSub("statement");
+    const jobRef = current.jobRef;
+    if (!jobRef) return; // shouldn't be reachable — the button is only shown once a job is active
+    await startDraftAttachedToJob(type, jobRef, current.vesselName, current.imoNo);
   }
 
   function updateField<K extends keyof typeof current>(key: K, value: (typeof current)[K]) {
@@ -1060,6 +1088,9 @@ export default function InspectionWorkspace() {
             >
               Save as Word
             </button>
+            {current.jobRef && (
+              <button className="insp-btn insp-btn-outline" onClick={addCertificateToCurrentJob} title="Starts another certificate of this same type under the job already open — no need to search for the vessel/job again.">+ Add Certificate</button>
+            )}
             <button className="insp-btn insp-btn-outline" onClick={() => { forceSaveIfDirty(); startNewDraft(type); }}>New Certificate</button>
           </div>
         </div>
@@ -1157,6 +1188,9 @@ export default function InspectionWorkspace() {
             >
               Save as Word
             </button>
+            {current.jobRef && (
+              <button className="insp-btn insp-btn-outline" onClick={addCertificateToCurrentJob} title="Starts another certificate of this same type under the job already open — no need to search for the vessel/job again.">+ Add Certificate</button>
+            )}
             <button className="insp-btn insp-btn-outline" onClick={() => { forceSaveIfDirty(); startNewDraft(type); }} title="Starts over from the Job Picker — for a different vessel, job, or equipment type.">New Certificate</button>
           </div>
         </div>
@@ -1228,6 +1262,9 @@ export default function InspectionWorkspace() {
             >
               Save as Word
             </button>
+            {current.jobRef && (
+              <button className="insp-btn insp-btn-outline" onClick={addCertificateToCurrentJob} title="Starts another certificate of this same type under the job already open — no need to search for the vessel/job again.">+ Add Certificate</button>
+            )}
             <button className="insp-btn insp-btn-outline" onClick={() => { forceSaveIfDirty(); startNewDraft(type); }}>New Certificate</button>
           </div>
         </div>
@@ -1302,6 +1339,9 @@ export default function InspectionWorkspace() {
             >
               Save as Word
             </button>
+            {current.jobRef && (
+              <button className="insp-btn insp-btn-outline" onClick={addCertificateToCurrentJob} title="Starts another certificate of this same type under the job already open — no need to search for the vessel/job again.">+ Add Certificate</button>
+            )}
             <button className="insp-btn insp-btn-outline" onClick={() => { forceSaveIfDirty(); startNewDraft(type); }}>New Certificate</button>
           </div>
         </div>
@@ -1538,6 +1578,9 @@ export default function InspectionWorkspace() {
           >
             Save as Word
           </button>
+          {current.jobRef && (
+            <button className="insp-btn insp-btn-outline" onClick={addCertificateToCurrentJob} title="Starts another certificate of this same type under the job already open — no need to search for the vessel/job again.">+ Add Certificate</button>
+          )}
           <button className="insp-btn insp-btn-outline" onClick={() => { forceSaveIfDirty(); startNewDraft(type); }}>New Certificate</button>
         </div>
       </div>

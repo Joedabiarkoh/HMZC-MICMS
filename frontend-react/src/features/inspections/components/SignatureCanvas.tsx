@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useAuth } from "../../../context/AuthContext";
 import { deleteMySignature, saveMySignature } from "../../auth/services/auth.api";
 
@@ -51,6 +51,66 @@ export default function SignatureCanvas({ label, value, onChange, allowSavedDefa
   const [savingDefault, setSavingDefault] = useState(false);
   const [uploadError, setUploadError] = useState("");
   const { user, updateUser } = useAuth();
+
+  // Requested directly: "make the signature uploaded resizable by the
+  // user." An uploaded photo/scan has whatever size and whitespace it
+  // came with — unlike a drawn signature, which is always the same
+  // 360x110 canvas at a stroke width already tuned to survive
+  // CertificatePreview's downscale (see attachCanvas's own comment) —
+  // so a small or oddly-cropped upload can print illegibly small.
+  // Rather than threading a separate "scale" field through every place
+  // a signature is stored/rendered/exported (InspectionCertificate,
+  // LooseGear's own signature fields, docx export, ...), the resize
+  // happens once, here, before the image is ever committed: the raw
+  // upload is held in pendingUpload and scaled live via the slider,
+  // then "Use This Size" bakes it onto a canvas the same size the draw
+  // path already produces and hands onChange a plain PNG data URI —
+  // everything downstream keeps rendering "just an image" exactly as
+  // it does today, no schema or rendering changes needed anywhere else.
+  const [pendingUpload, setPendingUpload] = useState<HTMLImageElement | null>(null);
+  const [uploadScale, setUploadScale] = useState(1);
+  const uploadPreviewRef = useRef<HTMLCanvasElement | null>(null);
+
+  function drawUploadPreview(img: HTMLImageElement, scale: number) {
+    const canvas = uploadPreviewRef.current;
+    const ctx = canvas?.getContext("2d");
+    if (!canvas || !ctx) return;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    // "Fit to frame" baseline (like object-fit: contain) at scale 1,
+    // so the slider's 50%-200% range means "half/double the natural
+    // fit size" regardless of the source image's own resolution.
+    const fitScale = Math.min(canvas.width / img.width, canvas.height / img.height);
+    const w = img.width * fitScale * scale;
+    const h = img.height * fitScale * scale;
+    ctx.drawImage(img, (canvas.width - w) / 2, (canvas.height - h) / 2, w, h);
+  }
+
+  function confirmUploadSize() {
+    const canvas = uploadPreviewRef.current;
+    if (!canvas) return;
+    try {
+      onChange(canvas.toDataURL("image/png"));
+    } catch {
+      // Tainted-canvas SecurityError — a cross-origin saved-default
+      // image the server didn't send CORS headers for. Not fixable
+      // from here; surfaced instead of a silent crash.
+      setUploadError("Couldn't resize this signature (a cross-origin loading restriction) — try re-signing or re-uploading it instead.");
+      return;
+    }
+    setPendingUpload(null);
+    setUploadScale(1);
+  }
+
+  function cancelUpload() {
+    setPendingUpload(null);
+    setUploadScale(1);
+    setUploadError("");
+  }
+
+  useEffect(() => {
+    if (pendingUpload) drawUploadPreview(pendingUpload, uploadScale);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingUpload, uploadScale]);
 
   const attachCanvas = useCallback((canvas: HTMLCanvasElement | null) => {
     cleanupRef.current?.();
@@ -126,6 +186,29 @@ export default function SignatureCanvas({ label, value, onChange, allowSavedDefa
     onChange("");
   }
 
+  // Reopens whatever's already committed (drawn or uploaded) into the
+  // same resize step an upload goes through — lets someone come back
+  // and adjust the size after the fact, not just at upload time.
+  function resizeExisting() {
+    if (!value) return;
+    setUploadError("");
+    const img = new Image();
+    // value can be a same-origin data: URI (just drawn/uploaded) or a
+    // server URL (a saved default signature — frontend and backend are
+    // separate origins in production, see photo_storage.py's own
+    // comment on PUBLIC_BASE_URL) — crossOrigin lets the browser draw a
+    // same-origin-CORS-enabled server image to canvas without tainting
+    // it; confirmUploadSize's own try/catch is the fallback if that
+    // isn't set up right rather than a silent crash.
+    img.crossOrigin = "anonymous";
+    img.onload = () => {
+      setUploadScale(1);
+      setPendingUpload(img);
+    };
+    img.onerror = () => setUploadError("Couldn't reopen this signature for resizing — please re-sign or re-upload it.");
+    img.src = value;
+  }
+
   function save() {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -151,7 +234,14 @@ export default function SignatureCanvas({ label, value, onChange, allowSavedDefa
     }
     const reader = new FileReader();
     reader.onload = () => {
-      if (typeof reader.result === "string") onChange(reader.result);
+      if (typeof reader.result !== "string") return;
+      const img = new Image();
+      img.onload = () => {
+        setUploadScale(1);
+        setPendingUpload(img);
+      };
+      img.onerror = () => setUploadError("Couldn't read that file — please try again.");
+      img.src = reader.result;
     };
     reader.onerror = () => setUploadError("Couldn't read that file — please try again.");
     reader.readAsDataURL(file);
@@ -190,11 +280,39 @@ export default function SignatureCanvas({ label, value, onChange, allowSavedDefa
   return (
     <div className="insp-field">
       <label>{label}</label>
-      {value ? (
+      {pendingUpload ? (
+        <div>
+          <canvas
+            ref={uploadPreviewRef}
+            width={360}
+            height={110}
+            style={{ border: "1px solid #C9D1D8", borderRadius: 6, width: "100%", background: "#FAFBFC" }}
+          />
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 6 }}>
+            <span style={{ fontSize: 11, color: "var(--insp-muted)" }}>Size</span>
+            <input
+              type="range"
+              min={0.5}
+              max={2}
+              step={0.05}
+              value={uploadScale}
+              onChange={(e) => setUploadScale(Number(e.target.value))}
+              style={{ flex: 1 }}
+            />
+            <span style={{ fontSize: 11, color: "var(--insp-muted)", width: 40, textAlign: "right" }}>{Math.round(uploadScale * 100)}%</span>
+          </div>
+          <div className="insp-btn-row" style={{ padding: 0, marginTop: 4 }}>
+            <button type="button" className="insp-btn insp-btn-primary" onClick={confirmUploadSize}>Use This Size</button>
+            <button type="button" className="insp-btn insp-btn-outline" onClick={cancelUpload}>Cancel</button>
+          </div>
+          {uploadError && <p className="insp-help-note" style={{ color: "var(--insp-red)" }}>{uploadError}</p>}
+        </div>
+      ) : value ? (
         <div>
           <img src={value} alt={label} style={{ height: 44, border: "1px solid #C9D1D8", borderRadius: 5, background: "#fff", padding: 2 }} />
           <div className="insp-btn-row" style={{ padding: 0, marginTop: 4 }}>
             <button type="button" className="insp-btn insp-btn-outline" onClick={resign}>Re-sign</button>
+            <button type="button" className="insp-btn insp-btn-outline" onClick={resizeExisting}>Resize</button>
             {allowSavedDefault && !isUsingSavedDefault && (
               <button type="button" className="insp-btn insp-btn-outline" onClick={saveAsDefault} disabled={savingDefault}>
                 {savingDefault ? "Saving…" : "Save as my default signature"}
@@ -206,6 +324,7 @@ export default function SignatureCanvas({ label, value, onChange, allowSavedDefa
               </button>
             )}
           </div>
+          {uploadError && <p className="insp-help-note" style={{ color: "var(--insp-red)" }}>{uploadError}</p>}
         </div>
       ) : (
         <>
