@@ -388,10 +388,27 @@ function PaginatedTable<T>({
   emptyMessage?: string;
 }) {
   const chunks = chunkRows(rows);
+  // Root-caused from a real report: "the pages are not continues as it
+  // left a chunk of space to start next on page 3 to 4." Only chunk 1+
+  // forced a fresh page — chunk 0 didn't, so whenever something else
+  // (a checklist rendered above this table via itemsAfterChecklist, a
+  // technical-description block, another item table) already used up
+  // part of the current page, chunk 0's own ROWS_PER_PRINT_PAGE rows no
+  // longer reliably fit in what was left of that page — its last few
+  // rows spilled onto a mostly-empty continuation page, and chunk 1's
+  // own forced break then stranded that emptiness permanently, since it
+  // jumps to a fresh page regardless of how little of the current one
+  // is used. Forcing chunk 0 onto a fresh page too, whenever the table
+  // is big enough to need more than one chunk in the first place,
+  // means every chunk always gets a full page to grow into — the same
+  // "reliable, predictable 25-per-page" guarantee chunk 1+ already had,
+  // now applied uniformly instead of only to the chunks after the
+  // first. A table that fits in one chunk is completely unaffected —
+  // it still flows inline exactly as before.
   return (
     <>
       {chunks.map((chunk, ci) => (
-        <div key={ci} style={ci > 0 ? ({ breakBefore: "page" } as any) : undefined}>
+        <div key={ci} style={(ci > 0 || chunks.length > 1) ? ({ breakBefore: "page" } as any) : undefined}>
           {title && (
             <div style={{ fontWeight: 700, fontSize: 11.5, color: "var(--insp-navy)", margin: "10px 0 4px" }}>
               {title}{chunks.length > 1 ? ` (continued — page ${ci + 1} of ${chunks.length})` : ""}

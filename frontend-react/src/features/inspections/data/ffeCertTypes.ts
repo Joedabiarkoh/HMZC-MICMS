@@ -818,6 +818,53 @@ export const FFE_CERT_TYPES: FFESubTypeConfig[] = [
     items2Label: "Cylinder Specifications — Pilot",
     itemsAfterChecklist: true,
     validityYears: 1,
+    // Requested directly, same pattern as the Watermist/Sprinkler/
+    // Deluge selector (see that entry's own comment): CO2 protects
+    // genuinely different space types with their own regulations and
+    // extra checks — picking one here swaps the certificate's own name
+    // for the specific one, adds that area's reference note, and
+    // appends its own checklist items (continuing the shared 25 items
+    // above at "26"). "General / Other" is the fallback for the common
+    // case this type already handled before — one CO2 system covering
+    // several/mixed spaces at once (e.g. "ENGINE ROOM, PAINT STORE" in
+    // the Protected space(s) field below) — unchanged from today: no
+    // extra note, no extra items, same as if this feature didn't exist.
+    variants: [
+      {
+        id: "galley_duct",
+        label: "Fixed CO2 System — Galley Duct",
+        note: "Reference: SOLAS Regulation II-2/9.7.5 (a fixed means of extinguishing a fire within the galley exhaust duct is required) and ISO 15371 (Fire-Extinguishing Systems for Protection of Galley Deep-Fat Cooking Equipment); MSC.1/Circ.1616 confirms a fixed CO2 system not built to ISO 15371 may still be accepted, with guidance on the minimum quantity required. Remote controls for shutting down the exhaust/supply fans and releasing the extinguishing medium must be sited close to the galley entrance.",
+        extraChecklistItems: [
+          { no: "26", description: "Exhaust and supply fan shut-off controls, sited near the galley entrance, tested" },
+          { no: "27", description: "Duct insulation (A-60 class where passing through accommodation/service spaces) visually inspected for damage" },
+          { no: "28", description: "Where the duct has multiple branches, means to close all other branches before release confirmed operable" },
+        ],
+      },
+      {
+        id: "paint_locker",
+        label: "Fixed CO2 System — Paint Locker",
+        note: "Reference: SOLAS Regulation II-2/4.5.5 (paint and flammable liquid lockers of 4m² deck area or more require a fixed fire-extinguishing system operable without entering the space). CO2 quantity must be designed for 40% of the locker's gross volume.",
+        extraChecklistItems: [
+          { no: "26", description: "System confirmed operable entirely from outside the paint locker, without needing to enter the space" },
+          { no: "27", description: "CO2 quantity confirmed adequate for 40% of the paint locker's gross volume" },
+          { no: "28", description: "Locker ventilation closure/shut-off (if fitted) tested together with the release sequence" },
+        ],
+      },
+      {
+        id: "riser_mast",
+        label: "Fixed CO2 System — Riser Mast",
+        note: "Not a fixed CO2 system SOLAS or class rules specifically mandate for this location — commonly a company/owner-specified supplementary measure for the cargo tank venting mast/riser, alongside remote isolation-valve control from the Cargo Control Room. Where fitted, the system itself must still meet FSS Code Chapter 5's general design, installation, and maintenance requirements for fixed CO2 fire-extinguishing systems.",
+        extraChecklistItems: [
+          { no: "26", description: "Mast riser isolation valve remote control from the Cargo Control Room tested" },
+          { no: "27", description: "System siting/guarding against weather and mechanical damage appropriate to an exposed mast location confirmed" },
+        ],
+      },
+      {
+        id: "general",
+        label: "Fixed CO2 System",
+        note: "",
+      },
+    ],
   },
   {
     id: "foam_system",
