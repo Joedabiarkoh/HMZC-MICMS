@@ -260,6 +260,10 @@ export interface FFEData {
   items2: FFEItemRow[]; // second table — used by MO2 Set (set details + cylinder specs) and Pilot Ladder & Gangway Load Test (gangway deflection test data)
   checklist: FFEChecklistResult[];
   comments: string;
+  // "" when unselected, or n/a for a sub-type with no FFESubTypeConfig.variants
+  // (every sub-type except watermist_system today) — see FFESystemVariant's
+  // own comment in ffeCertTypes.ts.
+  variant: string;
 }
 
 // Calibration (type === "calibration") — built from 8 real HMZC/BTMS

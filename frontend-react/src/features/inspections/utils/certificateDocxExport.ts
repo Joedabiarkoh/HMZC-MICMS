@@ -56,7 +56,7 @@ import {
   NDTCommonData,
   NDTFooterData,
 } from "../types/inspection.types";
-import { getFFEConfig } from "../data/ffeCertTypes";
+import { getFFEConfig, getEffectiveFFELabel, getEffectiveFFENote } from "../data/ffeCertTypes";
 import { getCalibrationConfig } from "../data/calibrationCertTypes";
 import { HMZC_LOGO_DATA_URI } from "../assets/logo";
 import { HMZC_STAMP_DATA_URI } from "../assets/stamp";
@@ -493,7 +493,7 @@ async function buildEquipmentListSection(cert: InspectionCertificate, config: Eq
 
 async function buildFFESection(cert: InspectionCertificate, ffe: FFEData): Promise<Block[]> {
   const cfg = getFFEConfig(ffe.subType);
-  const blocks: Block[] = [badgeLine("Certificate & Checklist", cfg.label.toUpperCase())];
+  const blocks: Block[] = [badgeLine("Certificate & Checklist", getEffectiveFFELabel(cfg, ffe).toUpperCase())];
   blocks.push(
     kvTable([
       ["Vessel", cert.vesselName || "—"],
@@ -512,8 +512,9 @@ async function buildFFESection(cert: InspectionCertificate, ffe: FFEData): Promi
   // shown on-screen (FFEForm.tsx) and in the print preview
   // (CertificatePreview.tsx) but missing from the actual Word-exported
   // certificate — the document that's really handed to a client.
-  if (cfg.note) {
-    blocks.push(textP(cfg.note, { size: 16, color: MUTED }));
+  const effectiveNote = getEffectiveFFENote(cfg, ffe);
+  if (effectiveNote) {
+    blocks.push(textP(effectiveNote, { size: 16, color: MUTED }));
   }
   function pushItemTables() {
     if (cfg.itemColumns?.length) {

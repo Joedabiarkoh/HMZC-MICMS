@@ -1,7 +1,7 @@
 import { useRef } from "react";
 import type { ReactNode } from "react";
 import { EquipmentTypeConfig, InspectionCertificate, ChecklistStatus, EquipResult, CalibrationData, FFEData, LooseGearData, LooseGearMultipleItemsData, LooseGearStandardReportData, LooseGearStatutoryAnswers, LooseGearVisualCertData, LooseGearYesNo, NDTCommonData, NDTFooterData, MPIData, PTData, RTData, UTData, VTData, ETData, LoadTestData, PhotoEvidence } from "../types/inspection.types";
-import { getFFEConfig } from "../data/ffeCertTypes";
+import { getFFEConfig, getEffectiveFFELabel, getEffectiveFFENote } from "../data/ffeCertTypes";
 import { getCalibrationConfig } from "../data/calibrationCertTypes";
 import { ABS_LOGO_DATA_URI, BUREAU_VERITAS_LOGO_DATA_URI, CRALOG_LOGO_DATA_URI, DNV_LOGO_DATA_URI } from "../assets/approvalLogos";
 import { APP_BUILD_VERSION } from "../data/appVersion";
@@ -453,7 +453,7 @@ function FFECertificatePage({ cert, ffe }: { cert: InspectionCertificate; ffe: F
     <CertPageFrame cert={cert}>
       <div className="insp-cert-title-row">
         <h2>Certificate &amp; Checklist</h2>
-        <span className="insp-badge">{cfg.label.toUpperCase()}</span>
+        <span className="insp-badge">{getEffectiveFFELabel(cfg, ffe).toUpperCase()}</span>
       </div>
 
       <table className="insp-id-table">
@@ -495,7 +495,7 @@ function FFECertificatePage({ cert, ffe }: { cert: InspectionCertificate; ffe: F
         </>
       )}
 
-      {cfg.note && <div style={{ fontSize: 10, color: "var(--insp-muted)", marginTop: 3 }}>{cfg.note}</div>}
+      {getEffectiveFFENote(cfg, ffe) && <div style={{ fontSize: 10, color: "var(--insp-muted)", marginTop: 3 }}>{getEffectiveFFENote(cfg, ffe)}</div>}
 
       {!cfg.itemsAfterChecklist && (
         <>

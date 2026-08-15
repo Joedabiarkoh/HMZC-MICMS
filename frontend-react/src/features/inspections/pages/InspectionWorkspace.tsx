@@ -585,6 +585,15 @@ export default function InspectionWorkspace() {
       if (ffeCfg.itemColumns?.length && (current.ffe?.items.length || 0) === 0) {
         problems.push(`At least one row is required in ${ffeCfg.itemTableLabel || "the item table"}`);
       }
+      // Requested directly: "let make it selectable the type of system
+      // available on board... which will be the only name that will
+      // appear on the certificate" — only watermist_system sets
+      // variants today; a certificate can't be finalized with the
+      // generic combined name still showing, so the specific system
+      // actually on board must be picked first.
+      if (ffeCfg.variants?.length && !current.ffe?.variant) {
+        problems.push("System type (Watermist/Sprinkler/Deluge) must be selected");
+      }
       // Technician (the "Service Engineer" field, relabeled for FFE)
       // required, same as boat/crane certificates — Master ("Captain")
       // stays optional there too, so it stays optional here.

@@ -205,7 +205,36 @@ export function freshFFEState(subTypeId: string) {
     items2: [] as Record<string, string>[],
     checklist,
     comments: "",
+    variant: "",
   };
+}
+
+// Rebuilds the checklist when the person picks which specific system
+// (Watermist/Sprinkler/Deluge, see FFESystemVariant in ffeCertTypes.ts)
+// is actually installed, within the same watermist_system sub-type —
+// deliberately NOT freshFFEState/changeSubType, which wipe everything;
+// switching the variant must preserve technicalValues, items, items2,
+// comments, and the shared checklist rows' own answers untouched. Only
+// the variant-specific tail — everything past the sub-type's own fixed
+// checklistItems — gets replaced with fresh, unanswered rows for the
+// newly picked variant. A full replace of the tail (not an append) so
+// switching Watermist -> Sprinkler -> Deluge -> Watermist any number of
+// times never accumulates a previous variant's rows alongside the new
+// one. A variant's own extra-item answers intentionally do NOT survive
+// switching away and back — a Sprinkler-specific answer means nothing
+// once the inspector is looking at a Deluge system.
+export function changeFFEVariant(ffe: { subType: string; checklist: FFEChecklistResult[] }, variantId: string): { variant: string; checklist: FFEChecklistResult[] } {
+  const cfg = FFE_CERT_TYPES.find((t) => t.id === ffe.subType) || FFE_CERT_TYPES[0];
+  const variant = cfg.variants?.find((v) => v.id === variantId);
+  const sharedCount = cfg.checklistItems?.length || 0;
+  const sharedRows = ffe.checklist.slice(0, sharedCount);
+  const extraRows: FFEChecklistResult[] = (variant?.extraChecklistItems || []).map((c) => ({
+    no: c.no,
+    description: c.description,
+    result: "" as const,
+    comment: "",
+  }));
+  return { variant: variantId, checklist: [...sharedRows, ...extraRows] };
 }
 
 // Rebuilds the Calibration-specific state for a given sub-type — same

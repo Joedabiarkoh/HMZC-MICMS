@@ -1,5 +1,5 @@
-import { FFE_CERT_TYPES, getFFEConfig } from "../data/ffeCertTypes";
-import { freshFFEState } from "../data/inspectionHelpers";
+import { FFE_CERT_TYPES, getFFEConfig, getEffectiveFFENote } from "../data/ffeCertTypes";
+import { freshFFEState, changeFFEVariant } from "../data/inspectionHelpers";
 import { InspectionCertificate } from "../types/inspection.types";
 import VesselLookupPanel from "./VesselLookupPanel";
 import SignatureCanvas from "./SignatureCanvas";
@@ -32,6 +32,7 @@ interface Props {
 export default function FFEForm({ current, updateField, openCertificate }: Props) {
   const ffe = current.ffe || freshFFEState(FFE_CERT_TYPES[0].id);
   const cfg = getFFEConfig(ffe.subType);
+  const effectiveNote = getEffectiveFFENote(cfg, ffe);
 
   function updateFFE(patch: Partial<typeof ffe>) {
     updateField("ffe", { ...ffe, ...patch });
@@ -203,6 +204,25 @@ export default function FFEForm({ current, updateField, openCertificate }: Props
         </fieldset>
       )}
 
+      {/* Requested directly: "let make it selectable the type of system
+          available on board... which will be the only name that will
+          appear on the certificate" — only watermist_system sets
+          cfg.variants today (see FFESystemVariant in ffeCertTypes.ts).
+          Placed above Technical Description so picking the system comes
+          before describing it. */}
+      {!!cfg.variants?.length && (
+        <fieldset className="insp-fieldset">
+          <legend className="insp-legend">System Type</legend>
+          <div className="insp-field">
+            <label htmlFor="ffe-variant">Which system is installed on board?</label>
+            <select id="ffe-variant" value={ffe.variant || ""} onChange={(e) => updateFFE(changeFFEVariant(ffe, e.target.value))}>
+              <option value="">— Select —</option>
+              {cfg.variants.map((v) => <option key={v.id} value={v.id}>{v.label}</option>)}
+            </select>
+          </div>
+        </fieldset>
+      )}
+
       {!!cfg.technicalFields?.length && (
         <fieldset className="insp-fieldset">
           <legend className="insp-legend">Technical Description</legend>
@@ -255,9 +275,9 @@ export default function FFEForm({ current, updateField, openCertificate }: Props
         </fieldset>
       )}
 
-      {cfg.note && (
+      {effectiveNote && (
         <div style={{ margin: "0 0 14px", background: "#F4F6F7", border: "1px solid #DCE1E5", borderRadius: 6, padding: "8px 12px", fontSize: 11.5, color: "var(--insp-muted)" }}>
-          {cfg.note}
+          {effectiveNote}
         </div>
       )}
 

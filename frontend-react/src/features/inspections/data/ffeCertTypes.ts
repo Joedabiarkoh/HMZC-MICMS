@@ -45,6 +45,24 @@ export interface FFEChecklistItemDef {
   description: string;
 }
 
+// Requested directly: "let make it selectable the type of system
+// available on board" — for watermist_system, which genuinely covers
+// three different SOLAS/FSS Code fixed fire-extinguishing systems
+// (Watermist, Sprinkler, Deluge) under one certificate today with no
+// way to say which is actually installed. `label`/`note` here override
+// the sub-type's own `label`/`note` once a variant is picked (see
+// getEffectiveFFELabel/getEffectiveFFENote below), and
+// extraChecklistItems are appended after the sub-type's own shared
+// checklistItems (see changeFFEVariant in inspectionHelpers.ts) — so
+// the shared items stay common to all three, and only the genuinely
+// type-specific checks/citation vary.
+export interface FFESystemVariant {
+  id: string;
+  label: string;
+  note: string;
+  extraChecklistItems?: FFEChecklistItemDef[];
+}
+
 export type FFEArchetype = "items" | "system" | "checklist" | "readings";
 
 export interface FFESubTypeConfig {
@@ -58,6 +76,9 @@ export interface FFESubTypeConfig {
   items2Columns?: FFEColumn[];
   items2Label?: string;
   checklistItems?: FFEChecklistItemDef[];
+  // Only watermist_system sets this today — see FFESystemVariant's own
+  // comment for why.
+  variants?: FFESystemVariant[];
   // Requested directly: "move the cylinder details below the
   // description of inspection for CO2, novec, wet chemical" — the
   // cylinder register (itemColumns/items2Columns) renders after
@@ -842,9 +863,12 @@ export const FFE_CERT_TYPES: FFESubTypeConfig[] = [
       { no: "3", description: "Activation of the system checked from ECR" },
       { no: "4", description: "All control valves in the system and pressure gauges functionally tested" },
       { no: "5", description: "All distribution lines and nozzles blown through dry air" },
-      { no: "6", description: "All sprinkler nozzles inspected for physical damage" },
+      // Was "All sprinkler nozzles..." / "Water mist pump..." — genericized
+      // now that this shared list also covers Sprinkler and Deluge (see
+      // variants below), not just Watermist.
+      { no: "6", description: "All nozzles inspected for physical damage" },
       { no: "7", description: "Solenoid activation inspected/tested" },
-      { no: "8", description: "Water mist pump for the system functionally tested for proper pressure and capacity" },
+      { no: "8", description: "Pump for the system functionally tested for proper pressure and capacity" },
       { no: "9", description: "Checked all panel indications and display" },
       { no: "10", description: "One selection valve and nozzle tested by flowing water through nozzle" },
       { no: "11", description: "Visually inspected the panel for the normal working mode" },
@@ -852,6 +876,48 @@ export const FFE_CERT_TYPES: FFESubTypeConfig[] = [
       { no: "13", description: "Audible & visual alarms checked" },
       { no: "14", description: "All instructions and warning signs on installation checked" },
       { no: "15", description: "Applied service label and left in operational condition" },
+    ],
+    // Requested directly: "let make it selectable the type of system
+    // available on board and see a MSC Circ. for any additional check
+    // that needs to happen on the type... which will be the only name
+    // that will appear on the certificate." Watermist, Sprinkler, and
+    // Deluge are genuinely different SOLAS/FSS Code systems sharing this
+    // one sub-type; extra checklist item numbers continue from the 15
+    // shared items above and must stay fixed per variant (see
+    // changeFFEVariant's own comment on why).
+    variants: [
+      {
+        id: "watermist",
+        label: "Watermist System",
+        note: "Reference: MSC/Circ.1165 (as amended by MSC.1/Circ.1237, MSC.1/Circ.1269 and MSC.1/Circ.1386) — Revised Guidelines for the Approval of Equivalent Water-Based Fire-Extinguishing Systems for Machinery Spaces and Cargo Pump-Rooms; where fitted as an accommodation/service-space sprinkler equivalent, also IMO Resolution A.800(19) as amended by Resolution MSC.265(84). Maintenance and crew familiarisation per SOLAS Regulation II-2/10.",
+        extraChecklistItems: [
+          { no: "16", description: "High-pressure pump unit/nitrogen or gas accumulator bank charge pressure checked against manufacturer's specification" },
+          { no: "17", description: "Nozzle atomisation/spray pattern inspected for obstruction or damage" },
+          { no: "18", description: "Ventilation shutdown/damper closure interlock tested (where fitted for total-flooding protection)" },
+        ],
+      },
+      {
+        id: "sprinkler",
+        label: "Sprinkler System",
+        note: "Reference: SOLAS Regulation II-2/12 (Automatic Sprinkler, Fire Detection and Fire Alarm Systems); FSS Code Chapter 8; IMO Resolution A.800(19) as amended by Resolution MSC.265(84). Each sprinkler head's protected area and minimum flow rate must conform to FSS Code Chapter 8.",
+        extraChecklistItems: [
+          { no: "16", description: "Pressure tank air pressure and water level checked against FSS Code Chapter 8 requirements" },
+          { no: "17", description: "Sprinkler head coverage/spacing confirmed to conform to FSS Code Chapter 8" },
+          { no: "18", description: "Section isolating valves confirmed open, sealed/locked in the normal operating position" },
+          { no: "19", description: "Integrated fire detection and alarm function tested together with sprinkler activation, per SOLAS II-2/12" },
+        ],
+      },
+      {
+        id: "deluge",
+        label: "Deluge System",
+        note: "Reference: SOLAS Regulation II-2/10.6 (Fixed Pressure Water-Spraying/Deluge Systems for Machinery Spaces) and FSS Code Chapter 7; MSC/Circular.913 (Fixed Water-Based Local Application Systems for Category A Machinery Spaces), where applicable.",
+        extraChecklistItems: [
+          { no: "16", description: "Deluge valve (open-head type) operation and reset tested" },
+          { no: "17", description: "All spray/deluge nozzles confirmed open type, unobstructed — no thermal-element (closed-head) nozzles fitted" },
+          { no: "18", description: "Each protected zone's deluge valve activation tested individually" },
+          { no: "19", description: "Manual release station(s) at the protected space and at a remote/safe location tested" },
+        ],
+      },
     ],
     validityYears: 1,
   },
@@ -961,4 +1027,17 @@ export const FFE_CERT_TYPES: FFESubTypeConfig[] = [
 
 export function getFFEConfig(id: string): FFESubTypeConfig {
   return FFE_CERT_TYPES.find((t) => t.id === id) || FFE_CERT_TYPES[0];
+}
+
+// The certificate's own displayed name/reference once a system-type
+// variant (Watermist/Sprinkler/Deluge, see FFESystemVariant above) has
+// been picked — falls back to the sub-type's own label/note when no
+// variant is selected yet, or for every other sub-type, which has no
+// `variants` at all. `ffe` only needs the one field these care about,
+// typed loosely so callers don't need a full FFEData import.
+export function getEffectiveFFELabel(cfg: FFESubTypeConfig, ffe: { variant?: string }): string {
+  return cfg.variants?.find((v) => v.id === ffe.variant)?.label || cfg.label;
+}
+export function getEffectiveFFENote(cfg: FFESubTypeConfig, ffe: { variant?: string }): string | undefined {
+  return cfg.variants?.find((v) => v.id === ffe.variant)?.note || cfg.note;
 }
