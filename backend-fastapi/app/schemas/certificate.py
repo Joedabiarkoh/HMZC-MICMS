@@ -51,6 +51,12 @@ class CertificateSummary(BaseModel):
     id: int
     cert_no: str
     equipment_type: str
+    # See Certificate.sub_type/sub_type_variant's own comment — pulled
+    # from `payload` without carrying the rest of it, so the frontend
+    # can show the specific certificate type (e.g. "Chemical Suit")
+    # instead of just the broad equipment_type category.
+    sub_type: Optional[str] = None
+    sub_type_variant: Optional[str] = None
     vessel_name: Optional[str] = None
     imo_no: Optional[str] = None
     status: str

@@ -85,6 +85,14 @@ export interface VesselHistoryEntry {
   id: number;
   cert_no: string;
   equipment_type: string;
+  // See Certificate.sub_type/sub_type_variant (backend's own
+  // models/certificate.py) — the specific certificate type (e.g.
+  // "chemical_suit"), and for FFE, which system-type variant was
+  // picked, if any. Feed both into historyEntryTypeLabel rather than
+  // reading equipment_type alone, so this list shows "Chemical Suit"
+  // instead of just "Firefighting Equipment".
+  sub_type?: string | null;
+  sub_type_variant?: string | null;
   vessel_name: string | null;
   imo_no: string | null;
   status: string;

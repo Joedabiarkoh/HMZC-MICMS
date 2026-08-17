@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { groupCertificatesByVessel, reportTypeLabel } from "./groupCertificatesByVessel";
 import { InspectionCertificate, LooseGearData } from "../types/inspection.types";
-import { freshLooseGearState } from "./inspectionHelpers";
+import { freshLooseGearState, freshFFEState, freshCalibrationState } from "./inspectionHelpers";
 
 function cert(overrides: Partial<InspectionCertificate> & { certNo: string }): InspectionCertificate {
   return {
@@ -182,14 +182,38 @@ describe("groupCertificatesByVessel", () => {
 });
 
 describe("reportTypeLabel", () => {
-  it("returns the plain type name for non-Loose-Gear certificates", () => {
-    const c = cert({ certNo: "c1", type: "firefighting" });
-    expect(reportTypeLabel(c)).toBe("Firefighting Equipment");
+  it("returns the plain type name for a type with no sub-type concept", () => {
+    const c = cert({ certNo: "c1", type: "lifeboat" });
+    expect(reportTypeLabel(c)).toBe("Conventional Lifeboat");
   });
 
   it("appends the sub-type label for Loose Gear certificates", () => {
     const lg: LooseGearData = freshLooseGearState("standard_report");
     const c = cert({ certNo: "c1", type: "loosegear", looseGear: lg });
     expect(reportTypeLabel(c)).toBe("Loose Gear & Lifting Equipment — Report of Thorough Examination");
+  });
+
+  it("appends the sub-type label for a Loose Gear NDT report type added after the original 3-entry label list", () => {
+    const lg: LooseGearData = freshLooseGearState("mpi");
+    const c = cert({ certNo: "c1", type: "loosegear", looseGear: lg });
+    expect(reportTypeLabel(c)).toBe("Loose Gear & Lifting Equipment — Magnetic Particle Testing (MPI)");
+  });
+
+  it("appends the specific FFE sub-type name instead of just 'Firefighting Equipment'", () => {
+    const ffe = freshFFEState("chemical_suit");
+    const c = cert({ certNo: "c1", type: "firefighting", ffe });
+    expect(reportTypeLabel(c)).toBe("Firefighting Equipment — Chemical Suit");
+  });
+
+  it("uses the selected system-type variant's own name for FFE certificates that have one", () => {
+    const ffe = { ...freshFFEState("co2_system"), variant: "paint_locker" };
+    const c = cert({ certNo: "c1", type: "firefighting", ffe });
+    expect(reportTypeLabel(c)).toBe("Firefighting Equipment — Fixed CO2 System — Paint Locker");
+  });
+
+  it("appends the specific Calibration sub-type name", () => {
+    const calibration = freshCalibrationState("multigas_detector");
+    const c = cert({ certNo: "c1", type: "calibration", calibration });
+    expect(reportTypeLabel(c)).toBe("Calibration — Personal Multi-Gas Detector");
   });
 });

@@ -1,11 +1,8 @@
 import { InspectionCertificate } from "../types/inspection.types";
 import { INSPECTION_TYPES } from "./inspectionChecklists";
-
-const LOOSE_GEAR_SUBTYPE_LABELS: Record<string, string> = {
-  standard_report: "Report of Thorough Examination",
-  multiple_items: "Report of Thorough Examination (Multiple Items)",
-  visual_certificate: "Visual Certificate of Thorough Examination",
-};
+import { LOOSE_GEAR_SUB_TYPES } from "./inspectionHelpers";
+import { getFFEConfig, getEffectiveFFELabel } from "./ffeCertTypes";
+import { getCalibrationConfig } from "./calibrationCertTypes";
 
 // Requested directly: "I want it to be grouped based on the report
 // type" — Loose Gear's sub-types (see LOOSE_GEAR_SUB_TYPES,
@@ -14,13 +11,62 @@ const LOOSE_GEAR_SUBTYPE_LABELS: Record<string, string> = {
 // data variant of one report, so they're split into their own groups
 // here rather than lumped under one "Loose Gear & Lifting Equipment"
 // bucket.
+//
+// Requested directly again, reviewing certificate lists across the
+// app (Job Picker's "existing certificates under this job", the
+// Certificate Log): "the created certificate should have the specific
+// certificate type name not the broader section name... for easy
+// identification." Was Loose-Gear-only, and even there only knew 3 of
+// its now ~10 sub-types (a separate, drifted-out-of-date copy of
+// LOOSE_GEAR_SUB_TYPES) — every FFE certificate (Chemical Suit, Fixed
+// CO2 System, ...) and every Calibration certificate showed only the
+// broad "Firefighting Equipment"/"Calibration" category, exactly the
+// complaint. Reads the same config arrays the forms themselves use
+// (LOOSE_GEAR_SUB_TYPES, getFFEConfig, getCalibrationConfig) instead
+// of a second, parallel label list, so a new sub-type added to any of
+// those never needs a matching update here to show up correctly. FFE
+// additionally runs through getEffectiveFFELabel so a certificate with
+// a system-type variant selected (e.g. "Fixed CO2 System — Paint
+// Locker") shows that specific name too, not just the sub-type's own
+// generic label.
+// Shared core so both a full InspectionCertificate (reportTypeLabel,
+// below) and a lightweight backend summary that only carries the raw
+// subType/variant strings (historyEntryTypeLabel, for VesselSearch.tsx/
+// VesselLookupPanel.tsx's vessel-lookup history — see
+// Certificate.sub_type/sub_type_variant in the backend's
+// models/certificate.py for where those strings come from) resolve to
+// the exact same specific label.
+function subTypeLabel(equipmentType: string, subType: string | null | undefined, variant?: string | null): string | null {
+  if (!subType) return null;
+  if (equipmentType === "loosegear") {
+    return LOOSE_GEAR_SUB_TYPES.find((t) => t.id === subType)?.label || null;
+  }
+  if (equipmentType === "firefighting") {
+    return getEffectiveFFELabel(getFFEConfig(subType), { variant: variant || "" });
+  }
+  if (equipmentType === "calibration") {
+    return getCalibrationConfig(subType).label;
+  }
+  return null;
+}
+
 export function reportTypeLabel(cert: InspectionCertificate): string {
   const base = INSPECTION_TYPES[cert.type]?.typeName || cert.type;
-  if (cert.type === "loosegear" && cert.looseGear?.subType) {
-    const sub = LOOSE_GEAR_SUBTYPE_LABELS[cert.looseGear.subType];
-    if (sub) return `${base} — ${sub}`;
-  }
-  return base;
+  const sub = subTypeLabel(
+    cert.type,
+    cert.looseGear?.subType || cert.ffe?.subType || cert.calibration?.subType,
+    cert.ffe?.variant
+  );
+  return sub ? `${base} — ${sub}` : base;
+}
+
+// For the lightweight { equipment_type, sub_type, sub_type_variant }
+// shape the vessel-lookup endpoint returns (VesselHistoryEntry in
+// inspection.api.ts) — same resolution, no full certificate needed.
+export function historyEntryTypeLabel(h: { equipment_type: string; sub_type?: string | null; sub_type_variant?: string | null }): string {
+  const base = INSPECTION_TYPES[h.equipment_type as keyof typeof INSPECTION_TYPES]?.typeName || h.equipment_type;
+  const sub = subTypeLabel(h.equipment_type, h.sub_type, h.sub_type_variant);
+  return sub ? `${base} — ${sub}` : base;
 }
 
 export interface TypeGroup {

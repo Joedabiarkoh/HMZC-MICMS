@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import "../inspections.css";
 import { listVessels, vesselLookup, VesselSummary, VesselHistoryEntry } from "../services/inspection.api";
-import { INSPECTION_TYPES } from "../data/inspectionChecklists";
+import { historyEntryTypeLabel } from "../data/groupCertificatesByVessel";
 import { useAuth } from "../../../context/AuthContext";
 import { hasPermission, PERM } from "../../auth/types/auth.types";
 
@@ -184,7 +184,7 @@ export default function VesselSearch() {
                   {history.map((h) => (
                     <tr key={h.id} style={{ borderTop: "1px solid #DCE1E5" }}>
                       <td style={{ padding: "4px 6px" }}>{h.cert_no}</td>
-                      <td style={{ padding: "4px 6px" }}>{INSPECTION_TYPES[h.equipment_type as keyof typeof INSPECTION_TYPES]?.typeName || h.equipment_type}</td>
+                      <td style={{ padding: "4px 6px" }}>{historyEntryTypeLabel(h)}</td>
                       <td style={{ padding: "4px 6px", textTransform: "capitalize" }}>{h.status}</td>
                       <td style={{ padding: "4px 6px" }}>{h.date_of_servicing || "—"}</td>
                       <td style={{ padding: "4px 6px" }}>{h.issued_by?.full_name || h.issued_by?.email || "—"}</td>

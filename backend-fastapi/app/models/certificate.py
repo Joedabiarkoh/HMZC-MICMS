@@ -61,3 +61,30 @@ class Certificate(BaseModel):
 
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    # Requested directly: "the created certificate should have the
+    # specific certificate type name not the broader section name...
+    # for easy identification." CertificateSummary (the lightweight
+    # shape vessel_lookup/list_vessels return) deliberately excludes
+    # the full `payload` — these two computed properties pull out just
+    # the one sub-type string (and, for FFE, which system-type variant
+    # was picked) so the frontend's own reportTypeLabel-style lookup
+    # can resolve it to "Chemical Suit" / "Fixed CO2 System — Paint
+    # Locker" instead of only ever showing "Firefighting Equipment".
+    # Pydantic's from_attributes picks these up automatically wherever
+    # a Certificate is returned as a CertificateSummary, same as any
+    # real column — no per-route change needed.
+    _SUBTYPE_PAYLOAD_KEY = {"firefighting": "ffe", "loosegear": "looseGear", "calibration": "calibration"}
+
+    @property
+    def sub_type(self):
+        key = self._SUBTYPE_PAYLOAD_KEY.get(self.equipment_type)
+        if not key:
+            return None
+        return (self.payload or {}).get(key, {}).get("subType")
+
+    @property
+    def sub_type_variant(self):
+        if self.equipment_type != "firefighting":
+            return None
+        return (self.payload or {}).get("ffe", {}).get("variant") or None
