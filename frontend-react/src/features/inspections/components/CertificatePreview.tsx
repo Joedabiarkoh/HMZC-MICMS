@@ -1927,14 +1927,24 @@ function SignBox({ label, name, sig, stamp }: { label: string; name: string; sig
           "auto" since a background-image has no intrinsic size to
           derive one from the way an <img> does; 220x70 preserves the
           source PNG's own 327:104 aspect ratio at this height. */}
+      {/* Requested directly: "shift the stamp away a bit from the
+          signature as now it conflict with the signature" — the
+          drawn/uploaded signature stroke sits in the upper-left of the
+          60px-tall image above, so nudging the stamp down (top: -5 → 12)
+          and right (left: 50% → 62%) moves its rotated body off the ink
+          itself onto the lower-right area (over the printed name/label
+          instead), while still visually overlapping the signature box
+          enough to read as "stamped over" it — the look this overlay was
+          built for in the first place (see this function's own top
+          comment). */}
       {stamp && (
         <div
           role="img"
           aria-label="HMZC Official Stamp"
           style={{
             position: "absolute",
-            left: "50%",
-            top: -5,
+            left: "62%",
+            top: 12,
             transform: "translateX(-50%) rotate(-7deg)",
             height: 70,
             width: 220,

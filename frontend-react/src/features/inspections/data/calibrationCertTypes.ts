@@ -146,6 +146,39 @@ export const CALIBRATION_CERT_TYPES: CalibrationSubTypeConfig[] = [
     validityYears: 1,
   },
   {
+    // Requested directly, from a real reference certificate ("fixed
+    // H2S.docx"): a distinct sub-type for a vessel's fixed, permanently
+    // installed toxic-gas (H2S) detection system — different from
+    // fixed_gas_sampling above, which is the general/combustible-gas
+    // (LEL) fixed system, and from multigas_detector, which is the
+    // portable handheld unit. Test Gas stays a per-row column (not
+    // hardcoded to H2S) since a vessel's fixed system commonly has more
+    // than one sensor and not every sensor need be H2S, but Alarm Set
+    // Point (High/Low), TWA and a pass/fail Calibration Test column are
+    // specific to this sub-type's own reference template and aren't
+    // present on fixed_gas_sampling's simpler As-Found/As-Left table.
+    id: "fixed_h2s_detector",
+    label: "Fixed Gas Detector — H2S",
+    technicalFields: [
+      { key: "testGas", label: "Test Gas" },
+      { key: "testGasManufacturer", label: "Test Gas Manufacturer" },
+    ],
+    itemColumns: UNIT_UNDER_TEST_COLS,
+    itemTableLabel: "Unit(s) Under Test",
+    items2Columns: [
+      { key: "sensorNo", label: "Sensor No." }, { key: "testGas", label: "Test Gas" },
+      { key: "concentration", label: "Concentration" },
+      { key: "alarmHigh", label: "Alarm Set Point (High)" }, { key: "alarmLow", label: "Alarm Set Point (Low)" },
+      { key: "twa", label: "TWA" }, { key: "calibrationTest", label: "Calibration test" },
+    ],
+    items2Label: "Calibration Test Data",
+    defaultItems2: [
+      { sensorNo: "01", testGas: "H2S", concentration: "10.0 ppm", alarmHigh: "10.0 ppm", alarmLow: "5.0 ppm", twa: "5.0 ppm", calibrationTest: "PASS" },
+    ],
+    note: "Calibration based on BS EN 45544-1/-2 (performance requirements for toxic-gas detection apparatus — CO and H2S) and BS EN 45544-4 (selection, installation, use and maintenance) and manufacturer's procedures.",
+    validityYears: 1,
+  },
+  {
     id: "ows_15ppm",
     label: "15 PPM Bilge Alarm / Oily Water Separator (OWS)",
     technicalFields: [],
