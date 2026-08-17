@@ -81,10 +81,20 @@ class Certificate(BaseModel):
         key = self._SUBTYPE_PAYLOAD_KEY.get(self.equipment_type)
         if not key:
             return None
-        return (self.payload or {}).get(key, {}).get("subType")
+        # payload is client-supplied Dict[str, Any] — `.get(key, {})`
+        # only falls back to {} when the key is ABSENT, not when it's
+        # present with value None (a malformed/replayed write can
+        # legally save {"ffe": null, ...}). Root-caused from a debug
+        # pass: that shape made .get("subType") throw AttributeError,
+        # and since this property runs for every row in a
+        # CertificateSummary list, one poisoned certificate took down
+        # list_vessels/vessel_lookup for every user, not just its own.
+        sub = (self.payload or {}).get(key)
+        return sub.get("subType") if isinstance(sub, dict) else None
 
     @property
     def sub_type_variant(self):
         if self.equipment_type != "firefighting":
             return None
-        return (self.payload or {}).get("ffe", {}).get("variant") or None
+        ffe = (self.payload or {}).get("ffe")
+        return (ffe.get("variant") or None) if isinstance(ffe, dict) else None

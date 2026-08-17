@@ -9,9 +9,19 @@ import { exportRowsToCsv } from "../../../utils/exportCsv";
 export default function Invoices() {
   const [invoices, setInvoices] = useState<InvoiceDoc[]>([]);
   const [loading, setLoading] = useState(true);
+  // Root-caused from a debug pass: a failed load (expired session, a
+  // transient 500) used to just log to console and leave `invoices`
+  // at [] — rendering the identical "no invoices yet" empty state as
+  // a genuinely empty list, on this page that's the primary entry
+  // point into every invoice in the system. Payments.tsx/Expenses.tsx/
+  // JobCosting.tsx already surface a load failure this same way.
+  const [err, setErr] = useState("");
 
   useEffect(() => {
-    listInvoices().then(setInvoices).catch(console.error).finally(() => setLoading(false));
+    listInvoices()
+      .then(setInvoices)
+      .catch((e) => setErr(e?.response?.data?.detail || "Could not load invoices."))
+      .finally(() => setLoading(false));
   }, []);
 
   function handleExportCsv() {
@@ -41,6 +51,7 @@ export default function Invoices() {
           <Link to="/finance/invoices/new" className="finance-btn finance-btn-primary">+ New Invoice</Link>
         </div>
       </div>
+      {err && <div style={{ background: "#FBEEEC", color: "#7A241B", border: "1px solid #B3382C", borderRadius: 6, padding: "8px 10px", fontSize: 12, marginBottom: 12 }}>{err}</div>}
       {loading ? <p>Loading...</p> : <InvoiceTable invoices={invoices} />}
     </div>
   );

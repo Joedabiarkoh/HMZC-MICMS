@@ -105,6 +105,17 @@ export default function SignatureCanvas({ label, value, onChange, allowSavedDefa
     setPendingUpload(null);
     setUploadScale(1);
     setUploadError("");
+    // Root-caused from a debug pass: if the user had drawn something
+    // (hasDrawn -> true, but never hit "Save Signature" to commit it)
+    // before switching to "Upload Image Instead", canceling the
+    // upload drops back to a *fresh, blank* <canvas> (value is still
+    // "") while hasDrawn stayed true from the earlier draw — leaving
+    // "Save Signature" enabled against an empty canvas, so clicking it
+    // committed a blank/transparent PNG that still satisfies the
+    // "signature is required" finalize check (a non-empty string).
+    // clear()/resign() already reset this; cancelUpload was the one
+    // path that didn't.
+    setHasDrawn(false);
   }
 
   useEffect(() => {

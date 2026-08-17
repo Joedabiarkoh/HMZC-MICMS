@@ -1076,6 +1076,18 @@ export function getFFEConfig(id: string): FFESubTypeConfig {
   return FFE_CERT_TYPES.find((t) => t.id === id) || FFE_CERT_TYPES[0];
 }
 
+// Root-caused from a debug pass: reportTypeLabel (groupCertificatesByVessel.ts)
+// used getFFEConfig for its "does this subType actually exist" check, but
+// getFFEConfig's own fallback-to-FFE_CERT_TYPES[0] (needed everywhere else —
+// a certificate being actively rendered always needs SOME config to show)
+// meant a stale/unknown subType id silently resolved to "Chemical Suit"
+// instead of gracefully falling back to the broad "Firefighting Equipment"
+// category the way Loose Gear's own lookup already does. A plain,
+// fallback-free lookup for exactly that "does this id exist" question.
+export function findFFEConfig(id: string): FFESubTypeConfig | undefined {
+  return FFE_CERT_TYPES.find((t) => t.id === id);
+}
+
 // The certificate's own displayed name/reference once a system-type
 // variant (Watermist/Sprinkler/Deluge, see FFESystemVariant above) has
 // been picked — falls back to the sub-type's own label/note when no

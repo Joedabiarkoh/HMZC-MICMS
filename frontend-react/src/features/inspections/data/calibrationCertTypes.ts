@@ -283,3 +283,11 @@ export const CALIBRATION_CERT_TYPES: CalibrationSubTypeConfig[] = [
 export function getCalibrationConfig(id: string): CalibrationSubTypeConfig {
   return CALIBRATION_CERT_TYPES.find((t) => t.id === id) || CALIBRATION_CERT_TYPES[0];
 }
+
+// See findFFEConfig's own comment in ffeCertTypes.ts — same fallback-free
+// lookup, for the same reason (reportTypeLabel needs to tell "unknown
+// subType" apart from "really is this one", which getCalibrationConfig's
+// own always-something fallback can't do).
+export function findCalibrationConfig(id: string): CalibrationSubTypeConfig | undefined {
+  return CALIBRATION_CERT_TYPES.find((t) => t.id === id);
+}

@@ -22,7 +22,21 @@ export default function ItemCatalog() {
   const [error, setError] = useState("");
 
   function load() {
-    listFinanceItems(true).then(setItems).catch(() => setItems([])).finally(() => setLoading(false));
+    // Root-caused from a debug pass: a failed load used to silently
+    // reset to an empty list with no explanation — `error` already
+    // existed (wired to the add/edit form's own failures below) but
+    // was never set here, so a fetch failure looked identical to a
+    // genuinely empty catalog ("Catalog (0)"). Risk: an admin
+    // concludes the catalog is empty and starts re-adding items that
+    // already exist, or a Finance user building an invoice gives up
+    // on catalog pricing — both silently caused by a failed request.
+    listFinanceItems(true)
+      .then(setItems)
+      .catch((e) => {
+        setItems([]);
+        setError(e?.response?.data?.detail || "Could not load the item catalog.");
+      })
+      .finally(() => setLoading(false));
   }
   useEffect(load, []);
 

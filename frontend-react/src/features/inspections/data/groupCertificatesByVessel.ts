@@ -1,8 +1,8 @@
 import { InspectionCertificate } from "../types/inspection.types";
 import { INSPECTION_TYPES } from "./inspectionChecklists";
 import { LOOSE_GEAR_SUB_TYPES } from "./inspectionHelpers";
-import { getFFEConfig, getEffectiveFFELabel } from "./ffeCertTypes";
-import { getCalibrationConfig } from "./calibrationCertTypes";
+import { findFFEConfig, getEffectiveFFELabel } from "./ffeCertTypes";
+import { findCalibrationConfig } from "./calibrationCertTypes";
 
 // Requested directly: "I want it to be grouped based on the report
 // type" — Loose Gear's sub-types (see LOOSE_GEAR_SUB_TYPES,
@@ -36,16 +36,27 @@ import { getCalibrationConfig } from "./calibrationCertTypes";
 // Certificate.sub_type/sub_type_variant in the backend's
 // models/certificate.py for where those strings come from) resolve to
 // the exact same specific label.
+// Root-caused from a debug pass: this used to call getFFEConfig/
+// getCalibrationConfig directly — both fall back to their array's
+// first entry on a miss (needed everywhere else a config is required
+// to actually render something), so a stale/unknown subType id
+// silently mislabeled a certificate as "Chemical Suit" instead of
+// falling back to the broad category, the one thing this function is
+// supposed to never do (see the Loose Gear branch, which already got
+// this right via a plain `.find()`). findFFEConfig/findCalibrationConfig
+// return undefined on a miss instead, so this can tell "genuinely this
+// sub-type" apart from "no longer exists."
 function subTypeLabel(equipmentType: string, subType: string | null | undefined, variant?: string | null): string | null {
   if (!subType) return null;
   if (equipmentType === "loosegear") {
     return LOOSE_GEAR_SUB_TYPES.find((t) => t.id === subType)?.label || null;
   }
   if (equipmentType === "firefighting") {
-    return getEffectiveFFELabel(getFFEConfig(subType), { variant: variant || "" });
+    const cfg = findFFEConfig(subType);
+    return cfg ? getEffectiveFFELabel(cfg, { variant: variant || "" }) : null;
   }
   if (equipmentType === "calibration") {
-    return getCalibrationConfig(subType).label;
+    return findCalibrationConfig(subType)?.label || null;
   }
   return null;
 }

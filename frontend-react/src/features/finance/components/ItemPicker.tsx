@@ -18,11 +18,20 @@ export default function ItemPicker({ onSelect }: Props) {
   const [items, setItems] = useState<FinanceItem[]>([]);
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(true);
+  // Root-caused from a debug pass: a failed catalog fetch used to
+  // reset to [] silently — with no distinction from a genuinely empty
+  // catalog, "No matching items in the catalog." shows either way, so
+  // someone building an invoice/quotation could give up on catalog
+  // pricing entirely without ever knowing the request actually failed.
+  const [loadError, setLoadError] = useState(false);
 
   useEffect(() => {
     listFinanceItems()
       .then(setItems)
-      .catch(() => setItems([]))
+      .catch(() => {
+        setItems([]);
+        setLoadError(true);
+      })
       .finally(() => setLoading(false));
   }, []);
 
@@ -61,7 +70,9 @@ export default function ItemPicker({ onSelect }: Props) {
       )}
       {open && !loading && filtered.length === 0 && (
         <div className="item-picker-results">
-          <div className="item-picker-result" style={{ color: "var(--insp-muted)", cursor: "default" }}>No matching items in the catalog.</div>
+          <div className="item-picker-result" style={{ color: loadError ? "var(--insp-red)" : "var(--insp-muted)", cursor: "default" }}>
+            {loadError ? "Couldn't load the item catalog — try again." : "No matching items in the catalog."}
+          </div>
         </div>
       )}
     </div>
