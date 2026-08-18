@@ -313,6 +313,56 @@ export const LOOSE_GEAR_STATUS_CODES: { code: string; label: string }[] = [
   { code: "OBS", label: "OBS – Observation (see Defect Report)" },
 ];
 
+// Requested directly: "start with 1" of a 3-item list — one config per
+// register, consumed by RegisterEditTable/RegisterPreviewTable
+// (components/RegisterTable.tsx) for the form and print/preview, and
+// by certificateDocxExport.ts's own registerColumnsToDocxRows for the
+// Word export. See RegisterTable.tsx's own top comment for the full
+// reasoning (the class of bug this replaces, and why it's scoped to
+// Loose Gear rather than widening FFE's own ItemTable).
+export type RegisterColumnType = "text" | "date" | "select" | "yesno";
+
+export interface RegisterColumn {
+  key: string;
+  label: string;
+  type?: RegisterColumnType; // default "text"
+  options?: { value: string; label: string }[]; // required for "select"
+  disabledWhen?: (row: Record<string, string>) => boolean;
+  disabledPlaceholder?: string;
+}
+
+export const MULTIPLE_ITEMS_REGISTER_COLUMNS: RegisterColumn[] = [
+  { key: "serialNo", label: "Serial No." },
+  { key: "description", label: "Description" },
+  { key: "swl", label: "SWL" },
+  { key: "manufacturer", label: "Manufacturer" },
+  { key: "certNoTestDate", label: "Cert No./Test Date" },
+  { key: "itemLocation", label: "Location" },
+  { key: "typeOfInspection", label: "Type of Inspection" },
+  { key: "nextInspectionDate", label: "Next Inspection", type: "date" },
+  // Requested directly: "change result to (status) and move it to the
+  // end close to safe to use" — see LooseGearRegisterRow.result's own
+  // comment on why the field key itself stays `result`.
+  { key: "result", label: "Status", type: "select", options: LOOSE_GEAR_STATUS_CODES.map((s) => ({ value: s.code, label: s.label })) },
+  { key: "safeToUse", label: "Safe to Use", type: "yesno" },
+];
+
+export const DEFECT_REPORT_COLUMNS: RegisterColumn[] = [
+  { key: "equipmentIdNo", label: "Equipment ID No." },
+  { key: "equipmentDescription", label: "Equipment Description" },
+  { key: "defectiveParts", label: "Defective Parts" },
+  // "Is the defect an existing or imminent danger" — the source form's
+  // own footnote: "*If yes must be reported to HSE."
+  { key: "immediateDanger", label: "Immediate Danger *", type: "yesno" },
+  {
+    key: "whenBecomesDanger",
+    label: "When Will It Become a Danger",
+    disabledWhen: (row) => row.immediateDanger === "yes",
+    disabledPlaceholder: "N/A — immediate danger",
+  },
+  { key: "repairParticulars", label: "Repair/Renewal/Alteration Particulars" },
+];
+
 function freshLooseGearStatutoryAnswers(): LooseGearStatutoryAnswers {
   return {
     firstExaminationAfterInstall: "",

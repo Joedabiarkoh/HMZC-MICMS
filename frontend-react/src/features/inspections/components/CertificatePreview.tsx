@@ -3,7 +3,8 @@ import type { ReactNode, RefObject } from "react";
 import { EquipmentTypeConfig, InspectionCertificate, ChecklistStatus, EquipResult, CalibrationData, FFEData, LooseGearData, LooseGearDefectReportData, LooseGearMultipleItemsData, LooseGearStandardReportData, LooseGearStatutoryAnswers, LooseGearVisualCertData, LooseGearYesNo, NDTCommonData, NDTFooterData, MPIData, PTData, RTData, UTData, VTData, ETData, LoadTestData, PhotoEvidence } from "../types/inspection.types";
 import { getFFEConfig, getEffectiveFFELabel, getEffectiveFFENote } from "../data/ffeCertTypes";
 import { getCalibrationConfig } from "../data/calibrationCertTypes";
-import { LOOSE_GEAR_STATUS_CODES, normalizedSerialNos } from "../data/inspectionHelpers";
+import { DEFECT_REPORT_COLUMNS, LOOSE_GEAR_STATUS_CODES, MULTIPLE_ITEMS_REGISTER_COLUMNS, normalizedSerialNos } from "../data/inspectionHelpers";
+import { RegisterPreviewTable } from "./RegisterTable";
 import { ABS_LOGO_DATA_URI, BUREAU_VERITAS_LOGO_DATA_URI, CRALOG_LOGO_DATA_URI, DNV_LOGO_DATA_URI } from "../assets/approvalLogos";
 import { APP_BUILD_VERSION } from "../data/appVersion";
 import CertificateQR, { buildCertQrPayload } from "./CertificateQR";
@@ -1224,52 +1225,21 @@ function MultipleItemsPage({ cert, data }: { cert: InspectionCertificate; data: 
         </tbody>
       </table>
 
-      <table className="insp-print-chk">
-        <thead>
-          {/* Requested directly: "for all multiple should have numbering
-              also appearing in print and preview just as you see when
-              inputing the data" — the form's own Item Register already
-              numbers rows (LooseGearForm.tsx's MultipleItemsForm); this
-              # column matches it here, colSpan raised 10→11 to match. */}
-          <CertNoTheadRow certNo={cert.certNo} colSpan={11} />
-          <tr>
-            <th>#</th><th>Serial No.</th><th>Description</th><th>SWL</th><th>Manufacturer</th>
-            <th>Cert No./Test Date</th><th>Location</th><th>Type of Inspection</th><th>Next Inspection</th>
-            {/* Requested directly: "change result to (status) and move
-                it to the end close to safe to use" — see
-                LooseGearRegisterRow.result's own comment in
-                inspection.types.ts for why the field itself is still
-                named `result`. */}
-            <th>Status</th><th>Safe to Use</th>
-          </tr>
-        </thead>
-        <tbody>
-          {data.rows.length === 0 ? (
-            <tr><td colSpan={11} style={{ color: "var(--insp-muted)" }}>No items recorded.</td></tr>
-          ) : (
-            data.rows.map((row, i) => (
-              <tr key={i}>
-                <td>{i + 1}</td>
-                <td>{row.serialNo || "—"}</td>
-                <td>{row.description || "—"}</td>
-                <td>{row.swl || "—"}</td>
-                <td>{row.manufacturer || "—"}</td>
-                <td>{row.certNoTestDate || "—"}</td>
-                <td>{row.itemLocation || "—"}</td>
-                <td>{row.typeOfInspection || "—"}</td>
-                <td>{fmtDate(row.nextInspectionDate)}</td>
-                <td>{row.result || "—"}</td>
-                <td><span className={`insp-pill ${row.safeToUse === "yes" ? "good" : row.safeToUse === "no" ? "repair" : ""}`}>{yesNoLabel(row.safeToUse)}</span></td>
-              </tr>
-            ))
-          )}
-        </tbody>
-      </table>
-
-      <div style={{ fontWeight: 700, fontSize: 11.5, color: "var(--insp-navy)", margin: "10px 0 4px" }}>Status</div>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1px 16px", fontSize: 10.5 }}>
-        {LOOSE_GEAR_STATUS_CODES.map((s) => <div key={s.code}>{s.label}</div>)}
-      </div>
+      {/* Requested directly: "for all multiple should have numbering
+          also appearing in print and preview just as you see when
+          inputing the data" — RegisterPreviewTable always renders a #
+          column, so this is now structurally guaranteed to match the
+          form rather than something each certificate type has to
+          remember to add. Same shared config (MULTIPLE_ITEMS_REGISTER_COLUMNS)
+          the form and the Word export use — see RegisterTable.tsx's own
+          top comment. */}
+      <RegisterPreviewTable
+        columns={MULTIPLE_ITEMS_REGISTER_COLUMNS}
+        rows={data.rows as unknown as Record<string, string>[]}
+        certNoHeaderRow={(colSpan) => <CertNoTheadRow certNo={cert.certNo} colSpan={colSpan} />}
+        emptyMessage="No items recorded."
+        legend={{ title: "Status", items: LOOSE_GEAR_STATUS_CODES.map((s) => s.label) }}
+      />
 
       {cert.issuedBy && (
         <div style={{ fontSize: 9, color: "var(--insp-muted)", marginTop: 8 }}>
@@ -1317,32 +1287,12 @@ function DefectReportPage({ cert, data }: { cert: InspectionCertificate; data: L
       <p style={{ fontSize: 10.5, margin: "8px 0" }}>
         This defect report refers to the equipment listed on the Thorough Examination report number: <strong>{data.referencedReportNo || "—"}</strong>
       </p>
-      <table className="insp-print-chk">
-        <thead>
-          <CertNoTheadRow certNo={cert.certNo} colSpan={7} />
-          <tr>
-            <th>#</th><th>Equipment ID No.</th><th>Equipment Description</th><th>Defective Parts</th>
-            <th>Immediate Danger *</th><th>When Will It Become a Danger</th><th>Repair/Renewal/Alteration Particulars</th>
-          </tr>
-        </thead>
-        <tbody>
-          {data.defects.length === 0 ? (
-            <tr><td colSpan={7} style={{ color: "var(--insp-muted)" }}>No defects recorded.</td></tr>
-          ) : (
-            data.defects.map((row, i) => (
-              <tr key={i}>
-                <td>{i + 1}</td>
-                <td>{row.equipmentIdNo || "—"}</td>
-                <td>{row.equipmentDescription || "—"}</td>
-                <td>{row.defectiveParts || "—"}</td>
-                <td><span className={`insp-pill ${row.immediateDanger === "yes" ? "repair" : row.immediateDanger === "no" ? "good" : ""}`}>{yesNoLabel(row.immediateDanger)}</span></td>
-                <td>{row.immediateDanger === "yes" ? "N/A" : row.whenBecomesDanger || "—"}</td>
-                <td>{row.repairParticulars || "—"}</td>
-              </tr>
-            ))
-          )}
-        </tbody>
-      </table>
+      <RegisterPreviewTable
+        columns={DEFECT_REPORT_COLUMNS}
+        rows={data.defects as unknown as Record<string, string>[]}
+        certNoHeaderRow={(colSpan) => <CertNoTheadRow certNo={cert.certNo} colSpan={colSpan} />}
+        emptyMessage="No defects recorded."
+      />
       <p style={{ fontSize: 9.5, color: "var(--insp-red)", margin: "4px 0 8px" }}>* If yes, must be reported to HSE.</p>
       <div style={{ fontWeight: 700, fontSize: 11.5, color: "var(--insp-navy)", margin: "6px 0 4px" }}>
         Observations / Additional Comments Relative to This Thorough Examination

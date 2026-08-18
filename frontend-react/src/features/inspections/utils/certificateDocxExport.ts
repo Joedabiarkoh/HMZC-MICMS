@@ -58,7 +58,7 @@ import {
 } from "../types/inspection.types";
 import { getFFEConfig, getEffectiveFFELabel, getEffectiveFFENote } from "../data/ffeCertTypes";
 import { getCalibrationConfig } from "../data/calibrationCertTypes";
-import { LOOSE_GEAR_STATUS_CODES, normalizedSerialNos } from "../data/inspectionHelpers";
+import { DEFECT_REPORT_COLUMNS, LOOSE_GEAR_STATUS_CODES, MULTIPLE_ITEMS_REGISTER_COLUMNS, RegisterColumn, normalizedSerialNos } from "../data/inspectionHelpers";
 import { HMZC_LOGO_DATA_URI } from "../assets/logo";
 import { HMZC_STAMP_DATA_URI } from "../assets/stamp";
 
@@ -259,6 +259,30 @@ function dataTable(headers: string[], rows: string[][]): Table {
       ...rows.map((r) => new TableRow({ children: r.map((v) => cell(v || "—", { widthPct })) })),
     ],
   });
+}
+
+// Requested directly: "start with 1" of a 3-item list — the Word-export
+// side of the same shared-config register RegisterTable.tsx builds for
+// the form and print/preview (see that file's own top comment on the
+// class of bug this replaces). Reuses this file's own already-generic
+// dataTable rather than duplicating table-building logic a third time —
+// this just maps a RegisterColumn config + typed row values into the
+// plain string headers/cells dataTable expects, the same per-type
+// formatting (yes/no, date, disabled-field N/A) CertificatePreview.tsx's
+// RegisterPreviewTable applies.
+function registerTable(columns: RegisterColumn[], rows: Record<string, string>[]): Table {
+  const headers = ["#", ...columns.map((c) => c.label)];
+  const body = rows.map((row, i) => [
+    String(i + 1),
+    ...columns.map((c) => {
+      if (c.disabledWhen && c.disabledWhen(row)) return "N/A";
+      const value = row[c.key];
+      if (c.type === "yesno") return yesNoLabel(value as LooseGearYesNo);
+      if (c.type === "date") return fmtDate(value);
+      return value || "—";
+    }),
+  ]);
+  return dataTable(headers, body);
 }
 
 function remarksBox(label: string, text: string): Table {
@@ -821,28 +845,7 @@ async function buildLooseGearSection(cert: InspectionCertificate, looseGear: Loo
         ["Reason for Inspection", reasonLabels[d.reasonForInspection] || "—"],
       ])
     );
-    blocks.push(
-      dataTable(
-        // Requested directly: "for all multiple should have numbering
-        // also appearing in print and preview" (# now leads, matching
-        // CertificatePreview.tsx/LooseGearForm.tsx) and "change result
-        // to (status) and move it to the end close to safe to use".
-        ["#", "Serial No.", "Description", "SWL", "Manufacturer", "Cert No./Test Date", "Location", "Type of Inspection", "Next Inspection", "Status", "Safe to Use"],
-        d.rows.map((r, i) => [
-          String(i + 1),
-          r.serialNo || "—",
-          r.description || "—",
-          r.swl || "—",
-          r.manufacturer || "—",
-          r.certNoTestDate || "—",
-          r.itemLocation || "—",
-          r.typeOfInspection || "—",
-          fmtDate(r.nextInspectionDate),
-          r.result || "—",
-          yesNoLabel(r.safeToUse),
-        ])
-      )
-    );
+    blocks.push(registerTable(MULTIPLE_ITEMS_REGISTER_COLUMNS, d.rows as unknown as Record<string, string>[]));
     blocks.push(
       new Paragraph({
         spacing: { before: 80 },
@@ -874,20 +877,7 @@ async function buildLooseGearSection(cert: InspectionCertificate, looseGear: Loo
       ])
     );
     blocks.push(new Paragraph({ text: `This defect report refers to the equipment listed on the Thorough Examination report number: ${d.referencedReportNo || "—"}`, spacing: { before: 100, after: 120 } }));
-    blocks.push(
-      dataTable(
-        ["#", "Equipment ID No.", "Equipment Description", "Defective Parts", "Immediate Danger", "When Will It Become a Danger", "Repair/Renewal/Alteration Particulars"],
-        d.defects.map((r, i) => [
-          String(i + 1),
-          r.equipmentIdNo || "—",
-          r.equipmentDescription || "—",
-          r.defectiveParts || "—",
-          yesNoLabel(r.immediateDanger),
-          r.immediateDanger === "yes" ? "N/A" : r.whenBecomesDanger || "—",
-          r.repairParticulars || "—",
-        ])
-      )
-    );
+    blocks.push(registerTable(DEFECT_REPORT_COLUMNS, d.defects as unknown as Record<string, string>[]));
     blocks.push(new Paragraph({ spacing: { before: 60, after: 120 }, children: [new TextRun({ text: "* If yes, must be reported to HSE.", color: "B3382C", size: 18 })] }));
     blocks.push(heading("Observations / Additional Comments Relative to This Thorough Examination"));
     blocks.push(new Paragraph({ text: d.defectObservations || "None" }));

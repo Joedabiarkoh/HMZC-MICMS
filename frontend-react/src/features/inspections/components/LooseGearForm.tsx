@@ -1,7 +1,8 @@
 import { useState } from "react";
 import {
-  LOOSE_GEAR_STATUS_CODES,
+  DEFECT_REPORT_COLUMNS,
   LOOSE_GEAR_SUB_TYPES,
+  MULTIPLE_ITEMS_REGISTER_COLUMNS,
   freshLooseGearDefectRow,
   freshLooseGearRegisterRow,
   freshLooseGearState,
@@ -12,6 +13,7 @@ import {
   generateCertNo,
   normalizedSerialNos,
 } from "../data/inspectionHelpers";
+import { RegisterEditTable } from "./RegisterTable";
 import {
   InspectionCertificate,
   LooseGearData,
@@ -835,66 +837,15 @@ function MultipleItemsForm({
 
       <fieldset className="insp-fieldset">
         <legend className="insp-legend">Item Register</legend>
-        <div style={{ overflowX: "auto" }}>
-          <table style={{ width: "100%", fontSize: 12, borderCollapse: "collapse", minWidth: 1100 }}>
-            <thead>
-              <tr style={{ textAlign: "left", borderBottom: "1px solid #DCE1E5" }}>
-                <th style={{ padding: "4px 6px", width: 30 }}>#</th>
-                <th style={{ padding: "4px 6px" }}>Serial No.</th>
-                <th style={{ padding: "4px 6px" }}>Description</th>
-                <th style={{ padding: "4px 6px" }}>SWL</th>
-                <th style={{ padding: "4px 6px" }}>Manufacturer</th>
-                <th style={{ padding: "4px 6px" }}>Cert No./Test Date</th>
-                <th style={{ padding: "4px 6px" }}>Item Location</th>
-                <th style={{ padding: "4px 6px" }}>Type of Inspection</th>
-                <th style={{ padding: "4px 6px" }}>Next Inspection Date</th>
-                {/* Requested directly: "change result to (status) and
-                    move it to the end close to safe to use" — was right
-                    after Manufacturer; now sits right before Safe to
-                    Use so the two read together (this item's condition,
-                    then whether it's safe to use because of it). */}
-                <th style={{ padding: "4px 6px" }}>Status</th>
-                <th style={{ padding: "4px 6px" }}>Safe to Use</th>
-                <th style={{ width: 62 }}></th>
-              </tr>
-            </thead>
-            <tbody>
-              {data.rows.map((row, i) => (
-                <tr key={i} style={{ borderTop: "1px solid #EEF1F3" }}>
-                  <td style={{ padding: "4px 6px", color: "var(--insp-muted)" }}>{i + 1}</td>
-                  <td style={{ padding: "4px 6px" }}><input value={row.serialNo} onChange={(e) => updateRow(i, { serialNo: e.target.value })} style={{ width: "100%" }} /></td>
-                  <td style={{ padding: "4px 6px" }}><input value={row.description} onChange={(e) => updateRow(i, { description: e.target.value })} style={{ width: "100%" }} /></td>
-                  <td style={{ padding: "4px 6px" }}><input value={row.swl} onChange={(e) => updateRow(i, { swl: e.target.value })} style={{ width: "100%" }} /></td>
-                  <td style={{ padding: "4px 6px" }}><input value={row.manufacturer} onChange={(e) => updateRow(i, { manufacturer: e.target.value })} style={{ width: "100%" }} /></td>
-                  <td style={{ padding: "4px 6px" }}><input value={row.certNoTestDate} onChange={(e) => updateRow(i, { certNoTestDate: e.target.value })} style={{ width: "100%" }} /></td>
-                  <td style={{ padding: "4px 6px" }}><input value={row.itemLocation} onChange={(e) => updateRow(i, { itemLocation: e.target.value })} style={{ width: "100%" }} /></td>
-                  <td style={{ padding: "4px 6px" }}><input value={row.typeOfInspection} onChange={(e) => updateRow(i, { typeOfInspection: e.target.value })} style={{ width: "100%" }} placeholder="Visual" /></td>
-                  <td style={{ padding: "4px 6px" }}><input type="date" value={row.nextInspectionDate} onChange={(e) => updateRow(i, { nextInspectionDate: e.target.value })} style={{ width: "100%" }} /></td>
-                  <td style={{ padding: "4px 6px" }}>
-                    <select value={row.result} onChange={(e) => updateRow(i, { result: e.target.value })}>
-                      <option value="">—</option>
-                      {LOOSE_GEAR_STATUS_CODES.map((s) => <option key={s.code} value={s.code}>{s.label}</option>)}
-                    </select>
-                  </td>
-                  <td style={{ padding: "4px 6px" }}>
-                    <select value={row.safeToUse} onChange={(e) => updateRow(i, { safeToUse: e.target.value as LooseGearYesNo })}>
-                      <option value="">—</option>
-                      <option value="yes">Yes</option>
-                      <option value="no">No</option>
-                    </select>
-                  </td>
-                  <td style={{ padding: "4px 6px", display: "flex", gap: 4 }}>
-                    <button type="button" className="insp-btn insp-btn-outline" style={{ padding: "2px 8px", fontSize: 11 }} title="Duplicate this row (Serial No. left blank)" onClick={() => duplicateRow(i)}>⧉</button>
-                    <button type="button" className="insp-btn insp-btn-outline" style={{ padding: "2px 8px", fontSize: 11, color: "var(--insp-red)" }} title="Remove this row" onClick={() => removeRow(i)}>✕</button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-        <button type="button" className="insp-btn insp-btn-outline" style={{ marginTop: 8, width: "auto", padding: "5px 14px", fontSize: 12 }} onClick={addRow}>
-          + Add Row
-        </button>
+        <RegisterEditTable
+          columns={MULTIPLE_ITEMS_REGISTER_COLUMNS}
+          rows={data.rows as unknown as Record<string, string>[]}
+          onAdd={addRow}
+          onRemove={removeRow}
+          onDuplicate={duplicateRow}
+          onChange={(i, key, value) => updateRow(i, { [key]: value } as Partial<LooseGearRegisterRow>)}
+          addLabel="+ Add Row"
+        />
       </fieldset>
 
       {/* Requested directly: "create individual thorough report based
@@ -1000,48 +951,15 @@ function DefectReportForm({
         <label htmlFor="dr-refno">Refers to Thorough Examination Report No.</label>
         <input id="dr-refno" value={data.referencedReportNo} onChange={(e) => onChange({ referencedReportNo: e.target.value })} placeholder="e.g. CERT/HMZC/LG/20260818-001" />
       </div>
-      <div style={{ overflowX: "auto" }}>
-        <table style={{ width: "100%", fontSize: 12, borderCollapse: "collapse", minWidth: 1100 }}>
-          <thead>
-            <tr style={{ textAlign: "left", borderBottom: "1px solid #DCE1E5" }}>
-              <th style={{ padding: "4px 6px", width: 30 }}>#</th>
-              <th style={{ padding: "4px 6px" }}>Equipment ID No.</th>
-              <th style={{ padding: "4px 6px" }}>Equipment Description</th>
-              <th style={{ padding: "4px 6px" }}>Defective Parts</th>
-              <th style={{ padding: "4px 6px" }}>Immediate Danger *</th>
-              <th style={{ padding: "4px 6px" }}>When Will It Become a Danger</th>
-              <th style={{ padding: "4px 6px" }}>Repair/Renewal/Alteration Particulars</th>
-              <th style={{ width: 40 }}></th>
-            </tr>
-          </thead>
-          <tbody>
-            {data.defects.map((row, i) => (
-              <tr key={i} style={{ borderTop: "1px solid #EEF1F3" }}>
-                <td style={{ padding: "4px 6px", color: "var(--insp-muted)" }}>{i + 1}</td>
-                <td style={{ padding: "4px 6px" }}><input value={row.equipmentIdNo} onChange={(e) => updateDefect(i, { equipmentIdNo: e.target.value })} style={{ width: "100%" }} /></td>
-                <td style={{ padding: "4px 6px" }}><input value={row.equipmentDescription} onChange={(e) => updateDefect(i, { equipmentDescription: e.target.value })} style={{ width: "100%" }} /></td>
-                <td style={{ padding: "4px 6px" }}><input value={row.defectiveParts} onChange={(e) => updateDefect(i, { defectiveParts: e.target.value })} style={{ width: "100%" }} /></td>
-                <td style={{ padding: "4px 6px" }}>
-                  <select value={row.immediateDanger} onChange={(e) => updateDefect(i, { immediateDanger: e.target.value as LooseGearYesNo })}>
-                    <option value="">—</option>
-                    <option value="yes">Yes</option>
-                    <option value="no">No</option>
-                  </select>
-                </td>
-                <td style={{ padding: "4px 6px" }}><input value={row.whenBecomesDanger} onChange={(e) => updateDefect(i, { whenBecomesDanger: e.target.value })} style={{ width: "100%" }} disabled={row.immediateDanger === "yes"} placeholder={row.immediateDanger === "yes" ? "N/A — immediate danger" : ""} /></td>
-                <td style={{ padding: "4px 6px" }}><input value={row.repairParticulars} onChange={(e) => updateDefect(i, { repairParticulars: e.target.value })} style={{ width: "100%" }} /></td>
-                <td style={{ padding: "4px 6px" }}>
-                  <button type="button" className="insp-btn insp-btn-outline" style={{ padding: "2px 8px", fontSize: 11, color: "var(--insp-red)" }} title="Remove this row" onClick={() => removeDefect(i)}>✕</button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      <RegisterEditTable
+        columns={DEFECT_REPORT_COLUMNS}
+        rows={data.defects as unknown as Record<string, string>[]}
+        onAdd={addDefect}
+        onRemove={removeDefect}
+        onChange={(i, key, value) => updateDefect(i, { [key]: value } as Partial<LooseGearDefectRow>)}
+        addLabel="+ Add Defect"
+      />
       <p className="insp-help-note" style={{ color: "var(--insp-red)" }}>* If yes, must be reported to HSE.</p>
-      <button type="button" className="insp-btn insp-btn-outline" style={{ marginTop: 4, width: "auto", padding: "5px 14px", fontSize: 12 }} onClick={addDefect}>
-        + Add Defect
-      </button>
       <div className="insp-field" style={{ marginTop: 10 }}>
         <label htmlFor="dr-defect-observations">Observations / Additional Comments Relative to This Thorough Examination</label>
         <textarea id="dr-defect-observations" rows={3} value={data.defectObservations} onChange={(e) => onChange({ defectObservations: e.target.value })} />
