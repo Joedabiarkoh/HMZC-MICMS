@@ -299,7 +299,15 @@ export type LooseGearSubTypeId =
   // report templates as part of Loose Gear & Lifting Equipment, styled
   // after a real reference report (dense bordered grid) — see
   // NDTCommonData/NDTFooterData below and each type's own interface.
-  | "load_test" | "mpi" | "pt" | "rt" | "ut" | "vt" | "et";
+  | "load_test" | "mpi" | "pt" | "rt" | "ut" | "vt" | "et"
+  // Requested directly: "the defect report should be separate, it
+  // should not merge with the multiple items list" — first tried as a
+  // page-level split within a Multiple Items certificate; the actual
+  // ask was for a genuinely independent, separately-selectable
+  // certificate (own Report Type entry, own certificate number, own
+  // sign-off), not something nested inside Multiple Items' own data at
+  // all. See LooseGearDefectReportData's own comment.
+  | "defect_report";
 
 // The LOLER 1998 statutory yes/no questions and defect/sign-off block
 // — still used by the legacy Visual Certificate template below
@@ -451,8 +459,9 @@ export interface LooseGearRegisterRow {
   // CertificatePreview.tsx/certificateDocxExport.ts, not this type).
   // Was free text ("Satisfactory"/"Unsatisfactory"); now one of the
   // LOOSE_GEAR_STATUS_CODES short codes (ND/SDR/NF/OBS) — a code of
-  // "SDR" or "OBS" is what ties a row to a matching row in this
-  // register's own Defect Report below.
+  // "SDR" or "OBS" is what ties a row to a separately-issued Defect
+  // Report certificate (see LooseGearDefectReportData) covering this
+  // register.
   result: string;
   certNoTestDate: string;
   itemLocation: string;
@@ -467,15 +476,24 @@ export interface LooseGearRegisterRow {
 // out as a single key/legend table in the source document.
 export type LooseGearReasonForInspection = "" | "installation" | "6monthly" | "12monthly" | "written_scheme" | "exceptional";
 
-// Requested directly, from a real reference form (LEEA-030.1d "Report of
-// Thorough Examination — Defect Report List", Version 3, May 2023): an
-// attachment to the Multiple Items register for any row whose Status is
-// SDR/OBS ("See Defect Report" / "Observation (see Defect Report)") —
-// one row per defective item, the source form's own field set unchanged.
-// Kept as its own array (like `rows` above) rather than folded into
-// LooseGearRegisterRow, since not every register row has a defect and
-// the source form is genuinely a separate attached list, not a column
-// on the main register.
+export interface LooseGearMultipleItemsData {
+  jobPoNo: string;
+  inspectedBy: string;
+  colourCode: string;
+  reasonForInspection: LooseGearReasonForInspection;
+  rows: LooseGearRegisterRow[];
+}
+
+// Template — "Defect Report", from a real reference form (LEEA-030.1d
+// "Report of Thorough Examination — Defect Report List", Version 3, May
+// 2023). Requested directly: "the defect report should be separate, it
+// should not merge with the multiple items list" — first built nested
+// inside LooseGearMultipleItemsData, sharing that certificate's own
+// certificate number; the actual ask was for this to be a genuinely
+// independent, separately-selectable certificate (its own Report Type
+// entry, own certificate number, own sign-off) that can name ANY
+// Thorough Examination report by number, same as the real paper form —
+// not just the one it happens to be attached to.
 export interface LooseGearDefectRow {
   equipmentIdNo: string; // "Equipment Identification Number"
   equipmentDescription: string;
@@ -487,12 +505,12 @@ export interface LooseGearDefectRow {
   repairParticulars: string; // "Particulars of Any Repair, Renewal or Alteration to Remedy the Defects"
 }
 
-export interface LooseGearMultipleItemsData {
-  jobPoNo: string;
-  inspectedBy: string;
-  colourCode: string;
-  reasonForInspection: LooseGearReasonForInspection;
-  rows: LooseGearRegisterRow[];
+export interface LooseGearDefectReportData {
+  // "This defect report refers to the equipment listed on the Thorough
+  // Examination report number: [FORMTEXT]" — the source form's own
+  // free-text field, so this can name any already-issued report, not
+  // necessarily one from the same certificate.
+  referencedReportNo: string;
   defects: LooseGearDefectRow[];
   defectObservations: string; // "Observations / additional comments relative to this thorough examination"
 }
@@ -706,6 +724,7 @@ export interface LooseGearData {
   ut?: UTData;
   vt?: VTData;
   et?: ETData;
+  defectReport?: LooseGearDefectReportData;
 }
 
 export interface EquipmentTypeConfig {

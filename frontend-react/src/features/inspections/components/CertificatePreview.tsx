@@ -1,6 +1,6 @@
 import { useLayoutEffect, useRef, useState } from "react";
 import type { ReactNode, RefObject } from "react";
-import { EquipmentTypeConfig, InspectionCertificate, ChecklistStatus, EquipResult, CalibrationData, FFEData, LooseGearData, LooseGearMultipleItemsData, LooseGearStandardReportData, LooseGearStatutoryAnswers, LooseGearVisualCertData, LooseGearYesNo, NDTCommonData, NDTFooterData, MPIData, PTData, RTData, UTData, VTData, ETData, LoadTestData, PhotoEvidence } from "../types/inspection.types";
+import { EquipmentTypeConfig, InspectionCertificate, ChecklistStatus, EquipResult, CalibrationData, FFEData, LooseGearData, LooseGearDefectReportData, LooseGearMultipleItemsData, LooseGearStandardReportData, LooseGearStatutoryAnswers, LooseGearVisualCertData, LooseGearYesNo, NDTCommonData, NDTFooterData, MPIData, PTData, RTData, UTData, VTData, ETData, LoadTestData, PhotoEvidence } from "../types/inspection.types";
 import { getFFEConfig, getEffectiveFFELabel, getEffectiveFFENote } from "../data/ffeCertTypes";
 import { getCalibrationConfig } from "../data/calibrationCertTypes";
 import { LOOSE_GEAR_STATUS_CODES, normalizedSerialNos } from "../data/inspectionHelpers";
@@ -760,20 +760,16 @@ function LooseGearCertificatePage({ cert, looseGear }: { cert: InspectionCertifi
     return <StandardReportPage cert={cert} data={looseGear.standardReport} />;
   }
   if (looseGear.subType === "multiple_items" && looseGear.multipleItems) {
-    // Requested directly: "the defect report should be separate, it
-    // should not merge with the multiple items list" — DefectReportPage
-    // is its own CertPageFrame (own letterhead, own forced page break —
-    // same mechanism ChecklistPage/the Equipment List page already use
-    // to keep a boat/crane certificate's sections on separate physical
-    // pages), a sibling of MultipleItemsPage rather than content
-    // appended inside it. Renders nothing of its own when there are no
-    // defects, same gating MultipleItemsPage used before this split.
-    return (
-      <>
-        <MultipleItemsPage cert={cert} data={looseGear.multipleItems} />
-        <DefectReportPage cert={cert} data={looseGear.multipleItems} />
-      </>
-    );
+    return <MultipleItemsPage cert={cert} data={looseGear.multipleItems} />;
+  }
+  // Requested directly: "the defect report should be separate, it
+  // should not merge with the multiple items list" — first tried as a
+  // sibling page rendered alongside a Multiple Items certificate; the
+  // actual ask was for a genuinely independent, separately-selectable
+  // certificate. See LooseGearDefectReportData's own comment in
+  // inspection.types.ts.
+  if (looseGear.subType === "defect_report" && looseGear.defectReport) {
+    return <DefectReportPage cert={cert} data={looseGear.defectReport} />;
   }
   if (looseGear.subType === "mpi" && looseGear.mpi) return <MPIPage cert={cert} data={looseGear.mpi} />;
   if (looseGear.subType === "pt" && looseGear.pt) return <PTPage cert={cert} data={looseGear.pt} />;
@@ -1286,28 +1282,20 @@ function MultipleItemsPage({ cert, data }: { cert: InspectionCertificate; data: 
   );
 }
 
-// Requested directly: "the defect report should be separate, it should
-// not merge with the multiple items list" — split out of
-// MultipleItemsPage into its own CertPageFrame (own letterhead, own
-// forced page break via .insp-cert-page's page-break-after: always —
-// the same mechanism ChecklistPage/the boat Equipment List page already
-// use to keep a certificate's sections on separate physical pages)
-// instead of flowing directly beneath the item register on the same
-// page. Renders nothing at all when there are no defects — a clean
-// register shouldn't carry a blank attachment page, matching how the
-// source form (LEEA-030.1d "Report of Thorough Examination — Defect
-// Report List") is used as a genuine addendum, not a standing section.
-// No SignatureGrid here (unlike ChecklistPage) — this is a reference
-// attachment to the already-signed Item Register page, not a separate
-// inspection needing its own sign-off; same treatment ExplanatoryNotesPage
-// gives its own attached reference content.
-function DefectReportPage({ cert, data }: { cert: InspectionCertificate; data: LooseGearMultipleItemsData }) {
-  // See CertificatePreview.tsx's git history/inspectionHelpers.ts's own
-  // comment on normalizedSerialNos for the same class of bug this
-  // guards against — `data.defects` isn't present at all on a
-  // certificate saved before this feature existed.
-  const defects = data.defects || [];
-  if (defects.length === 0) return null;
+// Requested directly, from a real reference form (LEEA-030.1d "Report of
+// Thorough Examination — Defect Report List", Version 3, May 2023):
+// first built nested inside a Multiple Items certificate, then split
+// onto its own page still within that same certificate; the actual ask
+// ("the defect report should be separate, it should not merge with the
+// multiple items list") was for a genuinely independent, separately-
+// selectable certificate — own Report Type entry, own certificate
+// number, own sign-off — that can name ANY already-issued Thorough
+// Examination report by number (data.referencedReportNo, free text,
+// same as the real paper form), not just the certificate it happens to
+// be attached to. Styled after MultipleItemsPage's own insp-id-table/
+// insp-print-chk conventions for a consistent look across Loose Gear's
+// register-style reports.
+function DefectReportPage({ cert, data }: { cert: InspectionCertificate; data: LooseGearDefectReportData }) {
   return (
     <CertPageFrame cert={cert}>
       <div className="lg-compact">
@@ -1315,8 +1303,19 @@ function DefectReportPage({ cert, data }: { cert: InspectionCertificate; data: L
         <h2>Defect Report</h2>
         <span className="insp-badge">LOOSE GEAR &amp; LIFTING EQUIPMENT</span>
       </div>
-      <p style={{ fontSize: 10.5, margin: "0 0 8px" }}>
-        This defect report refers to the equipment listed on the Thorough Examination report number: <strong>{cert.certNo}</strong>
+      <table className="insp-id-table">
+        <tbody>
+          <tr>
+            <td className="insp-label-cell">Certificate No</td><td colSpan={3}>{cert.certNo}</td>
+          </tr>
+          <tr>
+            <td className="insp-label-cell">Vessel Name</td><td>{cert.vesselName || "—"}</td>
+            <td className="insp-label-cell">Date of Report</td><td>{fmtDate(cert.dateOfServicing)}</td>
+          </tr>
+        </tbody>
+      </table>
+      <p style={{ fontSize: 10.5, margin: "8px 0" }}>
+        This defect report refers to the equipment listed on the Thorough Examination report number: <strong>{data.referencedReportNo || "—"}</strong>
       </p>
       <table className="insp-print-chk">
         <thead>
@@ -1327,24 +1326,35 @@ function DefectReportPage({ cert, data }: { cert: InspectionCertificate; data: L
           </tr>
         </thead>
         <tbody>
-          {defects.map((row, i) => (
-            <tr key={i}>
-              <td>{i + 1}</td>
-              <td>{row.equipmentIdNo || "—"}</td>
-              <td>{row.equipmentDescription || "—"}</td>
-              <td>{row.defectiveParts || "—"}</td>
-              <td><span className={`insp-pill ${row.immediateDanger === "yes" ? "repair" : row.immediateDanger === "no" ? "good" : ""}`}>{yesNoLabel(row.immediateDanger)}</span></td>
-              <td>{row.immediateDanger === "yes" ? "N/A" : row.whenBecomesDanger || "—"}</td>
-              <td>{row.repairParticulars || "—"}</td>
-            </tr>
-          ))}
+          {data.defects.length === 0 ? (
+            <tr><td colSpan={7} style={{ color: "var(--insp-muted)" }}>No defects recorded.</td></tr>
+          ) : (
+            data.defects.map((row, i) => (
+              <tr key={i}>
+                <td>{i + 1}</td>
+                <td>{row.equipmentIdNo || "—"}</td>
+                <td>{row.equipmentDescription || "—"}</td>
+                <td>{row.defectiveParts || "—"}</td>
+                <td><span className={`insp-pill ${row.immediateDanger === "yes" ? "repair" : row.immediateDanger === "no" ? "good" : ""}`}>{yesNoLabel(row.immediateDanger)}</span></td>
+                <td>{row.immediateDanger === "yes" ? "N/A" : row.whenBecomesDanger || "—"}</td>
+                <td>{row.repairParticulars || "—"}</td>
+              </tr>
+            ))
+          )}
         </tbody>
       </table>
       <p style={{ fontSize: 9.5, color: "var(--insp-red)", margin: "4px 0 8px" }}>* If yes, must be reported to HSE.</p>
       <div style={{ fontWeight: 700, fontSize: 11.5, color: "var(--insp-navy)", margin: "6px 0 4px" }}>
         Observations / Additional Comments Relative to This Thorough Examination
       </div>
-      <p style={{ fontSize: 10.5, margin: 0 }}>{data.defectObservations || "None"}</p>
+      <p style={{ fontSize: 10.5, margin: "0 0 8px" }}>{data.defectObservations || "None"}</p>
+
+      {cert.issuedBy && (
+        <div style={{ fontSize: 9, color: "var(--insp-muted)", marginTop: 8 }}>
+          Issued by {cert.issuedBy}{cert.issuedAt ? ` — ${new Date(cert.issuedAt).toLocaleString()}` : ""}
+        </div>
+      )}
+      <SignatureGrid cert={cert} masterLabel="Master" techLabel="Inspector" hideFitForPurpose />
       </div>
     </CertPageFrame>
   );

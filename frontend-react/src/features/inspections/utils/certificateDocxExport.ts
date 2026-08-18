@@ -721,9 +721,9 @@ async function buildLooseGearSection(cert: InspectionCertificate, looseGear: Loo
     const examinationTypeLabels: Record<string, string> = {
       initial: "Initial", standard: "Standard", under_scheme: "Under A Scheme", exceptional: "After Exceptional Circumstances", "": "—",
     };
-    // Same class of bug as multipleItems.defects (see that block's own
-    // comment) — see normalizedSerialNos's own comment in
-    // inspectionHelpers.ts.
+    // A certificate saved before serialNo was renamed to serialNos
+    // (string[]) has the old key, not the new array — see
+    // normalizedSerialNos's own comment in inspectionHelpers.ts.
     const serialNos = normalizedSerialNos(d);
     const blocks: Block[] = [badgeLine("Report of Thorough Examination", "LOOSE GEAR & LIFTING EQUIPMENT")];
     blocks.push(
@@ -800,10 +800,6 @@ async function buildLooseGearSection(cert: InspectionCertificate, looseGear: Loo
 
   if (looseGear.subType === "multiple_items" && looseGear.multipleItems) {
     const d = looseGear.multipleItems;
-    // See MultipleItemsPage's own comment in CertificatePreview.tsx —
-    // a certificate saved before the Defect Report feature existed has
-    // no `defects`/`defectObservations` in its stored JSON at all.
-    const defects = d.defects || [];
     const reasonLabels: Record<string, string> = {
       installation: "Installation (A)",
       "6monthly": "6 Monthly (B)",
@@ -853,35 +849,48 @@ async function buildLooseGearSection(cert: InspectionCertificate, looseGear: Loo
         children: [new TextRun({ text: "Status: ", bold: true, size: 18 }), new TextRun({ text: LOOSE_GEAR_STATUS_CODES.map((s) => s.label).join("   |   "), size: 18, color: MUTED })],
       })
     );
+    blocks.push(new Paragraph({ text: "" }), ...issuedByLine(cert));
+    blocks.push(...(await signatureBlock(cert, "Master", "Inspector", true)));
+    return blocks;
+  }
 
-    // Requested directly: "the defect report should be separate, it
-    // should not merge with the multiple items list" — pageBreakBefore
-    // starts it on its own page rather than flowing directly under the
-    // Item Register, matching CertificatePreview.tsx's DefectReportPage
-    // (its own CertPageFrame there). Same "only when there's actually a
-    // defect" gating as that page too.
-    if (defects.length > 0) {
-      blocks.push(heading("Defect Report", true));
-      blocks.push(new Paragraph({ text: `This defect report refers to the equipment listed on the Thorough Examination report number: ${cert.certNo}`, spacing: { after: 120 } }));
-      blocks.push(
-        dataTable(
-          ["#", "Equipment ID No.", "Equipment Description", "Defective Parts", "Immediate Danger", "When Will It Become a Danger", "Repair/Renewal/Alteration Particulars"],
-          defects.map((r, i) => [
-            String(i + 1),
-            r.equipmentIdNo || "—",
-            r.equipmentDescription || "—",
-            r.defectiveParts || "—",
-            yesNoLabel(r.immediateDanger),
-            r.immediateDanger === "yes" ? "N/A" : r.whenBecomesDanger || "—",
-            r.repairParticulars || "—",
-          ])
-        )
-      );
-      blocks.push(new Paragraph({ spacing: { before: 60, after: 120 }, children: [new TextRun({ text: "* If yes, must be reported to HSE.", color: "B3382C", size: 18 })] }));
-      blocks.push(heading("Observations / Additional Comments Relative to This Thorough Examination"));
-      blocks.push(new Paragraph({ text: d.defectObservations || "None" }));
-    }
-
+  // Requested directly, from a real reference form (LEEA-030.1d "Report
+  // of Thorough Examination — Defect Report List"): first built nested
+  // inside the Multiple Items branch above; "the defect report should
+  // be separate, it should not merge with the multiple items list" made
+  // it its own top-level certificate — own certificate number, own
+  // sign-off, and referencedReportNo can name any already-issued report
+  // by number (free text, same as the real paper form), not just the
+  // one it's attached to. See DefectReportPage's own comment in
+  // CertificatePreview.tsx for the matching print/preview change.
+  if (looseGear.subType === "defect_report" && looseGear.defectReport) {
+    const d = looseGear.defectReport;
+    const blocks: Block[] = [badgeLine("Defect Report", "LOOSE GEAR & LIFTING EQUIPMENT")];
+    blocks.push(
+      kvTable([
+        ["Certificate No", cert.certNo],
+        ["Vessel Name", cert.vesselName || "—"],
+        ["Date of Report", fmtDate(cert.dateOfServicing)],
+      ])
+    );
+    blocks.push(new Paragraph({ text: `This defect report refers to the equipment listed on the Thorough Examination report number: ${d.referencedReportNo || "—"}`, spacing: { before: 100, after: 120 } }));
+    blocks.push(
+      dataTable(
+        ["#", "Equipment ID No.", "Equipment Description", "Defective Parts", "Immediate Danger", "When Will It Become a Danger", "Repair/Renewal/Alteration Particulars"],
+        d.defects.map((r, i) => [
+          String(i + 1),
+          r.equipmentIdNo || "—",
+          r.equipmentDescription || "—",
+          r.defectiveParts || "—",
+          yesNoLabel(r.immediateDanger),
+          r.immediateDanger === "yes" ? "N/A" : r.whenBecomesDanger || "—",
+          r.repairParticulars || "—",
+        ])
+      )
+    );
+    blocks.push(new Paragraph({ spacing: { before: 60, after: 120 }, children: [new TextRun({ text: "* If yes, must be reported to HSE.", color: "B3382C", size: 18 })] }));
+    blocks.push(heading("Observations / Additional Comments Relative to This Thorough Examination"));
+    blocks.push(new Paragraph({ text: d.defectObservations || "None" }));
     blocks.push(new Paragraph({ text: "" }), ...issuedByLine(cert));
     blocks.push(...(await signatureBlock(cert, "Master", "Inspector", true)));
     return blocks;

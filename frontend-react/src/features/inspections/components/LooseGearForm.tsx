@@ -15,6 +15,7 @@ import {
 import {
   InspectionCertificate,
   LooseGearData,
+  LooseGearDefectReportData,
   LooseGearDefectRow,
   LooseGearExaminationType,
   LooseGearMultipleItemsData,
@@ -135,6 +136,12 @@ export default function LooseGearForm({ current, updateField, openCertificate, c
     updateField("looseGear", { ...looseGear, multipleItems: { ...data, ...patch } });
   }
 
+  function updateDefectReport(patch: Partial<LooseGearDefectReportData>) {
+    const data = looseGear.defectReport;
+    if (!data) return;
+    updateField("looseGear", { ...looseGear, defectReport: { ...data, ...patch } });
+  }
+
   function updateMPI(patch: Partial<MPIData>) {
     const data = looseGear.mpi;
     if (!data) return;
@@ -220,6 +227,9 @@ export default function LooseGearForm({ current, updateField, openCertificate, c
         )}
         {looseGear.subType === "load_test" && looseGear.loadTest && (
           <LoadTestForm data={looseGear.loadTest} onChange={updateLoadTest} current={current} updateField={updateField} openCertificate={openCertificate} certificates={certificates} allCertNos={allCertNos} />
+        )}
+        {looseGear.subType === "defect_report" && looseGear.defectReport && (
+          <DefectReportForm data={looseGear.defectReport} onChange={updateDefectReport} current={current} updateField={updateField} openCertificate={openCertificate} certificates={certificates} allCertNos={allCertNos} />
         )}
       </>
     </>
@@ -887,8 +897,6 @@ function MultipleItemsForm({
         </button>
       </fieldset>
 
-      <DefectReportForm data={data} onChange={onChange} certNo={current.certNo} />
-
       {/* Requested directly: "create individual thorough report based
           on multiple items filled for the subject by using the
           description, SWL and location of items to create report for
@@ -950,41 +958,48 @@ function MultipleItemsForm({
 }
 
 // Requested directly, from a real reference form (LEEA-030.1d "Report of
-// Thorough Examination — Defect Report List", Version 3, May 2023): an
-// attachment for any Item Register row whose Status is SDR/OBS. Same
-// add/remove/# convention as the Item Register above; deliberately its
-// own small add/remove pair (not shared with the register's) since the
-// two arrays (data.rows vs data.defects) are independent. Print/preview
-// and the Word export only render this section at all when there's at
-// least one defect row — see MultipleItemsPage's own comment.
-function DefectReportForm({ data, onChange, certNo }: { data: LooseGearMultipleItemsData; onChange: (patch: Partial<LooseGearMultipleItemsData>) => void; certNo: string }) {
-  // Root-caused from a real report: opening a Multiple Items
-  // certificate saved before this feature existed showed a blank white
-  // page — `data.defects` simply isn't present in that older
-  // certificate's stored JSON, so spreading/mapping it below threw.
-  // See CertificatePreview.tsx's MultipleItemsPage for the matching fix.
-  const defects = data.defects || [];
+// Thorough Examination — Defect Report List", Version 3, May 2023):
+// first built nested inside MultipleItemsForm, sharing that
+// certificate's own certificate number; then requested directly again,
+// "the defect report should be separate, it should not merge with the
+// multiple items list" — a genuinely independent, top-level form like
+// StandardReportForm/MultipleItemsForm, its own selectable Report Type,
+// own certificate number, own sign-off (VesselLookupAndSignatures at
+// the end, same as every other Loose Gear sub-type). referencedReportNo
+// is now a free-text field (was auto-filled from the host
+// certificate's own number) since this can now name ANY already-issued
+// Thorough Examination report, same as the real paper form's own
+// free-text field.
+function DefectReportForm({
+  data, onChange, current, updateField, openCertificate,
+}: { data: LooseGearDefectReportData; onChange: (patch: Partial<LooseGearDefectReportData>) => void } & Props) {
   function addDefect() {
-    onChange({ defects: [...defects, freshLooseGearDefectRow()] });
+    onChange({ defects: [...data.defects, freshLooseGearDefectRow()] });
   }
   function removeDefect(i: number) {
-    const next = [...defects];
+    const next = [...data.defects];
     next.splice(i, 1);
     onChange({ defects: next });
   }
   function updateDefect(i: number, patch: Partial<LooseGearDefectRow>) {
-    const next = [...defects];
+    const next = [...data.defects];
     next[i] = { ...next[i], ...patch };
     onChange({ defects: next });
   }
 
   return (
+    <>
     <fieldset className="insp-fieldset">
       <legend className="insp-legend">Defect Report</legend>
-      <p className="insp-help-note">
-        This defect report refers to the equipment listed on the Thorough Examination report number: <strong>{certNo || "—"}</strong>. Add
-        one row per item whose Status above is marked SDR or OBS.
-      </p>
+      <div className="insp-field"><label htmlFor="dr-job">HMZC Job No</label><input id="dr-job" value={current.jobRef || "—"} readOnly /></div>
+      <div className="insp-row2">
+        <div className="insp-field"><label htmlFor="dr-vessel">Vessel Name</label><input id="dr-vessel" value={current.vesselName} readOnly /></div>
+        <div className="insp-field"><label htmlFor="dr-date">Date of Report</label><input id="dr-date" type="date" value={current.dateOfServicing} onChange={(e) => updateField("dateOfServicing", e.target.value)} /></div>
+      </div>
+      <div className="insp-field">
+        <label htmlFor="dr-refno">Refers to Thorough Examination Report No.</label>
+        <input id="dr-refno" value={data.referencedReportNo} onChange={(e) => onChange({ referencedReportNo: e.target.value })} placeholder="e.g. CERT/HMZC/LG/20260818-001" />
+      </div>
       <div style={{ overflowX: "auto" }}>
         <table style={{ width: "100%", fontSize: 12, borderCollapse: "collapse", minWidth: 1100 }}>
           <thead>
@@ -1000,7 +1015,7 @@ function DefectReportForm({ data, onChange, certNo }: { data: LooseGearMultipleI
             </tr>
           </thead>
           <tbody>
-            {defects.map((row, i) => (
+            {data.defects.map((row, i) => (
               <tr key={i} style={{ borderTop: "1px solid #EEF1F3" }}>
                 <td style={{ padding: "4px 6px", color: "var(--insp-muted)" }}>{i + 1}</td>
                 <td style={{ padding: "4px 6px" }}><input value={row.equipmentIdNo} onChange={(e) => updateDefect(i, { equipmentIdNo: e.target.value })} style={{ width: "100%" }} /></td>
@@ -1028,10 +1043,12 @@ function DefectReportForm({ data, onChange, certNo }: { data: LooseGearMultipleI
         + Add Defect
       </button>
       <div className="insp-field" style={{ marginTop: 10 }}>
-        <label htmlFor="mi-defect-observations">Observations / Additional Comments Relative to This Thorough Examination</label>
-        <textarea id="mi-defect-observations" rows={3} value={data.defectObservations || ""} onChange={(e) => onChange({ defectObservations: e.target.value })} />
+        <label htmlFor="dr-defect-observations">Observations / Additional Comments Relative to This Thorough Examination</label>
+        <textarea id="dr-defect-observations" rows={3} value={data.defectObservations} onChange={(e) => onChange({ defectObservations: e.target.value })} />
       </div>
     </fieldset>
+    <VesselLookupAndSignatures current={current} updateField={updateField} openCertificate={openCertificate} />
+    </>
   );
 }
 

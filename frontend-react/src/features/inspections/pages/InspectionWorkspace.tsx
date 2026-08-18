@@ -648,6 +648,9 @@ export default function InspectionWorkspace() {
           if (!row.description.trim()) problems.push(`Row ${i + 1}: description is required`);
           if (!row.safeToUse) problems.push(`Row ${i + 1}: "Safe to use" must be answered`);
         });
+      } else if (lg?.subType === "defect_report" && lg.defectReport) {
+        if (!lg.defectReport.referencedReportNo.trim()) problems.push("Referenced Thorough Examination report number is required");
+        if (lg.defectReport.defects.length === 0) problems.push("At least one defect is required");
       }
       // Matches each sub-type's own signer label in LooseGearForm.tsx/
       // CertificatePreview.tsx's SignatureGrid — was a flat "Examiner"/

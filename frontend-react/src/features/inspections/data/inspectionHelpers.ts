@@ -9,6 +9,7 @@ import {
   FFEChecklistResult,
   InspectionCertificate,
   LooseGearData,
+  LooseGearDefectReportData,
   LooseGearDefectRow,
   LooseGearMultipleItemsData,
   LooseGearRegisterRow,
@@ -102,6 +103,10 @@ export function checklistProgress(
 // Certificate, Standard Report, Multiple Items) keeps "LG", unchanged.
 const LOOSE_GEAR_SUBTYPE_TAGS: Partial<Record<LooseGearSubTypeId, string>> = {
   load_test: "LT", mpi: "MT", pt: "PT", rt: "RT", ut: "UT", vt: "VT", et: "ET",
+  // Requested directly: "the defect report should be separate" — its
+  // own tag for the same reason the NDT methods each got one, easier to
+  // find/sort by report type in the Certificate Log.
+  defect_report: "DR",
 };
 
 export function generateCertNo(type: EquipmentTypeKey, existingNumbers: Set<string>, looseGearSubType?: LooseGearSubTypeId): string {
@@ -288,6 +293,11 @@ export const LOOSE_GEAR_SUB_TYPES: { id: LooseGearData["subType"]; label: string
   { id: "ut", label: "Ultrasonic Testing (UT)" },
   { id: "vt", label: "Visual Testing (VT)" },
   { id: "et", label: "Eddy Current Testing (ET)" },
+  // Requested directly: "the defect report should be separate, it
+  // should not merge with the multiple items list" — its own
+  // selectable report type, see LooseGearDefectReportData's own
+  // comment in inspection.types.ts.
+  { id: "defect_report", label: "Defect Report" },
 ];
 
 // Requested directly, from a real reference form (LEEA-030.1d): the
@@ -384,15 +394,15 @@ export function freshLooseGearStandardReportData(): LooseGearStandardReportData 
   };
 }
 
-// Same class of bug as LooseGearMultipleItemsData.defects (see
-// MultipleItemsPage's own comment in CertificatePreview.tsx), found by
-// checking every other Loose Gear type for the same pattern: `serialNo`
-// (a single string) was renamed to `serialNos: string[]` in commit
-// 46ee3d0, well after standard_report certificates already existed —
-// those older certificates' stored JSON still has the OLD key, not the
-// new array, so `data.serialNos.map()`/`.length` throws on `undefined`
-// exactly like `defects` did. Worse than a genuinely new field though:
-// the technician's serial number is still sitting right there in the
+// Found by checking every Loose Gear type for the pattern behind an
+// earlier white-page bug (a field added to an already-shipped type, so
+// an older certificate's stored JSON simply doesn't have it):
+// `serialNo` (a single string) was renamed to `serialNos: string[]` in
+// commit 46ee3d0, well after standard_report certificates already
+// existed — those older certificates' stored JSON still has the OLD
+// key, not the new array, so `data.serialNos.map()`/`.length` throws on
+// `undefined`. Worse than a genuinely new field though: the
+// technician's serial number is still sitting right there in the
 // old JSON under the old key — falling back to `[]` would make it
 // silently vanish from view instead of just being empty, so this
 // recovers it rather than discarding it.
@@ -422,7 +432,11 @@ export function freshLooseGearDefectRow(): LooseGearDefectRow {
 }
 
 export function freshLooseGearMultipleItemsData(): LooseGearMultipleItemsData {
-  return { jobPoNo: "", inspectedBy: "", colourCode: "", reasonForInspection: "", rows: [], defects: [], defectObservations: "" };
+  return { jobPoNo: "", inspectedBy: "", colourCode: "", reasonForInspection: "", rows: [] };
+}
+
+export function freshLooseGearDefectReportData(): LooseGearDefectReportData {
+  return { referencedReportNo: "", defects: [], defectObservations: "" };
 }
 
 // Shared builders for the Load Test / NDT report types (MPI/PT/RT/UT/VT/ET)
@@ -557,5 +571,6 @@ export function freshLooseGearState(subTypeId: LooseGearData["subType"] = "stand
   else if (subTypeId === "ut") base.ut = freshUTData();
   else if (subTypeId === "vt") base.vt = freshVTData();
   else if (subTypeId === "et") base.et = freshETData();
+  else if (subTypeId === "defect_report") base.defectReport = freshLooseGearDefectReportData();
   return base;
 }
