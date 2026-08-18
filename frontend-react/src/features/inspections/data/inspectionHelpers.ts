@@ -384,6 +384,24 @@ export function freshLooseGearStandardReportData(): LooseGearStandardReportData 
   };
 }
 
+// Same class of bug as LooseGearMultipleItemsData.defects (see
+// MultipleItemsPage's own comment in CertificatePreview.tsx), found by
+// checking every other Loose Gear type for the same pattern: `serialNo`
+// (a single string) was renamed to `serialNos: string[]` in commit
+// 46ee3d0, well after standard_report certificates already existed —
+// those older certificates' stored JSON still has the OLD key, not the
+// new array, so `data.serialNos.map()`/`.length` throws on `undefined`
+// exactly like `defects` did. Worse than a genuinely new field though:
+// the technician's serial number is still sitting right there in the
+// old JSON under the old key — falling back to `[]` would make it
+// silently vanish from view instead of just being empty, so this
+// recovers it rather than discarding it.
+export function normalizedSerialNos(data: LooseGearStandardReportData): string[] {
+  if (data.serialNos && data.serialNos.length) return data.serialNos;
+  const legacy = (data as unknown as { serialNo?: string }).serialNo;
+  return legacy ? [legacy] : [];
+}
+
 export function freshLooseGearRegisterRow(): LooseGearRegisterRow {
   return {
     serialNo: "",

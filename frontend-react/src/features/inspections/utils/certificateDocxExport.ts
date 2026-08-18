@@ -58,7 +58,7 @@ import {
 } from "../types/inspection.types";
 import { getFFEConfig, getEffectiveFFELabel, getEffectiveFFENote } from "../data/ffeCertTypes";
 import { getCalibrationConfig } from "../data/calibrationCertTypes";
-import { LOOSE_GEAR_STATUS_CODES } from "../data/inspectionHelpers";
+import { LOOSE_GEAR_STATUS_CODES, normalizedSerialNos } from "../data/inspectionHelpers";
 import { HMZC_LOGO_DATA_URI } from "../assets/logo";
 import { HMZC_STAMP_DATA_URI } from "../assets/stamp";
 
@@ -721,6 +721,10 @@ async function buildLooseGearSection(cert: InspectionCertificate, looseGear: Loo
     const examinationTypeLabels: Record<string, string> = {
       initial: "Initial", standard: "Standard", under_scheme: "Under A Scheme", exceptional: "After Exceptional Circumstances", "": "—",
     };
+    // Same class of bug as multipleItems.defects (see that block's own
+    // comment) — see normalizedSerialNos's own comment in
+    // inspectionHelpers.ts.
+    const serialNos = normalizedSerialNos(d);
     const blocks: Block[] = [badgeLine("Report of Thorough Examination", "LOOSE GEAR & LIFTING EQUIPMENT")];
     blocks.push(
       kvTable([
@@ -742,7 +746,7 @@ async function buildLooseGearSection(cert: InspectionCertificate, looseGear: Loo
       kvTable([
         ["I.D. No", d.idNo || "—"],
         ["Description", d.description || "—"],
-        ["Serial No(s)", d.serialNos.filter((s) => s.trim()).join(", ") || "—"],
+        ["Serial No(s)", serialNos.filter((s) => s.trim()).join(", ") || "—"],
         ["Model Details", d.modelDetails || "—"],
         ["Manufacturer", d.manufacturer || "—"],
         ["P.R.V. Fitted", yesNoLabel(d.prvFitted)],

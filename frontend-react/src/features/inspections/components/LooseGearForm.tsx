@@ -10,6 +10,7 @@ import {
   freshVTObservationRow,
   freshETIndicationRow,
   generateCertNo,
+  normalizedSerialNos,
 } from "../data/inspectionHelpers";
 import {
   InspectionCertificate,
@@ -511,6 +512,11 @@ function StandardReportForm({
   // once they're done, not for hiding required fields from a
   // first-time flow.
   const [idSectionOpen, setIdSectionOpen] = useState(true);
+  // Root-caused from a real report (the Multiple Items Defect Report
+  // white-page bug): checking every other Loose Gear type for the same
+  // pattern turned this one up too — see normalizedSerialNos's own
+  // comment in inspectionHelpers.ts.
+  const serialNos = normalizedSerialNos(data);
   return (
     <>
       <fieldset className="insp-fieldset">
@@ -603,13 +609,13 @@ function StandardReportForm({
                 field. */}
             <div className="insp-field">
               <label>Serial Number(s)</label>
-              {data.serialNos.map((sn, i) => (
+              {serialNos.map((sn, i) => (
                 <div key={i} style={{ display: "flex", gap: 6, marginBottom: 4 }}>
                   <input
                     aria-label={`Serial No ${i + 1}`}
                     value={sn}
                     onChange={(e) => {
-                      const next = [...data.serialNos];
+                      const next = [...serialNos];
                       next[i] = e.target.value;
                       onChange({ serialNos: next });
                     }}
@@ -620,7 +626,7 @@ function StandardReportForm({
                     className="insp-btn insp-btn-outline"
                     style={{ padding: "3px 10px" }}
                     onClick={() => {
-                      const next = [...data.serialNos];
+                      const next = [...serialNos];
                       next.splice(i, 1);
                       onChange({ serialNos: next.length ? next : [""] });
                     }}
@@ -633,7 +639,7 @@ function StandardReportForm({
                 type="button"
                 className="insp-btn insp-btn-outline"
                 style={{ padding: "3px 10px", fontSize: 11 }}
-                onClick={() => onChange({ serialNos: [...data.serialNos, ""] })}
+                onClick={() => onChange({ serialNos: [...serialNos, ""] })}
               >
                 + Add Serial Number
               </button>

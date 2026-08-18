@@ -3,7 +3,7 @@ import type { ReactNode, RefObject } from "react";
 import { EquipmentTypeConfig, InspectionCertificate, ChecklistStatus, EquipResult, CalibrationData, FFEData, LooseGearData, LooseGearMultipleItemsData, LooseGearStandardReportData, LooseGearStatutoryAnswers, LooseGearVisualCertData, LooseGearYesNo, NDTCommonData, NDTFooterData, MPIData, PTData, RTData, UTData, VTData, ETData, LoadTestData, PhotoEvidence } from "../types/inspection.types";
 import { getFFEConfig, getEffectiveFFELabel, getEffectiveFFENote } from "../data/ffeCertTypes";
 import { getCalibrationConfig } from "../data/calibrationCertTypes";
-import { LOOSE_GEAR_STATUS_CODES } from "../data/inspectionHelpers";
+import { LOOSE_GEAR_STATUS_CODES, normalizedSerialNos } from "../data/inspectionHelpers";
 import { ABS_LOGO_DATA_URI, BUREAU_VERITAS_LOGO_DATA_URI, CRALOG_LOGO_DATA_URI, DNV_LOGO_DATA_URI } from "../assets/approvalLogos";
 import { APP_BUILD_VERSION } from "../data/appVersion";
 import CertificateQR, { buildCertQrPayload } from "./CertificateQR";
@@ -1002,6 +1002,11 @@ const EXAMINATION_TYPE_PRINT_LABELS: Record<string, string> = {
 // at all now (see the same exclusion in VesselLookupAndSignatures,
 // LooseGearForm.tsx).
 function StandardReportPage({ cert, data }: { cert: InspectionCertificate; data: LooseGearStandardReportData }) {
+  // Same class of bug as MultipleItemsPage's `defects` (see that
+  // function's own comment) — see normalizedSerialNos's own comment in
+  // inspectionHelpers.ts for why this one recovers the old value
+  // instead of just falling back to an empty list.
+  const serialNos = normalizedSerialNos(data);
   return (
     <CertPageFrame cert={cert}>
       <div className="lg-compact tt-report">
@@ -1053,7 +1058,7 @@ function StandardReportPage({ cert, data }: { cert: InspectionCertificate; data:
             <td><span className="tt-label">Model Details</span>{data.modelDetails || "—"}</td>
           </tr>
           <tr>
-            <td><span className="tt-label">Serial No(s)</span>{data.serialNos.filter((s) => s.trim()).join(", ") || "—"}</td>
+            <td><span className="tt-label">Serial No(s)</span>{serialNos.filter((s) => s.trim()).join(", ") || "—"}</td>
             <td><span className="tt-label">Manufacturer</span>{data.manufacturer || "—"}</td>
             <td><span className="tt-label">P.R.V. Fitted</span>{yesNoCheckboxes(data.prvFitted)}</td>
           </tr>
