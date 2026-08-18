@@ -1,7 +1,21 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
+import * as Sentry from "@sentry/react";
 import App from "./App";
 import "./styles/theme.css";
+
+// Optional — same "unset = skip silently" pattern as the backend's
+// SENTRY_DSN (see core/config.py). Vite bakes VITE_-prefixed env vars
+// in at build time, so this only takes effect on a build/deploy done
+// after the variable is set — a running dev server or an already-built
+// bundle won't pick it up retroactively.
+if (import.meta.env.VITE_SENTRY_DSN) {
+  Sentry.init({
+    dsn: import.meta.env.VITE_SENTRY_DSN,
+    sendDefaultPii: false,
+    tracesSampleRate: 0.1,
+  });
+}
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>

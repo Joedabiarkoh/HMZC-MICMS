@@ -2,6 +2,7 @@ import asyncio
 import logging
 from contextlib import asynccontextmanager
 
+import sentry_sdk
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -15,6 +16,15 @@ from app.core.database import SessionLocal
 from app.core.expiry_reminders import send_expiry_reminders
 
 logger = logging.getLogger("hmzc.startup")
+
+# Must run before the FastAPI app is constructed — sentry_sdk patches
+# libraries (including FastAPI/Starlette) as they're imported/used, so
+# initializing after app creation can miss request instrumentation.
+# No-ops entirely when SENTRY_DSN isn't set (see core/config.py), so a
+# fresh clone/local dev with no Sentry account configured behaves
+# exactly as before this existed — nothing to disable, nothing to stub.
+if settings.SENTRY_DSN:
+    sentry_sdk.init(dsn=settings.SENTRY_DSN, send_default_pii=False, traces_sample_rate=0.1)
 
 BACKUP_INTERVAL_SECONDS = 24 * 60 * 60
 EXPIRY_REMINDER_CHECK_INTERVAL_SECONDS = 24 * 60 * 60

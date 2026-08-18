@@ -111,6 +111,13 @@ class Settings(BaseSettings):
     EXPIRY_REMINDER_EMAILS: Optional[str] = None
     EXPIRY_REMINDER_LEAD_DAYS: int = 30
 
+    # Optional, same "unset = skip silently" pattern as SMTP/BACKUP_S3_*
+    # above — error tracking (Sentry) needs a real account and project
+    # DSN someone has to actually create, so its absence shouldn't block
+    # startup. When unset, main.py never calls sentry_sdk.init() and the
+    # app behaves exactly as it did before this existed.
+    SENTRY_DSN: Optional[str] = None
+
     class Config:
         env_file = ".env"
 
