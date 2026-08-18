@@ -81,6 +81,22 @@ class PasswordResetResult(BaseModel):
     email_sent: bool = False
 
 
+# Requested directly, from the UX audit: "for a field team that will
+# absolutely forget passwords, [no self-service reset] isn't optional
+# polish, it's a support-ticket generator waiting to happen." Public
+# (no-auth) request — deliberately NOT the same shape as
+# PasswordResetResult above: this is self-service, so the plaintext
+# temporary password can never come back in this response the way it
+# does for an admin-initiated reset (an admin is a trusted party
+# reading their own request's response; here the caller is anonymous
+# and could be typing in anyone's email, so returning the password
+# would let anyone take over any account just by knowing its email
+# address). The email is the only channel the new credential travels
+# through.
+class ForgotPasswordRequest(BaseModel):
+    email: EmailStr
+
+
 # Requested directly: only an admin creates accounts, not self-service
 # sign-up. No `is_active`/`must_change_password` here — those are
 # always True/True for an admin-created account (see create_user in

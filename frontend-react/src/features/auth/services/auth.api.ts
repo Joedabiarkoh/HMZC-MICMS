@@ -31,6 +31,18 @@ export async function fetchCurrentUser(): Promise<User> {
   return response.data;
 }
 
+/**
+ * Public — no sign-in required, since the whole point is recovering an
+ * account you can't currently sign into. Always resolves with the same
+ * generic confirmation regardless of whether the email matched a real
+ * account (see forgot_password in auth.py for why) — never throws for
+ * "no such account," only for a genuine network/rate-limit failure.
+ */
+export async function forgotPassword(email: string): Promise<{ detail: string }> {
+  const response = await api.post("/auth/forgot-password", { email });
+  return response.data;
+}
+
 /** Admin-only — backend returns 403 for non-admins (see get_current_admin_user). */
 export async function listUsers(): Promise<User[]> {
   const response = await api.get("/auth/users");

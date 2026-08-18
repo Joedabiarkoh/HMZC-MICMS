@@ -16,6 +16,7 @@ import VesselSearch from "./features/inspections/pages/VesselSearch";
 import VerifyCertificate from "./features/inspections/pages/VerifyCertificate";
 import SignIn from "./features/auth/pages/SignIn";
 import SignUp from "./features/auth/pages/SignUp";
+import ForgotPassword from "./features/auth/pages/ForgotPassword";
 import ChangePassword from "./features/auth/pages/ChangePassword";
 import MySignature from "./features/auth/pages/MySignature";
 import AdminUsers from "./features/auth/pages/AdminUsers";
@@ -69,6 +70,7 @@ export default function App() {
           <Route path="/" element={<Navigate to="/signin" replace />} />
           <Route path="/signin" element={<SignIn />} />
           <Route path="/signup" element={<SignUp />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
           {/* Public — no sign-in required. This is what a certificate's
               printed QR code links to (see CertificateQR.tsx), reachable
               by anyone scanning a printed page, not just signed-in staff. */}

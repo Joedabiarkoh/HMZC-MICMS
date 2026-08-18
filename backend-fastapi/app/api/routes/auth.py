@@ -18,7 +18,7 @@ from app.models.certificate import Certificate
 from app.models.finance_document import Invoice, Quotation
 from app.models.user import User, UserRole
 from app.schemas.audit import AuditLogResponse
-from app.schemas.user import AdminCreateUser, AdminUpdateProfile, PasswordChange, PasswordResetResult, PermissionUpdate, SignatureUpdate, Token, UserCreate, UserResponse
+from app.schemas.user import AdminCreateUser, AdminUpdateProfile, ForgotPasswordRequest, PasswordChange, PasswordResetResult, PermissionUpdate, SignatureUpdate, Token, UserCreate, UserResponse
 
 # Transcribed from the pasted Module 2 chat output (app/api/v1/auth.py),
 # adapted to match what already existed in this project:
@@ -439,6 +439,57 @@ def reset_user_password(
         resource_type="user", resource_id=str(user.id), detail=f"email_sent={email_sent}",
     )
     return PasswordResetResult(temporary_password=temp_password, user=user, email_sent=email_sent)
+
+
+# Requested directly, from the UX audit: "for a field team that will
+# absolutely forget passwords, [no self-service reset] isn't optional
+# polish, it's a support-ticket generator waiting to happen." Public —
+# no auth dependency, since the whole point is recovering an account you
+# can't currently sign into. Reuses the exact same "issue a temporary
+# password, force a change on next sign-in" mechanism reset_user_password
+# above already uses for an admin-triggered reset (same
+# must_change_password flag, same send_password_reset_email), rather
+# than introducing a second, parallel reset-token/reset-link mechanism
+# for what's functionally the same recovery flow.
+#
+# Deliberately returns the exact same generic response whether or not
+# the email matches a real account — never confirms or denies an
+# account's existence (a "no account with that email" response would
+# let anyone enumerate registered users by trying addresses one at a
+# time). check_rate_limit is the same per-IP limiter /register already
+# uses, which also caps how fast someone could repeatedly force-expire a
+# real user's password as a nuisance.
+@router.post("/forgot-password")
+def forgot_password(
+    payload: ForgotPasswordRequest,
+    request: Request,
+    db: Session = Depends(get_database),
+):
+    check_rate_limit(request, "forgot_password")
+
+    user = db.query(User).filter(User.email == payload.email).first()
+    if user and user.is_active:
+        temp_password = generate_temporary_password()
+        user.hashed_password = hash_password(temp_password)
+        user.must_change_password = True
+        db.commit()
+        db.refresh(user)
+
+        email_sent = send_password_reset_email(
+            to_email=user.email,
+            full_name=user.full_name or "",
+            temporary_password=temp_password,
+            login_url=f"{settings.FRONTEND_URL}/signin",
+        )
+        # Same reasoning as reset_user_password's own audit call — the
+        # credential itself never appears in the log, only that a reset
+        # happened and whether the email actually went out.
+        record_audit(
+            db, request, "user.password_reset_self_service", user_id=user.id,
+            resource_type="user", resource_id=str(user.id), detail=f"email_sent={email_sent}",
+        )
+
+    return {"detail": "If that email is registered, we've sent password reset instructions to it."}
 
 
 # Self-service — used both for a normal "I want to change my password"

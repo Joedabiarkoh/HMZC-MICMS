@@ -57,6 +57,7 @@ export default function SignIn() {
           <label htmlFor="signin-password">Password</label>
           <input id="signin-password" type="password" required value={password} onChange={(e) => setPassword(e.target.value)} />
         </div>
+        <Link to="/forgot-password" style={{ display: "block", textAlign: "right", fontSize: 11.5, marginTop: -6, marginBottom: 6 }}>Forgot password?</Link>
         <button className="auth-btn" type="submit" disabled={submitting}>{submitting ? "Signing in..." : "Sign In"}</button>
         <div className="auth-switch">
           Don't have an account? Ask your administrator to create one for you.
