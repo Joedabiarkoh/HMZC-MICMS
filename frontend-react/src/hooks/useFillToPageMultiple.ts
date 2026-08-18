@@ -51,7 +51,11 @@ import type { RefObject } from "react";
 // to tip a single-page-worth FFE certificate's `natural` height past
 // the old, larger per-page budget and force a padded second page. A
 // smaller safety margin gives that budget the room back.
-const PAGE_HEIGHT_PX = 1032; // @page A4 content area: (297mm - 24mm) at 96dpi
+// Exported so PaginatedTable (CertificatePreview.tsx) can measure real
+// per-page row capacity against the same physical page height this hook
+// already targets, instead of a second, independently-guessed constant —
+// see that component's own comment on why it needs this.
+export const PAGE_HEIGHT_PX = 1032; // @page A4 content area: (297mm - 24mm) at 96dpi
 const SAFETY_MARGIN_PX = 18;
 
 export function useFillToPageMultiple(
