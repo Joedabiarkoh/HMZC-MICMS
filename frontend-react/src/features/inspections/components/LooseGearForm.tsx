@@ -1,6 +1,8 @@
 import { useState } from "react";
 import {
+  LOOSE_GEAR_STATUS_CODES,
   LOOSE_GEAR_SUB_TYPES,
+  freshLooseGearDefectRow,
   freshLooseGearRegisterRow,
   freshLooseGearState,
   freshRTIndicationRow,
@@ -12,6 +14,7 @@ import {
 import {
   InspectionCertificate,
   LooseGearData,
+  LooseGearDefectRow,
   LooseGearExaminationType,
   LooseGearMultipleItemsData,
   LooseGearReasonForInspection,
@@ -825,11 +828,16 @@ function MultipleItemsForm({
                 <th style={{ padding: "4px 6px" }}>Description</th>
                 <th style={{ padding: "4px 6px" }}>SWL</th>
                 <th style={{ padding: "4px 6px" }}>Manufacturer</th>
-                <th style={{ padding: "4px 6px" }}>Result</th>
                 <th style={{ padding: "4px 6px" }}>Cert No./Test Date</th>
                 <th style={{ padding: "4px 6px" }}>Item Location</th>
                 <th style={{ padding: "4px 6px" }}>Type of Inspection</th>
                 <th style={{ padding: "4px 6px" }}>Next Inspection Date</th>
+                {/* Requested directly: "change result to (status) and
+                    move it to the end close to safe to use" — was right
+                    after Manufacturer; now sits right before Safe to
+                    Use so the two read together (this item's condition,
+                    then whether it's safe to use because of it). */}
+                <th style={{ padding: "4px 6px" }}>Status</th>
                 <th style={{ padding: "4px 6px" }}>Safe to Use</th>
                 <th style={{ width: 62 }}></th>
               </tr>
@@ -842,11 +850,16 @@ function MultipleItemsForm({
                   <td style={{ padding: "4px 6px" }}><input value={row.description} onChange={(e) => updateRow(i, { description: e.target.value })} style={{ width: "100%" }} /></td>
                   <td style={{ padding: "4px 6px" }}><input value={row.swl} onChange={(e) => updateRow(i, { swl: e.target.value })} style={{ width: "100%" }} /></td>
                   <td style={{ padding: "4px 6px" }}><input value={row.manufacturer} onChange={(e) => updateRow(i, { manufacturer: e.target.value })} style={{ width: "100%" }} /></td>
-                  <td style={{ padding: "4px 6px" }}><input value={row.result} onChange={(e) => updateRow(i, { result: e.target.value })} style={{ width: "100%" }} placeholder="Satisfactory" /></td>
                   <td style={{ padding: "4px 6px" }}><input value={row.certNoTestDate} onChange={(e) => updateRow(i, { certNoTestDate: e.target.value })} style={{ width: "100%" }} /></td>
                   <td style={{ padding: "4px 6px" }}><input value={row.itemLocation} onChange={(e) => updateRow(i, { itemLocation: e.target.value })} style={{ width: "100%" }} /></td>
                   <td style={{ padding: "4px 6px" }}><input value={row.typeOfInspection} onChange={(e) => updateRow(i, { typeOfInspection: e.target.value })} style={{ width: "100%" }} placeholder="Visual" /></td>
                   <td style={{ padding: "4px 6px" }}><input type="date" value={row.nextInspectionDate} onChange={(e) => updateRow(i, { nextInspectionDate: e.target.value })} style={{ width: "100%" }} /></td>
+                  <td style={{ padding: "4px 6px" }}>
+                    <select value={row.result} onChange={(e) => updateRow(i, { result: e.target.value })}>
+                      <option value="">—</option>
+                      {LOOSE_GEAR_STATUS_CODES.map((s) => <option key={s.code} value={s.code}>{s.label}</option>)}
+                    </select>
+                  </td>
                   <td style={{ padding: "4px 6px" }}>
                     <select value={row.safeToUse} onChange={(e) => updateRow(i, { safeToUse: e.target.value as LooseGearYesNo })}>
                       <option value="">—</option>
@@ -867,6 +880,8 @@ function MultipleItemsForm({
           + Add Row
         </button>
       </fieldset>
+
+      <DefectReportForm data={data} onChange={onChange} certNo={current.certNo} />
 
       {/* Requested directly: "create individual thorough report based
           on multiple items filled for the subject by using the
@@ -925,6 +940,86 @@ function MultipleItemsForm({
 
       <VesselLookupAndSignatures current={current} updateField={updateField} openCertificate={openCertificate} />
     </>
+  );
+}
+
+// Requested directly, from a real reference form (LEEA-030.1d "Report of
+// Thorough Examination — Defect Report List", Version 3, May 2023): an
+// attachment for any Item Register row whose Status is SDR/OBS. Same
+// add/remove/# convention as the Item Register above; deliberately its
+// own small add/remove pair (not shared with the register's) since the
+// two arrays (data.rows vs data.defects) are independent. Print/preview
+// and the Word export only render this section at all when there's at
+// least one defect row — see MultipleItemsPage's own comment.
+function DefectReportForm({ data, onChange, certNo }: { data: LooseGearMultipleItemsData; onChange: (patch: Partial<LooseGearMultipleItemsData>) => void; certNo: string }) {
+  function addDefect() {
+    onChange({ defects: [...data.defects, freshLooseGearDefectRow()] });
+  }
+  function removeDefect(i: number) {
+    const next = [...data.defects];
+    next.splice(i, 1);
+    onChange({ defects: next });
+  }
+  function updateDefect(i: number, patch: Partial<LooseGearDefectRow>) {
+    const next = [...data.defects];
+    next[i] = { ...next[i], ...patch };
+    onChange({ defects: next });
+  }
+
+  return (
+    <fieldset className="insp-fieldset">
+      <legend className="insp-legend">Defect Report</legend>
+      <p className="insp-help-note">
+        This defect report refers to the equipment listed on the Thorough Examination report number: <strong>{certNo || "—"}</strong>. Add
+        one row per item whose Status above is marked SDR or OBS.
+      </p>
+      <div style={{ overflowX: "auto" }}>
+        <table style={{ width: "100%", fontSize: 12, borderCollapse: "collapse", minWidth: 1100 }}>
+          <thead>
+            <tr style={{ textAlign: "left", borderBottom: "1px solid #DCE1E5" }}>
+              <th style={{ padding: "4px 6px", width: 30 }}>#</th>
+              <th style={{ padding: "4px 6px" }}>Equipment ID No.</th>
+              <th style={{ padding: "4px 6px" }}>Equipment Description</th>
+              <th style={{ padding: "4px 6px" }}>Defective Parts</th>
+              <th style={{ padding: "4px 6px" }}>Immediate Danger *</th>
+              <th style={{ padding: "4px 6px" }}>When Will It Become a Danger</th>
+              <th style={{ padding: "4px 6px" }}>Repair/Renewal/Alteration Particulars</th>
+              <th style={{ width: 40 }}></th>
+            </tr>
+          </thead>
+          <tbody>
+            {data.defects.map((row, i) => (
+              <tr key={i} style={{ borderTop: "1px solid #EEF1F3" }}>
+                <td style={{ padding: "4px 6px", color: "var(--insp-muted)" }}>{i + 1}</td>
+                <td style={{ padding: "4px 6px" }}><input value={row.equipmentIdNo} onChange={(e) => updateDefect(i, { equipmentIdNo: e.target.value })} style={{ width: "100%" }} /></td>
+                <td style={{ padding: "4px 6px" }}><input value={row.equipmentDescription} onChange={(e) => updateDefect(i, { equipmentDescription: e.target.value })} style={{ width: "100%" }} /></td>
+                <td style={{ padding: "4px 6px" }}><input value={row.defectiveParts} onChange={(e) => updateDefect(i, { defectiveParts: e.target.value })} style={{ width: "100%" }} /></td>
+                <td style={{ padding: "4px 6px" }}>
+                  <select value={row.immediateDanger} onChange={(e) => updateDefect(i, { immediateDanger: e.target.value as LooseGearYesNo })}>
+                    <option value="">—</option>
+                    <option value="yes">Yes</option>
+                    <option value="no">No</option>
+                  </select>
+                </td>
+                <td style={{ padding: "4px 6px" }}><input value={row.whenBecomesDanger} onChange={(e) => updateDefect(i, { whenBecomesDanger: e.target.value })} style={{ width: "100%" }} disabled={row.immediateDanger === "yes"} placeholder={row.immediateDanger === "yes" ? "N/A — immediate danger" : ""} /></td>
+                <td style={{ padding: "4px 6px" }}><input value={row.repairParticulars} onChange={(e) => updateDefect(i, { repairParticulars: e.target.value })} style={{ width: "100%" }} /></td>
+                <td style={{ padding: "4px 6px" }}>
+                  <button type="button" className="insp-btn insp-btn-outline" style={{ padding: "2px 8px", fontSize: 11, color: "var(--insp-red)" }} title="Remove this row" onClick={() => removeDefect(i)}>✕</button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <p className="insp-help-note" style={{ color: "var(--insp-red)" }}>* If yes, must be reported to HSE.</p>
+      <button type="button" className="insp-btn insp-btn-outline" style={{ marginTop: 4, width: "auto", padding: "5px 14px", fontSize: 12 }} onClick={addDefect}>
+        + Add Defect
+      </button>
+      <div className="insp-field" style={{ marginTop: 10 }}>
+        <label htmlFor="mi-defect-observations">Observations / Additional Comments Relative to This Thorough Examination</label>
+        <textarea id="mi-defect-observations" rows={3} value={data.defectObservations} onChange={(e) => onChange({ defectObservations: e.target.value })} />
+      </div>
+    </fieldset>
   );
 }
 

@@ -443,7 +443,17 @@ export interface LooseGearRegisterRow {
   description: string;
   swl: string;
   manufacturer: string;
-  result: string; // e.g. "Satisfactory" / "Unsatisfactory"
+  // Requested directly: "change *result* to (status) and move it to
+  // the end close to safe to use" — field NAME kept as `result` so
+  // already-saved registers don't lose this value (only the printed/
+  // typed LABEL changes to "Status" and its column position moves,
+  // both purely render-order concerns in LooseGearForm.tsx/
+  // CertificatePreview.tsx/certificateDocxExport.ts, not this type).
+  // Was free text ("Satisfactory"/"Unsatisfactory"); now one of the
+  // LOOSE_GEAR_STATUS_CODES short codes (ND/SDR/NF/OBS) — a code of
+  // "SDR" or "OBS" is what ties a row to a matching row in this
+  // register's own Defect Report below.
+  result: string;
   certNoTestDate: string;
   itemLocation: string;
   typeOfInspection: string;
@@ -457,12 +467,34 @@ export interface LooseGearRegisterRow {
 // out as a single key/legend table in the source document.
 export type LooseGearReasonForInspection = "" | "installation" | "6monthly" | "12monthly" | "written_scheme" | "exceptional";
 
+// Requested directly, from a real reference form (LEEA-030.1d "Report of
+// Thorough Examination — Defect Report List", Version 3, May 2023): an
+// attachment to the Multiple Items register for any row whose Status is
+// SDR/OBS ("See Defect Report" / "Observation (see Defect Report)") —
+// one row per defective item, the source form's own field set unchanged.
+// Kept as its own array (like `rows` above) rather than folded into
+// LooseGearRegisterRow, since not every register row has a defect and
+// the source form is genuinely a separate attached list, not a column
+// on the main register.
+export interface LooseGearDefectRow {
+  equipmentIdNo: string; // "Equipment Identification Number"
+  equipmentDescription: string;
+  defectiveParts: string; // "Identification of Defective Parts"
+  // "Is the defect an existing or imminent danger" — the source form's
+  // own footnote: "*If yes must be reported to HSE."
+  immediateDanger: LooseGearYesNo;
+  whenBecomesDanger: string; // "If not Immediate Danger, when will it become a danger without rectification"
+  repairParticulars: string; // "Particulars of Any Repair, Renewal or Alteration to Remedy the Defects"
+}
+
 export interface LooseGearMultipleItemsData {
   jobPoNo: string;
   inspectedBy: string;
   colourCode: string;
   reasonForInspection: LooseGearReasonForInspection;
   rows: LooseGearRegisterRow[];
+  defects: LooseGearDefectRow[];
+  defectObservations: string; // "Observations / additional comments relative to this thorough examination"
 }
 
 // Templates 4-9 — Load Test Report, MPI/PT/RT/UT/VT/ET NDT certificates

@@ -3,6 +3,7 @@ import type { ReactNode, RefObject } from "react";
 import { EquipmentTypeConfig, InspectionCertificate, ChecklistStatus, EquipResult, CalibrationData, FFEData, LooseGearData, LooseGearMultipleItemsData, LooseGearStandardReportData, LooseGearStatutoryAnswers, LooseGearVisualCertData, LooseGearYesNo, NDTCommonData, NDTFooterData, MPIData, PTData, RTData, UTData, VTData, ETData, LoadTestData, PhotoEvidence } from "../types/inspection.types";
 import { getFFEConfig, getEffectiveFFELabel, getEffectiveFFENote } from "../data/ffeCertTypes";
 import { getCalibrationConfig } from "../data/calibrationCertTypes";
+import { LOOSE_GEAR_STATUS_CODES } from "../data/inspectionHelpers";
 import { ABS_LOGO_DATA_URI, BUREAU_VERITAS_LOGO_DATA_URI, CRALOG_LOGO_DATA_URI, DNV_LOGO_DATA_URI } from "../assets/approvalLogos";
 import { APP_BUILD_VERSION } from "../data/appVersion";
 import CertificateQR, { buildCertQrPayload } from "./CertificateQR";
@@ -1211,33 +1212,95 @@ function MultipleItemsPage({ cert, data }: { cert: InspectionCertificate; data: 
 
       <table className="insp-print-chk">
         <thead>
-          <CertNoTheadRow certNo={cert.certNo} colSpan={10} />
+          {/* Requested directly: "for all multiple should have numbering
+              also appearing in print and preview just as you see when
+              inputing the data" — the form's own Item Register already
+              numbers rows (LooseGearForm.tsx's MultipleItemsForm); this
+              # column matches it here, colSpan raised 10→11 to match. */}
+          <CertNoTheadRow certNo={cert.certNo} colSpan={11} />
           <tr>
-            <th>Serial No.</th><th>Description</th><th>SWL</th><th>Manufacturer</th><th>Result</th>
-            <th>Cert No./Test Date</th><th>Location</th><th>Type of Inspection</th><th>Next Inspection</th><th>Safe to Use</th>
+            <th>#</th><th>Serial No.</th><th>Description</th><th>SWL</th><th>Manufacturer</th>
+            <th>Cert No./Test Date</th><th>Location</th><th>Type of Inspection</th><th>Next Inspection</th>
+            {/* Requested directly: "change result to (status) and move
+                it to the end close to safe to use" — see
+                LooseGearRegisterRow.result's own comment in
+                inspection.types.ts for why the field itself is still
+                named `result`. */}
+            <th>Status</th><th>Safe to Use</th>
           </tr>
         </thead>
         <tbody>
           {data.rows.length === 0 ? (
-            <tr><td colSpan={10} style={{ color: "var(--insp-muted)" }}>No items recorded.</td></tr>
+            <tr><td colSpan={11} style={{ color: "var(--insp-muted)" }}>No items recorded.</td></tr>
           ) : (
             data.rows.map((row, i) => (
               <tr key={i}>
+                <td>{i + 1}</td>
                 <td>{row.serialNo || "—"}</td>
                 <td>{row.description || "—"}</td>
                 <td>{row.swl || "—"}</td>
                 <td>{row.manufacturer || "—"}</td>
-                <td>{row.result || "—"}</td>
                 <td>{row.certNoTestDate || "—"}</td>
                 <td>{row.itemLocation || "—"}</td>
                 <td>{row.typeOfInspection || "—"}</td>
                 <td>{fmtDate(row.nextInspectionDate)}</td>
+                <td>{row.result || "—"}</td>
                 <td><span className={`insp-pill ${row.safeToUse === "yes" ? "good" : row.safeToUse === "no" ? "repair" : ""}`}>{yesNoLabel(row.safeToUse)}</span></td>
               </tr>
             ))
           )}
         </tbody>
       </table>
+
+      <div style={{ fontWeight: 700, fontSize: 11.5, color: "var(--insp-navy)", margin: "10px 0 4px" }}>Status</div>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1px 16px", fontSize: 10.5 }}>
+        {LOOSE_GEAR_STATUS_CODES.map((s) => <div key={s.code}>{s.label}</div>)}
+      </div>
+
+      {/* Requested directly, from a real reference form (LEEA-030.1d
+          "Report of Thorough Examination — Defect Report List"): an
+          attachment for any row above marked SDR/OBS. Only rendered
+          when at least one defect was actually recorded — a clean
+          register with no defects shouldn't carry a blank attachment
+          page, matching how the source form is used as a genuine
+          addendum, not a standing section. */}
+      {data.defects.length > 0 && (
+        <>
+          <div className="insp-cert-title-row" style={{ marginTop: 14 }}>
+            <h2 style={{ fontSize: 13 }}>Defect Report</h2>
+          </div>
+          <p style={{ fontSize: 10.5, margin: "0 0 8px" }}>
+            This defect report refers to the equipment listed on the Thorough Examination report number: <strong>{cert.certNo}</strong>
+          </p>
+          <table className="insp-print-chk">
+            <thead>
+              <CertNoTheadRow certNo={cert.certNo} colSpan={7} />
+              <tr>
+                <th>#</th><th>Equipment ID No.</th><th>Equipment Description</th><th>Defective Parts</th>
+                <th>Immediate Danger *</th><th>When Will It Become a Danger</th><th>Repair/Renewal/Alteration Particulars</th>
+              </tr>
+            </thead>
+            <tbody>
+              {data.defects.map((row, i) => (
+                <tr key={i}>
+                  <td>{i + 1}</td>
+                  <td>{row.equipmentIdNo || "—"}</td>
+                  <td>{row.equipmentDescription || "—"}</td>
+                  <td>{row.defectiveParts || "—"}</td>
+                  <td><span className={`insp-pill ${row.immediateDanger === "yes" ? "repair" : row.immediateDanger === "no" ? "good" : ""}`}>{yesNoLabel(row.immediateDanger)}</span></td>
+                  <td>{row.immediateDanger === "yes" ? "N/A" : row.whenBecomesDanger || "—"}</td>
+                  <td>{row.repairParticulars || "—"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <p style={{ fontSize: 9.5, color: "var(--insp-red)", margin: "4px 0 8px" }}>* If yes, must be reported to HSE.</p>
+          <div style={{ fontWeight: 700, fontSize: 11.5, color: "var(--insp-navy)", margin: "6px 0 4px" }}>
+            Observations / Additional Comments Relative to This Thorough Examination
+          </div>
+          <p style={{ fontSize: 10.5, margin: 0 }}>{data.defectObservations || "None"}</p>
+        </>
+      )}
 
       {cert.issuedBy && (
         <div style={{ fontSize: 9, color: "var(--insp-muted)", marginTop: 8 }}>

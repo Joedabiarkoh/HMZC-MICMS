@@ -9,6 +9,7 @@ import {
   FFEChecklistResult,
   InspectionCertificate,
   LooseGearData,
+  LooseGearDefectRow,
   LooseGearMultipleItemsData,
   LooseGearRegisterRow,
   LooseGearStandardReportData,
@@ -289,6 +290,19 @@ export const LOOSE_GEAR_SUB_TYPES: { id: LooseGearData["subType"]; label: string
   { id: "et", label: "Eddy Current Testing (ET)" },
 ];
 
+// Requested directly, from a real reference form (LEEA-030.1d): the
+// Multiple Items register's per-row Status (was "Result", free text —
+// see LooseGearRegisterRow.result's own comment). One shared source
+// used by LooseGearForm.tsx's <select>, CertificatePreview.tsx's
+// printed legend, and certificateDocxExport.ts's Word export, so the
+// three can't drift out of sync with each other.
+export const LOOSE_GEAR_STATUS_CODES: { code: string; label: string }[] = [
+  { code: "ND", label: "ND – No Defect" },
+  { code: "SDR", label: "SDR – See Defect Report" },
+  { code: "NF", label: "NF – Not Found" },
+  { code: "OBS", label: "OBS – Observation (see Defect Report)" },
+];
+
 function freshLooseGearStatutoryAnswers(): LooseGearStatutoryAnswers {
   return {
     firstExaminationAfterInstall: "",
@@ -385,8 +399,12 @@ export function freshLooseGearRegisterRow(): LooseGearRegisterRow {
   };
 }
 
+export function freshLooseGearDefectRow(): LooseGearDefectRow {
+  return { equipmentIdNo: "", equipmentDescription: "", defectiveParts: "", immediateDanger: "", whenBecomesDanger: "", repairParticulars: "" };
+}
+
 export function freshLooseGearMultipleItemsData(): LooseGearMultipleItemsData {
-  return { jobPoNo: "", inspectedBy: "", colourCode: "", reasonForInspection: "", rows: [] };
+  return { jobPoNo: "", inspectedBy: "", colourCode: "", reasonForInspection: "", rows: [], defects: [], defectObservations: "" };
 }
 
 // Shared builders for the Load Test / NDT report types (MPI/PT/RT/UT/VT/ET)

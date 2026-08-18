@@ -58,6 +58,7 @@ import {
 } from "../types/inspection.types";
 import { getFFEConfig, getEffectiveFFELabel, getEffectiveFFENote } from "../data/ffeCertTypes";
 import { getCalibrationConfig } from "../data/calibrationCertTypes";
+import { LOOSE_GEAR_STATUS_CODES } from "../data/inspectionHelpers";
 import { HMZC_LOGO_DATA_URI } from "../assets/logo";
 import { HMZC_STAMP_DATA_URI } from "../assets/stamp";
 
@@ -818,21 +819,59 @@ async function buildLooseGearSection(cert: InspectionCertificate, looseGear: Loo
     );
     blocks.push(
       dataTable(
-        ["Serial No.", "Description", "SWL", "Manufacturer", "Result", "Cert No./Test Date", "Location", "Type of Inspection", "Next Inspection", "Safe to Use"],
-        d.rows.map((r) => [
+        // Requested directly: "for all multiple should have numbering
+        // also appearing in print and preview" (# now leads, matching
+        // CertificatePreview.tsx/LooseGearForm.tsx) and "change result
+        // to (status) and move it to the end close to safe to use".
+        ["#", "Serial No.", "Description", "SWL", "Manufacturer", "Cert No./Test Date", "Location", "Type of Inspection", "Next Inspection", "Status", "Safe to Use"],
+        d.rows.map((r, i) => [
+          String(i + 1),
           r.serialNo || "—",
           r.description || "—",
           r.swl || "—",
           r.manufacturer || "—",
-          r.result || "—",
           r.certNoTestDate || "—",
           r.itemLocation || "—",
           r.typeOfInspection || "—",
           fmtDate(r.nextInspectionDate),
+          r.result || "—",
           yesNoLabel(r.safeToUse),
         ])
       )
     );
+    blocks.push(
+      new Paragraph({
+        spacing: { before: 80 },
+        children: [new TextRun({ text: "Status: ", bold: true, size: 18 }), new TextRun({ text: LOOSE_GEAR_STATUS_CODES.map((s) => s.label).join("   |   "), size: 18, color: MUTED })],
+      })
+    );
+
+    // Requested directly, from a real reference form (LEEA-030.1d
+    // "Report of Thorough Examination — Defect Report List"): same
+    // "only when there's actually a defect" gating as
+    // CertificatePreview.tsx's own MultipleItemsPage.
+    if (d.defects.length > 0) {
+      blocks.push(heading("Defect Report"));
+      blocks.push(new Paragraph({ text: `This defect report refers to the equipment listed on the Thorough Examination report number: ${cert.certNo}`, spacing: { after: 120 } }));
+      blocks.push(
+        dataTable(
+          ["#", "Equipment ID No.", "Equipment Description", "Defective Parts", "Immediate Danger", "When Will It Become a Danger", "Repair/Renewal/Alteration Particulars"],
+          d.defects.map((r, i) => [
+            String(i + 1),
+            r.equipmentIdNo || "—",
+            r.equipmentDescription || "—",
+            r.defectiveParts || "—",
+            yesNoLabel(r.immediateDanger),
+            r.immediateDanger === "yes" ? "N/A" : r.whenBecomesDanger || "—",
+            r.repairParticulars || "—",
+          ])
+        )
+      );
+      blocks.push(new Paragraph({ spacing: { before: 60, after: 120 }, children: [new TextRun({ text: "* If yes, must be reported to HSE.", color: "B3382C", size: 18 })] }));
+      blocks.push(heading("Observations / Additional Comments Relative to This Thorough Examination"));
+      blocks.push(new Paragraph({ text: d.defectObservations || "None" }));
+    }
+
     blocks.push(new Paragraph({ text: "" }), ...issuedByLine(cert));
     blocks.push(...(await signatureBlock(cert, "Master", "Inspector", true)));
     return blocks;

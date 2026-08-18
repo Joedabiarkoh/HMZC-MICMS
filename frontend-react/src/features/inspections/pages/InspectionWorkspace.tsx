@@ -17,7 +17,7 @@ import PhotoReportForm from "../components/PhotoReportForm";
 import { getFFEConfig } from "../data/ffeCertTypes";
 import { getCalibrationConfig } from "../data/calibrationCertTypes";
 import { exportCertificateDocx } from "../utils/certificateDocxExport";
-import { checklistProgress, freshCertificate, freshLooseGearStandardReportData, freshLooseGearState } from "../data/inspectionHelpers";
+import { LOOSE_GEAR_STATUS_CODES, checklistProgress, freshCertificate, freshLooseGearStandardReportData, freshLooseGearState } from "../data/inspectionHelpers";
 import { dirtyKey } from "../data/dirtyKey";
 import { useAuth } from "../../../context/AuthContext";
 import { hasPermission, PERM } from "../../auth/types/auth.types";
@@ -887,7 +887,17 @@ export default function InspectionWorkspace() {
             itemLocation: first.itemLocation,
             manufacturer: agree(groupRows, (r) => r.manufacturer),
             serialNos: serialNos.length ? serialNos : [""],
-            examinationResult: agree(groupRows, (r) => r.result),
+            // Requested directly: the register's own Status column
+            // (was "Result", free text like "Satisfactory" — see
+            // LooseGearRegisterRow.result's own comment) now holds a
+            // short code (ND/SDR/NF/OBS), not the full wording a
+            // generated Standard Report's own "Examination Result"
+            // field expects — translate the code to its label rather
+            // than printing "ND" there unexplained.
+            examinationResult: (() => {
+              const code = agree(groupRows, (r) => r.result);
+              return LOOSE_GEAR_STATUS_CODES.find((s) => s.code === code)?.label || code;
+            })(),
             examinationCarriedOut: agree(groupRows, (r) => r.typeOfInspection) || "Thorough Examination",
             nextExamDate: agree(groupRows, (r) => r.nextInspectionDate),
             safeForUse: agree(groupRows, (r) => r.safeToUse) as "" | "yes" | "no",
