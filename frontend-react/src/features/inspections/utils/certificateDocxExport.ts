@@ -854,12 +854,14 @@ async function buildLooseGearSection(cert: InspectionCertificate, looseGear: Loo
       })
     );
 
-    // Requested directly, from a real reference form (LEEA-030.1d
-    // "Report of Thorough Examination — Defect Report List"): same
-    // "only when there's actually a defect" gating as
-    // CertificatePreview.tsx's own MultipleItemsPage.
+    // Requested directly: "the defect report should be separate, it
+    // should not merge with the multiple items list" — pageBreakBefore
+    // starts it on its own page rather than flowing directly under the
+    // Item Register, matching CertificatePreview.tsx's DefectReportPage
+    // (its own CertPageFrame there). Same "only when there's actually a
+    // defect" gating as that page too.
     if (defects.length > 0) {
-      blocks.push(heading("Defect Report"));
+      blocks.push(heading("Defect Report", true));
       blocks.push(new Paragraph({ text: `This defect report refers to the equipment listed on the Thorough Examination report number: ${cert.certNo}`, spacing: { after: 120 } }));
       blocks.push(
         dataTable(
