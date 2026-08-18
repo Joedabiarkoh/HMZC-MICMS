@@ -1180,6 +1180,16 @@ const REASON_PRINT_LABELS: Record<string, string> = {
 };
 
 function MultipleItemsPage({ cert, data }: { cert: InspectionCertificate; data: LooseGearMultipleItemsData }) {
+  // Root-caused from a real report: opening a Multiple Items
+  // certificate saved before the Defect Report feature existed showed
+  // a blank white page — `data.defects`/`data.defectObservations`
+  // simply aren't present in that older certificate's stored JSON (no
+  // migration touches already-saved payloads, see freshLooseGearRegisterRow's
+  // own comment on why the field itself is never renamed either), so
+  // `data.defects.length` below threw on `undefined` and crashed the
+  // render with no error boundary to catch it. Normalized once here
+  // instead of guarding every read site individually.
+  const defects = data.defects || [];
   return (
     <CertPageFrame cert={cert}>
       <div className="lg-compact">
@@ -1264,7 +1274,7 @@ function MultipleItemsPage({ cert, data }: { cert: InspectionCertificate; data: 
           register with no defects shouldn't carry a blank attachment
           page, matching how the source form is used as a genuine
           addendum, not a standing section. */}
-      {data.defects.length > 0 && (
+      {defects.length > 0 && (
         <>
           <div className="insp-cert-title-row" style={{ marginTop: 14 }}>
             <h2 style={{ fontSize: 13 }}>Defect Report</h2>
@@ -1281,7 +1291,7 @@ function MultipleItemsPage({ cert, data }: { cert: InspectionCertificate; data: 
               </tr>
             </thead>
             <tbody>
-              {data.defects.map((row, i) => (
+              {defects.map((row, i) => (
                 <tr key={i}>
                   <td>{i + 1}</td>
                   <td>{row.equipmentIdNo || "—"}</td>

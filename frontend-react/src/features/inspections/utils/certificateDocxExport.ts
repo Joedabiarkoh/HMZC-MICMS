@@ -796,6 +796,10 @@ async function buildLooseGearSection(cert: InspectionCertificate, looseGear: Loo
 
   if (looseGear.subType === "multiple_items" && looseGear.multipleItems) {
     const d = looseGear.multipleItems;
+    // See MultipleItemsPage's own comment in CertificatePreview.tsx —
+    // a certificate saved before the Defect Report feature existed has
+    // no `defects`/`defectObservations` in its stored JSON at all.
+    const defects = d.defects || [];
     const reasonLabels: Record<string, string> = {
       installation: "Installation (A)",
       "6monthly": "6 Monthly (B)",
@@ -850,13 +854,13 @@ async function buildLooseGearSection(cert: InspectionCertificate, looseGear: Loo
     // "Report of Thorough Examination — Defect Report List"): same
     // "only when there's actually a defect" gating as
     // CertificatePreview.tsx's own MultipleItemsPage.
-    if (d.defects.length > 0) {
+    if (defects.length > 0) {
       blocks.push(heading("Defect Report"));
       blocks.push(new Paragraph({ text: `This defect report refers to the equipment listed on the Thorough Examination report number: ${cert.certNo}`, spacing: { after: 120 } }));
       blocks.push(
         dataTable(
           ["#", "Equipment ID No.", "Equipment Description", "Defective Parts", "Immediate Danger", "When Will It Become a Danger", "Repair/Renewal/Alteration Particulars"],
-          d.defects.map((r, i) => [
+          defects.map((r, i) => [
             String(i + 1),
             r.equipmentIdNo || "—",
             r.equipmentDescription || "—",

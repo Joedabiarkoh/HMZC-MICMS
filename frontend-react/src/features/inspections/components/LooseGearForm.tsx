@@ -952,16 +952,22 @@ function MultipleItemsForm({
 // and the Word export only render this section at all when there's at
 // least one defect row — see MultipleItemsPage's own comment.
 function DefectReportForm({ data, onChange, certNo }: { data: LooseGearMultipleItemsData; onChange: (patch: Partial<LooseGearMultipleItemsData>) => void; certNo: string }) {
+  // Root-caused from a real report: opening a Multiple Items
+  // certificate saved before this feature existed showed a blank white
+  // page — `data.defects` simply isn't present in that older
+  // certificate's stored JSON, so spreading/mapping it below threw.
+  // See CertificatePreview.tsx's MultipleItemsPage for the matching fix.
+  const defects = data.defects || [];
   function addDefect() {
-    onChange({ defects: [...data.defects, freshLooseGearDefectRow()] });
+    onChange({ defects: [...defects, freshLooseGearDefectRow()] });
   }
   function removeDefect(i: number) {
-    const next = [...data.defects];
+    const next = [...defects];
     next.splice(i, 1);
     onChange({ defects: next });
   }
   function updateDefect(i: number, patch: Partial<LooseGearDefectRow>) {
-    const next = [...data.defects];
+    const next = [...defects];
     next[i] = { ...next[i], ...patch };
     onChange({ defects: next });
   }
@@ -988,7 +994,7 @@ function DefectReportForm({ data, onChange, certNo }: { data: LooseGearMultipleI
             </tr>
           </thead>
           <tbody>
-            {data.defects.map((row, i) => (
+            {defects.map((row, i) => (
               <tr key={i} style={{ borderTop: "1px solid #EEF1F3" }}>
                 <td style={{ padding: "4px 6px", color: "var(--insp-muted)" }}>{i + 1}</td>
                 <td style={{ padding: "4px 6px" }}><input value={row.equipmentIdNo} onChange={(e) => updateDefect(i, { equipmentIdNo: e.target.value })} style={{ width: "100%" }} /></td>
@@ -1017,7 +1023,7 @@ function DefectReportForm({ data, onChange, certNo }: { data: LooseGearMultipleI
       </button>
       <div className="insp-field" style={{ marginTop: 10 }}>
         <label htmlFor="mi-defect-observations">Observations / Additional Comments Relative to This Thorough Examination</label>
-        <textarea id="mi-defect-observations" rows={3} value={data.defectObservations} onChange={(e) => onChange({ defectObservations: e.target.value })} />
+        <textarea id="mi-defect-observations" rows={3} value={data.defectObservations || ""} onChange={(e) => onChange({ defectObservations: e.target.value })} />
       </div>
     </fieldset>
   );
