@@ -443,8 +443,8 @@ export const FFE_CERT_TYPES: FFESubTypeConfig[] = [
     label: "Hydrostatic Test — BA Air Cylinders",
     archetype: "items",
     itemColumns: [
-      { key: "make", label: "Make" }, { key: "type", label: "Type" }, { key: "capacity", label: "Capacity" },
-      { key: "testPressure", label: "Test Pressure" }, { key: "qty", label: "Qty" }, { key: "testResult", label: "Test Result" },
+      { key: "serialNo", label: "Serial No" }, { key: "make", label: "Make" }, { key: "type", label: "Cylinder Type" },
+      { key: "capacity", label: "Volume" }, { key: "testPressure", label: "Test Pressure" }, { key: "testResult", label: "Test Result" },
     ],
     validityYears: 1,
     note: "Standard finding: cylinders hydro tested and found in good condition, unless a row's Test Result says otherwise.",
@@ -454,8 +454,8 @@ export const FFE_CERT_TYPES: FFESubTypeConfig[] = [
     label: "Hydrostatic Test — Fire Extinguishers",
     archetype: "items",
     itemColumns: [
-      { key: "make", label: "Make" }, { key: "type", label: "Type" }, { key: "capacity", label: "Capacity" },
-      { key: "testPressure", label: "Test Pressure" }, { key: "qty", label: "Qty" }, { key: "testResult", label: "Test Result" },
+      { key: "serialNo", label: "Serial No" }, { key: "make", label: "Make" }, { key: "type", label: "Cylinder Type" },
+      { key: "capacity", label: "Volume" }, { key: "testPressure", label: "Test Pressure" }, { key: "testResult", label: "Test Result" },
     ],
     validityYears: 1,
     note: "Standard finding: cylinders hydro tested and found in good condition, unless a row's Test Result says otherwise.",
