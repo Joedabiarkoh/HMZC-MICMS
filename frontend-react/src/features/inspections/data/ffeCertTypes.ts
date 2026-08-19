@@ -439,8 +439,17 @@ export const FFE_CERT_TYPES: FFESubTypeConfig[] = [
     validityYears: 1,
   },
   {
+    // Requested directly: one general-purpose hydro test certificate
+    // covering every bottle/cylinder type (BA, EEBD, Fire Extinguisher,
+    // Medical O2, LTA, ...) instead of a separate sub-type per
+    // equipment — the "Cylinder Type" column is where a row records
+    // which one it actually is. id kept as "hydrostatic_ba" (not
+    // renamed to something more generic) purely so any certificate
+    // already saved under this id still resolves correctly — see the
+    // note on hydrostatic_fe just below for the equivalent reasoning
+    // on the sub-type this replaced.
     id: "hydrostatic_ba",
-    label: "Hydrostatic Test — BA Air Cylinders",
+    label: "Hydro Test Certificate",
     archetype: "items",
     itemColumns: [
       { key: "serialNo", label: "Serial No" }, { key: "make", label: "Make" }, { key: "type", label: "Cylinder Type" },
@@ -450,9 +459,17 @@ export const FFE_CERT_TYPES: FFESubTypeConfig[] = [
     note: "Standard finding: cylinders hydro tested and found in good condition, unless a row's Test Result says otherwise.",
   },
   {
+    // Folded into the single "Hydro Test Certificate" (hydrostatic_ba)
+    // above — Fire Extinguisher is now just one more "Cylinder Type"
+    // value on that shared table, same as BA/EEBD/Medical O2/LTA.
+    // Kept here, deprecated, purely so any certificate already saved
+    // with ffe.subType "hydrostatic_fe" still resolves/opens correctly
+    // — see FFESubTypeConfig.deprecated, same pattern as gas_detector
+    // above.
     id: "hydrostatic_fe",
-    label: "Hydrostatic Test — Fire Extinguishers",
+    label: "Hydrostatic Test — Fire Extinguishers (use Hydro Test Certificate instead)",
     archetype: "items",
+    deprecated: true,
     itemColumns: [
       { key: "serialNo", label: "Serial No" }, { key: "make", label: "Make" }, { key: "type", label: "Cylinder Type" },
       { key: "capacity", label: "Volume" }, { key: "testPressure", label: "Test Pressure" }, { key: "testResult", label: "Test Result" },
