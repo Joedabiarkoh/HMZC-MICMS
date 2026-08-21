@@ -271,6 +271,12 @@ export const FFE_CERT_TYPES: FFESubTypeConfig[] = [
     id: "eebd_ocenco",
     label: "EEBD Set (OCENCO Type)",
     archetype: "items",
+    workCodes: [
+      "1 = Cylinder Pressure checked", "2 = Visual condition inspected",
+      "3 = Reducer valve, Hose, Harness inspected & checked", "4 = Flow checked",
+      "5 = Facemask/Hood Inspected", "6 = Serviced", "7 = Repaired", "8 = New EEBD Set",
+      "R = Recharge", "HT = Hydro tested",
+    ],
     itemColumns: [
       { key: "serialNo", label: "Serial No" }, { key: "make", label: "Make" },
       { key: "mfgDate", label: "Mfg. Date" }, { key: "expDate", label: "Exp Date" },
