@@ -260,6 +260,25 @@ export const FFE_CERT_TYPES: FFESubTypeConfig[] = [
     validityYears: 1,
   },
   {
+    // Requested directly: a second, separate EEBD sub-type for OCENCO
+    // units — sealed, chemical-oxygen-generating EEBDs that aren't
+    // refillable cylinders, so none of the eebd entry's cylinder-pressure/
+    // hydro-test columns apply; Mfg./Exp date is what actually matters
+    // for these. "No." from the request is the ItemTable's own
+    // auto-numbered "#" column (see FFEForm.tsx/CertificatePreview.tsx),
+    // not a separate data field — same convention as every other item
+    // table here.
+    id: "eebd_ocenco",
+    label: "EEBD Set (OCENCO Type)",
+    archetype: "items",
+    itemColumns: [
+      { key: "serialNo", label: "Serial No" }, { key: "make", label: "Make" },
+      { key: "mfgDate", label: "Mfg. Date" }, { key: "expDate", label: "Exp Date" },
+      { key: "workDone", label: "Work Done" },
+    ],
+    validityYears: 1,
+  },
+  {
     // Updated from the "SCBA CERTIFICATE" template (Cert. Simples batch)
     // — the set/mask/harness itself is now tracked here with a simpler
     // column set (no cylinder capacity/pressure fields), separate from
