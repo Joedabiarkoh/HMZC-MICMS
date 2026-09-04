@@ -154,8 +154,16 @@ export default function CalibrationForm({ current, updateField, openCertificate 
       )}
 
       <fieldset className="insp-fieldset">
+        <legend className="insp-legend">Next Calibration Date</legend>
+        <div className="insp-field">
+          <label htmlFor="cal-next-due">Next Calibration Due</label>
+          <input id="cal-next-due" type="date" value={cal.nextCalibrationDate} onChange={(e) => updateCalibration({ nextCalibrationDate: e.target.value })} />
+        </div>
+      </fieldset>
+
+      <fieldset className="insp-fieldset">
         <legend className="insp-legend">Comments</legend>
-        <textarea rows={3} value={cal.comments} onChange={(e) => updateCalibration({ comments: e.target.value })} placeholder="e.g. Recommended due date, instrument condition..." />
+        <textarea rows={3} value={cal.comments} onChange={(e) => updateCalibration({ comments: e.target.value })} placeholder="e.g. instrument condition..." />
       </fieldset>
 
       {/* Reuses the same captainName/captainSig/engineerName/engineerSig

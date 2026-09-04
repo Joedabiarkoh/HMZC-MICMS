@@ -757,6 +757,7 @@ async function buildCalibrationSection(cert: InspectionCertificate, calibration:
   }
   blocks.push(heading(cfg.itemTableLabel), dataTable(["#", ...cfg.itemColumns.map((c) => c.label)], calibration.items.map((row, i) => [String(i + 1), ...cfg.itemColumns.map((c) => row[c.key] || "—")])));
   blocks.push(heading(cfg.items2Label), dataTable(["#", ...cfg.items2Columns.map((c) => c.label)], calibration.items2.map((row, i) => [String(i + 1), ...cfg.items2Columns.map((c) => row[c.key] || "—")])));
+  blocks.push(new Paragraph({ text: "" }), kvTable([["Next Calibration Date", fmtDate(calibration.nextCalibrationDate)]]));
   blocks.push(new Paragraph({ text: "" }), remarksBox("Comments", calibration.comments || "None"), new Paragraph({ text: "" }));
   blocks.push(textP(`This Certificate is valid for ${cfg.validityYears === 2 ? "Two Years" : "One Year"} from the date of issue.`, { size: 16, color: MUTED }));
   blocks.push(...issuedByLine(cert));
