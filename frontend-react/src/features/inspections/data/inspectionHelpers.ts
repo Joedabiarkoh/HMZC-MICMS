@@ -11,6 +11,7 @@ import {
   FRCCheckAnswer,
   FRCServiceReportData,
   FRCSparePartRow,
+  GangwayLoadTestData,
   InspectionCertificate,
   LooseGearData,
   LooseGearDefectReportData,
@@ -128,7 +129,7 @@ export function generateCertNo(
     // exhaustive over EquipmentTypeKey — it just never gets hit by a
     // brand-new certificate anymore.
     photo_report: "PR", ffe_photo_report: "FPR", calibration_photo_report: "CPR",
-    frc_service: "FRC",
+    frc_service: "FRC", gangway_load_test: "GLT",
   };
   const tag = (type === "loosegear" && looseGearSubType && LOOSE_GEAR_SUBTYPE_TAGS[looseGearSubType]) || tags[type];
   const count = Array.from(existingNumbers).filter((k) => k.includes(ymd) && k.includes(tag)).length + 1;
@@ -191,6 +192,8 @@ export function freshCertificate(type: EquipmentTypeKey, existingNumbers: Set<st
     base.calibration = freshCalibrationState(CALIBRATION_CERT_TYPES[0].id);
   } else if (cfg.kind === "frcservice") {
     base.frcServiceReport = freshFRCServiceReportState();
+  } else if (cfg.kind === "gangwayloadtest") {
+    base.gangwayLoadTest = freshGangwayLoadTestState();
   }
 
   return base;
@@ -681,5 +684,25 @@ export function freshFRCServiceReportState(): FRCServiceReportData {
     spareParts: [freshFRCSparePartRow(), freshFRCSparePartRow()],
     clientRepName: "",
     clientRepSig: "",
+  };
+}
+
+export function freshGangwayLoadTestState(): GangwayLoadTestData {
+  return {
+    manufacturer: "",
+    typeModel: "",
+    serialNumber: "",
+    gangwayLength: "",
+    gangwayWidth: "",
+    swl: "",
+    testLoad: "",
+    testAngle: "",
+    loadTestMethod: "",
+    testLoadApplied: "",
+    testDuration: "",
+    testEquipment: "",
+    calibrationCertNo: "",
+    calibrationDueDate: "",
+    result: "",
   };
 }
