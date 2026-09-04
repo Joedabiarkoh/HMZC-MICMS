@@ -15,6 +15,7 @@ import LooseGearForm from "../components/LooseGearForm";
 import CalibrationForm from "../components/CalibrationForm";
 import PhotoReportForm from "../components/PhotoReportForm";
 import FRCServiceReportForm from "../components/FRCServiceReportForm";
+import GangwayLoadTestForm from "../components/GangwayLoadTestForm";
 import { getFFEConfig } from "../data/ffeCertTypes";
 import { getCalibrationConfig } from "../data/calibrationCertTypes";
 import { exportCertificateDocx } from "../utils/certificateDocxExport";
@@ -28,7 +29,7 @@ import { JobTab, loadJobTabs, persistJobTabs } from "../services/jobTabs.storage
 
 const TYPE_GROUPS: { label: string; keys: EquipmentTypeKey[] }[] = [
   { label: "Lifesaving Appliances", keys: ["lifeboat", "rescueboat", "freefall_dry", "freefall_tanker", "frc_service"] },
-  { label: "Lifting Appliances", keys: ["crane", "loosegear"] },
+  { label: "Lifting Appliances", keys: ["crane", "loosegear", "gangway_load_test"] },
   { label: "Fire Safety", keys: ["firefighting"] },
   { label: "Calibration", keys: ["calibration"] },
   // Requested directly: originally one combined "FFE & Calibration"
@@ -618,6 +619,19 @@ export default function InspectionWorkspace() {
       }
       if (!current.engineerSig) {
         problems.push("Attending Engineer signature is required");
+      }
+      return problems;
+    }
+
+    if (cfg.kind === "gangwayloadtest") {
+      if (!current.gangwayLoadTest?.result) {
+        problems.push("Result (Satisfactory/Not Satisfactory) must be selected");
+      }
+      if (!current.engineerName.trim()) {
+        problems.push("Service Engineer name is required");
+      }
+      if (!current.engineerSig) {
+        problems.push("Service Engineer signature is required");
       }
       return problems;
     }
@@ -1410,6 +1424,82 @@ export default function InspectionWorkspace() {
             <div className="insp-panel-header">FRC Service Report</div>
             <div className="insp-panel-body">
               <FRCServiceReportForm current={current} updateField={updateField} openCertificate={openCertificateWithSave} />
+            </div>
+          </div>
+          <div className="insp-panel">
+            <div className="insp-panel-header">Certificate Preview</div>
+            <div className="insp-cert-scroll">
+              <CertificatePreview cert={current} config={cfg} />
+            </div>
+          </div>
+        </div>
+        {getFinalizeBlockers().length > 0 && (
+          <div className="no-print" style={{ margin: "0 20px 10px", background: "#FBF0E2", border: "1px solid #B4690E", borderRadius: 6, padding: "8px 12px", fontSize: 12, color: "#7A4A08" }}>
+            <strong>Not ready to finalize yet:</strong> {getFinalizeBlockers().join(" · ")}
+          </div>
+        )}
+        <div className="insp-btn-row">
+          <div className="insp-btn-group">
+            <button className="insp-btn insp-btn-outline" onClick={() => handleSave("draft")}>Save Draft</button>
+            <button
+              className="insp-btn insp-btn-primary"
+              onClick={() => handleSave("final")}
+              disabled={getFinalizeBlockers().length > 0}
+              title={getFinalizeBlockers().length > 0 ? `Not ready to finalize: ${getFinalizeBlockers().join("; ")}` : undefined}
+            >
+              Finalize &amp; Save
+            </button>
+          </div>
+          <div className="insp-btn-group insp-btn-group--secondary">
+            <button className="insp-btn insp-btn-outline" onClick={handlePrint}>Print</button>
+            <button
+              className="insp-btn insp-btn-outline"
+              onClick={handleExportWord}
+              disabled={!canExportWord}
+              title={canExportWord ? undefined : "Available once this certificate is finalized"}
+            >
+              Save as Word
+            </button>
+            {current.jobRef && (
+              <button className="insp-btn insp-btn-outline" onClick={addCertificateToCurrentJob} title="Starts another certificate of this same type under the job already open — no need to search for the vessel/job again.">+ Add Certificate</button>
+            )}
+            <button className="insp-btn insp-btn-outline" onClick={() => { forceSaveIfDirty(); startNewDraft(type); }} title="Starts over from the Job Picker — for a different vessel, job, or equipment type.">New Certificate</button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Gangway / Accommodation Ladder Load Test — its own listed
+  // subsection under Lifting Appliances (requested directly, given the
+  // exact section layout: Gangway Details / Test Details / Inspection
+  // Result; see TYPE_GROUPS above), same reasoning as every other
+  // special-cased kind above.
+  if (cfg.kind === "gangwayloadtest") {
+    return (
+      <div className="inspections-page" data-type={type}>
+        <TopBar
+          type={type}
+          onTypeChange={handleTypeChange}
+          jobTabs={openJobTabs}
+          activeJobNo={current.jobRef}
+          onActivateTab={activateJobTab}
+          onCloseTab={closeJobTab}
+          onNewJob={handleNewJob}
+        />
+        {syncError && (
+          <div style={{ margin: "10px 20px 0", background: "#FBF0E2", border: "1px solid #B4690E", color: "#7A4A08", borderRadius: 6, padding: "8px 12px", fontSize: 12, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+            <span>{syncError}</span>
+            {pendingSyncCount > 0 && (
+              <button className="insp-btn insp-btn-outline" style={{ padding: "3px 10px", fontSize: 11 }} onClick={retrySync}>Retry Now</button>
+            )}
+          </div>
+        )}
+        <div className="insp-layout">
+          <div className="insp-panel">
+            <div className="insp-panel-header">Gangway Load Test</div>
+            <div className="insp-panel-body">
+              <GangwayLoadTestForm current={current} updateField={updateField} openCertificate={openCertificateWithSave} />
             </div>
           </div>
           <div className="insp-panel">

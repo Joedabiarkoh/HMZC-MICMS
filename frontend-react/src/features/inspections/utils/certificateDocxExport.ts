@@ -50,6 +50,7 @@ import {
   FFEData,
   FRCCheckAnswer,
   FRCServiceReportData,
+  GangwayLoadTestData,
   CalibrationData,
   InspectionCertificate,
   LooseGearData,
@@ -62,6 +63,7 @@ import { getFFEConfig, getEffectiveFFELabel, getEffectiveFFENote } from "../data
 import { getCalibrationConfig } from "../data/calibrationCertTypes";
 import { DEFECT_REPORT_COLUMNS, FRC_SPARE_PARTS_COLUMNS, LOOSE_GEAR_STATUS_CODES, MULTIPLE_ITEMS_REGISTER_COLUMNS, RegisterColumn, normalizedSerialNos } from "../data/inspectionHelpers";
 import { FRC_COMPONENT_ROWS, FRC_FUNCTION_CHECKS, FRC_SCOPE_OF_WORK, FRC_SERVICE_TYPE_LABELS, FRC_CERTIFICATION_STATEMENT } from "../data/frcServiceReport";
+import { GANGWAY_INSPECTION_STATEMENT, GANGWAY_RESULT_LABELS } from "../data/gangwayLoadTest";
 import { HMZC_LOGO_DATA_URI } from "../assets/logo";
 import { HMZC_STAMP_DATA_URI } from "../assets/stamp";
 
@@ -531,6 +533,65 @@ async function buildFRCServiceReportSection(cert: InspectionCertificate, data: F
   blocks.push(new Paragraph({ text: "" }), textP(FRC_CERTIFICATION_STATEMENT, { size: 14, color: MUTED }));
   blocks.push(new Paragraph({ text: "" }), ...issuedByLine(cert));
   blocks.push(await frcSignatureBlock(cert, data));
+  return blocks;
+}
+
+function gangwayResultLabel(v: GangwayLoadTestData["result"]): string {
+  return GANGWAY_RESULT_LABELS[v] || "—";
+}
+
+// Requested directly, given the exact section layout (Gangway Details
+// / Test Details / Inspection Result) — dispatched by config.kind ===
+// "gangwayloadtest" in exportCertificateDocx below, same as
+// CertificatePreview.tsx's matching print/preview page. Reuses the
+// shared signatureBlock() (Captain/Service Engineer, same as Crane)
+// rather than a bespoke sign-off — hideFitForPurpose isn't a param
+// here since signatureBlock's declaration is boat/crane-specific
+// text; this cert has its own explicit Result field/statement instead,
+// so the declaration line is simply omitted.
+async function buildGangwayLoadTestSection(cert: InspectionCertificate, data: GangwayLoadTestData): Promise<Block[]> {
+  const blocks: Block[] = [badgeLine("Gangway / Accommodation Ladder Load Test", "LOAD TEST CERTIFICATE")];
+  blocks.push(
+    kvTable([
+      ["Certificate No", cert.certNo],
+      ["Date of Servicing", fmtDate(cert.dateOfServicing)],
+      ["Vessel", cert.vesselName || "—"],
+      ["IMO No.", cert.imoNo || "—"],
+      ["Location", cert.location || "—"],
+    ])
+  );
+  blocks.push(
+    heading("Gangway Details"),
+    kvTable([
+      ["Manufacturer", data.manufacturer || "—"],
+      ["Type / Model", data.typeModel || "—"],
+      ["Serial Number", data.serialNumber || "—"],
+      ["Gangway Length", data.gangwayLength || "—"],
+      ["Gangway Width", data.gangwayWidth || "—"],
+      ["SWL", data.swl || "—"],
+      ["Test Load", data.testLoad || "—"],
+      ["Test Angle / Position", data.testAngle || "—"],
+    ])
+  );
+  blocks.push(
+    heading("Test Details"),
+    kvTable([
+      ["Load Test Method", data.loadTestMethod || "—"],
+      ["Test Load Applied", data.testLoadApplied || "—"],
+      ["Test Duration", data.testDuration || "—"],
+      ["Test Equipment / Load Cell No.", data.testEquipment || "—"],
+      ["Calibration Certificate No.", data.calibrationCertNo || "—"],
+      ["Calibration Due Date", fmtDate(data.calibrationDueDate)],
+    ])
+  );
+  blocks.push(
+    heading("Inspection Result"),
+    textP(GANGWAY_INSPECTION_STATEMENT, { size: 18 }),
+    new Paragraph({ text: "" }),
+    kvTable([["Result", gangwayResultLabel(data.result)]])
+  );
+  blocks.push(new Paragraph({ text: "" }), remarksBox("Remarks", cert.remarks), new Paragraph({ text: "" }), ...issuedByLine(cert));
+  blocks.push(...(await signatureBlock(cert, "Captain Signature", "Service Engineer", true)));
   return blocks;
 }
 
@@ -1363,6 +1424,8 @@ export async function exportCertificateDocx(cert: InspectionCertificate, config:
 
   if (config.kind === "frcservice" && cert.frcServiceReport) {
     children.push(...(await buildFRCServiceReportSection(cert, cert.frcServiceReport)));
+  } else if (config.kind === "gangwayloadtest" && cert.gangwayLoadTest) {
+    children.push(...(await buildGangwayLoadTestSection(cert, cert.gangwayLoadTest)));
   } else if (config.kind === "ffe" && cert.ffe) {
     children.push(...(await buildFFESection(cert, cert.ffe)));
   } else if (config.kind === "loosegear" && cert.looseGear) {

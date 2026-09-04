@@ -1,10 +1,11 @@
 import { useLayoutEffect, useRef, useState } from "react";
 import type { ReactNode, RefObject } from "react";
-import { EquipmentTypeConfig, InspectionCertificate, ChecklistStatus, EquipResult, CalibrationData, FFEData, FRCCheckAnswer, FRCServiceReportData, LooseGearData, LooseGearDefectReportData, LooseGearMultipleItemsData, LooseGearStandardReportData, LooseGearStatutoryAnswers, LooseGearVisualCertData, LooseGearYesNo, NDTCommonData, NDTFooterData, MPIData, PTData, RTData, UTData, VTData, ETData, LoadTestData, PhotoEvidence } from "../types/inspection.types";
+import { EquipmentTypeConfig, InspectionCertificate, ChecklistStatus, EquipResult, CalibrationData, FFEData, FRCCheckAnswer, FRCServiceReportData, GangwayLoadTestData, LooseGearData, LooseGearDefectReportData, LooseGearMultipleItemsData, LooseGearStandardReportData, LooseGearStatutoryAnswers, LooseGearVisualCertData, LooseGearYesNo, NDTCommonData, NDTFooterData, MPIData, PTData, RTData, UTData, VTData, ETData, LoadTestData, PhotoEvidence } from "../types/inspection.types";
 import { getFFEConfig, getEffectiveFFELabel, getEffectiveFFENote } from "../data/ffeCertTypes";
 import { getCalibrationConfig } from "../data/calibrationCertTypes";
 import { DEFECT_REPORT_COLUMNS, FRC_SPARE_PARTS_COLUMNS, LOOSE_GEAR_STATUS_CODES, MULTIPLE_ITEMS_REGISTER_COLUMNS, normalizedSerialNos } from "../data/inspectionHelpers";
 import { FRC_COMPONENT_ROWS, FRC_FUNCTION_CHECKS, FRC_SCOPE_OF_WORK, FRC_SERVICE_TYPE_LABELS, FRC_CERTIFICATION_STATEMENT } from "../data/frcServiceReport";
+import { GANGWAY_INSPECTION_STATEMENT, GANGWAY_RESULT_LABELS } from "../data/gangwayLoadTest";
 import { RegisterPreviewTable } from "./RegisterTable";
 import { ABS_LOGO_DATA_URI, BUREAU_VERITAS_LOGO_DATA_URI, CRALOG_LOGO_DATA_URI, DNV_LOGO_DATA_URI } from "../assets/approvalLogos";
 import { APP_BUILD_VERSION } from "../data/appVersion";
@@ -39,6 +40,10 @@ function equipLabel(s: EquipResult) {
 export default function CertificatePreview({ cert, config }: Props) {
   if (config.kind === "frcservice" && cert.frcServiceReport) {
     return <FRCServiceReportPage cert={cert} data={cert.frcServiceReport} />;
+  }
+
+  if (config.kind === "gangwayloadtest" && cert.gangwayLoadTest) {
+    return <GangwayLoadTestPage cert={cert} data={cert.gangwayLoadTest} />;
   }
 
   if (config.kind === "ffe" && cert.ffe) {
@@ -486,6 +491,104 @@ function FRCSignatureGrid({ cert, data }: { cert: InspectionCertificate; data: F
         </tr>
       </tbody>
     </table>
+  );
+}
+
+function gangwayResultLabel(v: GangwayLoadTestData["result"]) {
+  return GANGWAY_RESULT_LABELS[v] || "—";
+}
+
+// Requested directly, given the exact section layout (Gangway Details
+// / Test Details / Inspection Result) — its own listed subsection
+// under Lifting Appliances (type === "gangway_load_test", kind:
+// "gangwayloadtest"), dispatched at the top of the default export
+// above. Reuses the shared SignatureGrid (Captain/Service Engineer,
+// same as Crane) rather than a bespoke sign-off — hideFitForPurpose
+// since this cert already has its own explicit Result field/statement
+// below, not the generic boat/crane "FIT FOR PURPOSE" declaration.
+function GangwayLoadTestPage({ cert, data }: { cert: InspectionCertificate; data: GangwayLoadTestData }) {
+  return (
+    <CertPageFrame cert={cert}>
+      <div className="insp-cert-title-row">
+        <h2>Gangway / Accommodation Ladder Load Test</h2>
+        <span className="insp-badge">LOAD TEST CERTIFICATE</span>
+      </div>
+
+      <table className="insp-id-table">
+        <tbody>
+          <tr>
+            <td className="insp-label-cell">Certificate No</td><td>{cert.certNo}</td>
+            <td className="insp-label-cell">Date of Servicing</td><td>{fmtDate(cert.dateOfServicing)}</td>
+          </tr>
+          <tr>
+            <td className="insp-label-cell">Vessel</td><td>{cert.vesselName || "—"}</td>
+            <td className="insp-label-cell">IMO No.</td><td>{cert.imoNo || "—"}</td>
+          </tr>
+          <tr>
+            <td className="insp-label-cell">Location</td><td colSpan={3}>{cert.location || "—"}</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div style={{ fontWeight: 700, fontSize: 11.5, color: "var(--insp-navy)", margin: "10px 0 4px" }}>Gangway Details</div>
+      <table className="insp-id-table">
+        <tbody>
+          <tr>
+            <td className="insp-label-cell">Manufacturer</td><td>{data.manufacturer || "—"}</td>
+            <td className="insp-label-cell">Type / Model</td><td>{data.typeModel || "—"}</td>
+          </tr>
+          <tr>
+            <td className="insp-label-cell">Serial Number</td><td>{data.serialNumber || "—"}</td>
+            <td className="insp-label-cell">Gangway Length</td><td>{data.gangwayLength || "—"}</td>
+          </tr>
+          <tr>
+            <td className="insp-label-cell">Gangway Width</td><td>{data.gangwayWidth || "—"}</td>
+            <td className="insp-label-cell">SWL</td><td>{data.swl || "—"}</td>
+          </tr>
+          <tr>
+            <td className="insp-label-cell">Test Load</td><td>{data.testLoad || "—"}</td>
+            <td className="insp-label-cell">Test Angle / Position</td><td>{data.testAngle || "—"}</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div style={{ fontWeight: 700, fontSize: 11.5, color: "var(--insp-navy)", margin: "10px 0 4px" }}>Test Details</div>
+      <table className="insp-id-table">
+        <tbody>
+          <tr>
+            <td className="insp-label-cell">Load Test Method</td><td>{data.loadTestMethod || "—"}</td>
+            <td className="insp-label-cell">Test Load Applied</td><td>{data.testLoadApplied || "—"}</td>
+          </tr>
+          <tr>
+            <td className="insp-label-cell">Test Duration</td><td>{data.testDuration || "—"}</td>
+            <td className="insp-label-cell">Test Equipment / Load Cell No.</td><td>{data.testEquipment || "—"}</td>
+          </tr>
+          <tr>
+            <td className="insp-label-cell">Calibration Certificate No.</td><td>{data.calibrationCertNo || "—"}</td>
+            <td className="insp-label-cell">Calibration Due Date</td><td>{fmtDate(data.calibrationDueDate)}</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div style={{ fontWeight: 700, fontSize: 11.5, color: "var(--insp-navy)", margin: "10px 0 4px" }}>Inspection Result</div>
+      <p style={{ fontSize: 11.5, lineHeight: 1.6 }}>{GANGWAY_INSPECTION_STATEMENT}</p>
+      <table className="insp-id-table">
+        <tbody>
+          <tr>
+            <td className="insp-label-cell">Result</td>
+            <td colSpan={3}><span className={`insp-pill ${data.result === "satisfactory" ? "good" : data.result === "not_satisfactory" ? "repair" : ""}`}>{gangwayResultLabel(data.result)}</span></td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div className="insp-remarks-box">Remarks: {cert.remarks || "None"}</div>
+      {cert.issuedBy && (
+        <div style={{ fontSize: 10, color: "var(--insp-muted)", marginTop: 8 }}>
+          Issued by {cert.issuedBy}{cert.issuedAt ? ` — ${new Date(cert.issuedAt).toLocaleString()}` : ""}
+        </div>
+      )}
+      <SignatureGrid cert={cert} masterLabel="Captain Signature" techLabel="Service Engineer" hideFitForPurpose />
+    </CertPageFrame>
   );
 }
 

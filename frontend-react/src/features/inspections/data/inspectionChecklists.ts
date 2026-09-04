@@ -390,6 +390,12 @@ export const INSPECTION_TYPES: Record<EquipmentTypeKey, EquipmentTypeConfig> = {
   firefighting: {
     kind: "ffe", typeName: "Firefighting Equipment", label: "Firefighting Equipment",
   },
+  // Requested directly, given the exact section layout (Gangway
+  // Details / Test Details / Inspection Result) — its own listed
+  // subsection under Lifting Appliances, alongside crane/loosegear.
+  gangway_load_test: {
+    kind: "gangwayloadtest", typeName: "Gangway / Accommodation Ladder Load Test", label: "Gangway Load Test",
+  },
   // Built from HMZC's own HMZC_FRC_Service_Report_Template.docx
   // (Installation/Replacement of the self-righting bag & CO2
   // activation bottle) — its own listed subsection under Lifesaving

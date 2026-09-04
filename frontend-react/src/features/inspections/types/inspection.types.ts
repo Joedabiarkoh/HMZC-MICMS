@@ -16,6 +16,11 @@ export type EquipmentTypeKey =
   | "firefighting"
   | "loosegear"
   | "calibration"
+  // Requested directly, given the exact section layout (Gangway
+  // Details / Test Details / Inspection Result) — its own listed
+  // subsection under Lifting Appliances (see TYPE_GROUPS in
+  // InspectionWorkspace.tsx), alongside crane/loosegear.
+  | "gangway_load_test"
   // Requested directly: incorporate HMZC's own
   // HMZC_FRC_Service_Report_Template.docx (Installation/Replacement of
   // the self-righting bag & CO2 activation bottle) as its own listed
@@ -179,6 +184,10 @@ export interface InspectionCertificate {
   // Fast Rescue Craft (FRC) Service Report fields (type ===
   // "frc_service") — see FRCServiceReportData's own comment below.
   frcServiceReport?: FRCServiceReportData;
+
+  // Gangway / Accommodation Ladder Load Test fields (type ===
+  // "gangway_load_test") — see GangwayLoadTestData's own comment below.
+  gangwayLoadTest?: GangwayLoadTestData;
 
   remarks: string;
   remarksAuto: boolean;
@@ -799,8 +808,34 @@ export interface FRCServiceReportData {
   clientRepSig: string;
 }
 
+// ---- Gangway / Accommodation Ladder Load Test — its own equipment
+// type (type === "gangway_load_test", kind: "gangwayloadtest" — see
+// inspectionChecklists.ts's INSPECTION_TYPES entry), listed under
+// Lifting Appliances (TYPE_GROUPS in InspectionWorkspace.tsx)
+// alongside crane/loosegear. See data/gangwayLoadTest.ts for the fixed
+// inspection-result statement. ----
+export type GangwayResult = "satisfactory" | "not_satisfactory" | "";
+
+export interface GangwayLoadTestData {
+  manufacturer: string;
+  typeModel: string;
+  serialNumber: string;
+  gangwayLength: string;
+  gangwayWidth: string;
+  swl: string;
+  testLoad: string;
+  testAngle: string;
+  loadTestMethod: string;
+  testLoadApplied: string;
+  testDuration: string;
+  testEquipment: string;
+  calibrationCertNo: string;
+  calibrationDueDate: string;
+  result: GangwayResult;
+}
+
 export interface EquipmentTypeConfig {
-  kind: "boat" | "crane" | "ffe" | "loosegear" | "calibration" | "photoreport" | "frcservice";
+  kind: "boat" | "crane" | "ffe" | "loosegear" | "calibration" | "photoreport" | "frcservice" | "gangwayloadtest";
   typeName: string;
   label: string;
   statementIntro?: string;
