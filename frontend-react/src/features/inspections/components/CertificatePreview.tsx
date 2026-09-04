@@ -829,10 +829,18 @@ function FFECertificatePage({ cert, ffe }: { cert: InspectionCertificate; ffe: F
       {!!cfg.technicalFields?.length && (
         <>
           <div style={{ fontWeight: 700, fontSize: 11.5, color: "var(--insp-navy)", margin: "10px 0 4px" }}>Technical Description</div>
+          {/* Requested directly: "for FFE section the technical
+              description and the value cell should be split 50% for
+              all systems" — .insp-label-cell's shared 16% width (sized
+              for the usual 4-column layout) left the value cell
+              spanning the other 84%; widened to a 50/50 split here.
+              cfg.technicalFields is config-driven and this render is
+              shared by every FFE sub-type, so this one table covers
+              all of them, not just whichever system is open right now. */}
           <table className="insp-id-table">
             <tbody>
               {cfg.technicalFields.map((f) => (
-                <tr key={f.key}><td className="insp-label-cell">{f.label}</td><td colSpan={3}>{ffe.technicalValues[f.key] || "—"}</td></tr>
+                <tr key={f.key}><td className="insp-label-cell" style={{ width: "50%" }}>{f.label}</td><td colSpan={3}>{ffe.technicalValues[f.key] || "—"}</td></tr>
               ))}
             </tbody>
           </table>
