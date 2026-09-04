@@ -90,6 +90,12 @@ export interface FFESubTypeConfig {
   readingsRows?: { key: string; label: string; maxAllowed: string }[];
   validityYears: 1 | 2;
   note?: string;
+  // Requested directly: `note` can carry internal filling-in guidance
+  // that has no business printing on the issued certificate —
+  // certNote is what getEffectiveFFENote/CertificatePreview.tsx render
+  // instead, falling back to `note` for every sub-type that doesn't
+  // need the two to differ.
+  certNote?: string;
   // Requested directly: "move the gas detector A & B into calibration
   // as gas detectors are part of calibration items" — a sub-type moved
   // elsewhere but kept registered here (not deleted) purely so
@@ -596,6 +602,7 @@ export const FFE_CERT_TYPES: FFESubTypeConfig[] = [
     ],
     validityYears: 1,
     note: "Add one row per gas type actually fitted — the standard set is Combustible (%LEL), Oxygen (%VOL), Toxic Gas CO (PPM), and Toxic Gas H2S (PPM). Calibration is crucial for detector accuracy/reliability; follow the manufacturer's requirements to prevent premature failures.",
+    certNote: "Calibration is crucial for detector accuracy/reliability; follow the manufacturer's requirements to prevent premature failures.",
   },
   {
     // Requested directly: "use the ladder certificate made and search
@@ -1140,5 +1147,5 @@ export function getEffectiveFFELabel(cfg: FFESubTypeConfig, ffe: { variant?: str
   return cfg.variants?.find((v) => v.id === ffe.variant)?.label || cfg.label;
 }
 export function getEffectiveFFENote(cfg: FFESubTypeConfig, ffe: { variant?: string }): string | undefined {
-  return cfg.variants?.find((v) => v.id === ffe.variant)?.note || cfg.note;
+  return cfg.variants?.find((v) => v.id === ffe.variant)?.note || cfg.certNote || cfg.note;
 }

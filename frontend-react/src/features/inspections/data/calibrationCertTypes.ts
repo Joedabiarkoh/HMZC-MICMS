@@ -59,6 +59,13 @@ export interface CalibrationSubTypeConfig {
   // adding/removing rows.
   defaultItems2?: Record<string, string>[];
   note?: string;
+  // Requested directly: `note` (shown in CalibrationForm.tsx while
+  // filling the certificate in) can carry internal guidance — "add one
+  // row per gas type actually fitted" — that has no business printing
+  // on the actual issued certificate. certNote is what
+  // CertificatePreview.tsx renders instead; falls back to `note` for
+  // every sub-type that doesn't need the two to differ.
+  certNote?: string;
   validityYears: 1 | 2;
 }
 
@@ -121,6 +128,12 @@ export const CALIBRATION_CERT_TYPES: CalibrationSubTypeConfig[] = [
     ],
     items2Label: "Calibration Test Data",
     note: "Add one row per gas type actually fitted — the standard set is Combustible (%LEL), Oxygen (%VOL), Toxic Gas CO (PPM), and Toxic Gas H2S (PPM). Calibration is crucial for detector accuracy/reliability; follow the manufacturer's requirements to prevent premature failures.",
+    // Requested directly: the "add one row per gas type..." half of
+    // `note` above is internal filling-in guidance for the technician,
+    // not something that belongs on the issued certificate — this is
+    // what actually prints, trimmed to just the manufacturer-compliance
+    // sentence.
+    certNote: "Calibration is crucial for detector accuracy/reliability; follow the manufacturer's requirements to prevent premature failures.",
     validityYears: 1,
   },
   {
