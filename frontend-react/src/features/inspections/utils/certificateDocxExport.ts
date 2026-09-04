@@ -464,9 +464,9 @@ async function frcSignatureBlock(cert: InspectionCertificate, data: FRCServiceRe
 
 // Requested directly: incorporate HMZC's own FRC Service Report
 // template (Installation/Replacement of the self-righting bag & CO2
-// activation bottle) — dispatched by cert.frcServiceReport's own
-// presence in exportCertificateDocx below, same as
-// CertificatePreview.tsx's matching print/preview page.
+// activation bottle) — dispatched by config.kind === "frcservice" in
+// exportCertificateDocx below, same as CertificatePreview.tsx's
+// matching print/preview page.
 async function buildFRCServiceReportSection(cert: InspectionCertificate, data: FRCServiceReportData): Promise<Block[]> {
   const blocks: Block[] = [badgeLine("Fast Rescue Craft (FRC) Service Report", "Self-Righting Bag & CO2 Bottle")];
   blocks.push(
@@ -1361,7 +1361,7 @@ function downloadBlob(blob: Blob, filename: string) {
 export async function exportCertificateDocx(cert: InspectionCertificate, config: EquipmentTypeConfig): Promise<void> {
   const children: Block[] = [];
 
-  if (cert.frcServiceReport) {
+  if (config.kind === "frcservice" && cert.frcServiceReport) {
     children.push(...(await buildFRCServiceReportSection(cert, cert.frcServiceReport)));
   } else if (config.kind === "ffe" && cert.ffe) {
     children.push(...(await buildFFESection(cert, cert.ffe)));

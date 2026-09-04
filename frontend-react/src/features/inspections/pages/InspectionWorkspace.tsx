@@ -18,7 +18,7 @@ import FRCServiceReportForm from "../components/FRCServiceReportForm";
 import { getFFEConfig } from "../data/ffeCertTypes";
 import { getCalibrationConfig } from "../data/calibrationCertTypes";
 import { exportCertificateDocx } from "../utils/certificateDocxExport";
-import { LOOSE_GEAR_STATUS_CODES, checklistProgress, freshCertificate, freshFRCServiceReportState, freshLooseGearStandardReportData, freshLooseGearState, generateCertNo } from "../data/inspectionHelpers";
+import { LOOSE_GEAR_STATUS_CODES, checklistProgress, freshCertificate, freshLooseGearStandardReportData, freshLooseGearState } from "../data/inspectionHelpers";
 import { dirtyKey } from "../data/dirtyKey";
 import { useAuth } from "../../../context/AuthContext";
 import { hasPermission, PERM } from "../../auth/types/auth.types";
@@ -27,7 +27,7 @@ import { Job, reserveCertNo } from "../services/jobs.api";
 import { JobTab, loadJobTabs, persistJobTabs } from "../services/jobTabs.storage";
 
 const TYPE_GROUPS: { label: string; keys: EquipmentTypeKey[] }[] = [
-  { label: "Lifesaving Appliances", keys: ["lifeboat", "rescueboat", "freefall_dry", "freefall_tanker"] },
+  { label: "Lifesaving Appliances", keys: ["lifeboat", "rescueboat", "freefall_dry", "freefall_tanker", "frc_service"] },
   { label: "Lifting Appliances", keys: ["crane", "loosegear"] },
   { label: "Fire Safety", keys: ["firefighting"] },
   { label: "Calibration", keys: ["calibration"] },
@@ -609,13 +609,8 @@ export default function InspectionWorkspace() {
       problems.push("Vessel name or IMO number is required");
     }
 
-    // FRC Service Report — checked ahead of cfg.kind === "boat" below
-    // since it's a Rescue Boat draft switched into a completely
-    // different report shape (see the "Report Type" toggle further
-    // down); none of the generic boat blockers (checklist progress,
-    // minPhotos) apply to it.
-    if (current.frcServiceReport) {
-      if (!current.frcServiceReport.serviceType) {
+    if (cfg.kind === "frcservice") {
+      if (!current.frcServiceReport?.serviceType) {
         problems.push("Service Type (Installation/Replacement) must be selected");
       }
       if (!current.engineerName.trim()) {
@@ -1381,17 +1376,16 @@ export default function InspectionWorkspace() {
     );
   }
 
-  // FRC Service Report — an extra selectable report for Rescue Boat
-  // certificates specifically (requested directly, incorporating
-  // HMZC's own HMZC_FRC_Service_Report_Template.docx), same reasoning
-  // as the loosegear/calibration/photoreport branches above for being
-  // its own dedicated branch: a report shape that doesn't fit the
-  // boat/crane subtab structure at all. Checked by cert.type ===
-  // "rescueboat" + current.frcServiceReport's presence rather than
-  // cfg.kind (which stays "boat", shared with lifeboat/freefall_*) —
-  // see the "Report Type" toggle rendered below, in the normal Rescue
-  // Boat branch, for how a draft switches into/out of this.
-  if (type === "rescueboat" && current.frcServiceReport) {
+  // FRC Service Report — its own listed subsection under Lifesaving
+  // Appliances (requested directly, incorporating HMZC's own
+  // HMZC_FRC_Service_Report_Template.docx; see TYPE_GROUPS above), same
+  // reasoning as the loosegear/calibration/photoreport branches above
+  // for being its own dedicated branch: a report shape that doesn't fit
+  // the boat/crane subtab structure at all. First tried as a toggle
+  // nested inside a Rescue Boat certificate (data-presence-gated, kind
+  // stayed "boat"); moved to its own kind ("frcservice") once that
+  // turned out not to be discoverable in the subsection list itself.
+  if (cfg.kind === "frcservice") {
     return (
       <div className="inspections-page" data-type={type}>
         <TopBar
@@ -1413,17 +1407,7 @@ export default function InspectionWorkspace() {
         )}
         <div className="insp-layout">
           <div className="insp-panel">
-            <div className="insp-panel-header" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
-              <span>FRC Service Report</span>
-              <button
-                className="insp-btn insp-btn-outline"
-                style={{ padding: "3px 10px", fontSize: 11 }}
-                onClick={() => updateField("frcServiceReport", undefined)}
-                title="Switch this Rescue Boat certificate back to the usual Periodic Maintenance Statement/Checklist flow"
-              >
-                Switch to Periodic Maintenance
-              </button>
-            </div>
+            <div className="insp-panel-header">FRC Service Report</div>
             <div className="insp-panel-body">
               <FRCServiceReportForm current={current} updateField={updateField} openCertificate={openCertificateWithSave} />
             </div>
@@ -1521,32 +1505,6 @@ export default function InspectionWorkspace() {
           {pendingSyncCount > 0 && (
             <button className="insp-btn insp-btn-outline" style={{ padding: "3px 10px", fontSize: 11 }} onClick={retrySync}>Retry Now</button>
           )}
-        </div>
-      )}
-
-      {/* Requested directly: incorporate HMZC's own
-          HMZC_FRC_Service_Report_Template.docx as an extra selectable
-          report available specifically when working a Rescue Boat
-          (FRC) certificate — same "one equipment type, several
-          distinct report shapes" pattern Loose Gear uses for its own
-          sub-types, except this only ever applies to Rescue Boat.
-          Switching regenerates certNo with the FRC-specific tag (see
-          generateCertNo's own comment on the `frcService` param) since
-          a still-unsaved draft's old number isn't tied to anything
-          real yet — matches LooseGearForm.tsx's changeSubType. */}
-      {type === "rescueboat" && (
-        <div className="no-print" style={{ margin: "10px 20px 0", display: "flex", justifyContent: "flex-end" }}>
-          <button
-            className="insp-btn insp-btn-outline"
-            style={{ padding: "3px 10px", fontSize: 11 }}
-            onClick={() => {
-              updateField("frcServiceReport", freshFRCServiceReportState());
-              updateField("certNo", generateCertNo("rescueboat", allCertNos, undefined, true));
-            }}
-            title="Switch this Rescue Boat certificate to the FRC Service Report (self-righting bag & CO₂ bottle installation/replacement)"
-          >
-            Switch to FRC Service Report
-          </button>
         </div>
       )}
 

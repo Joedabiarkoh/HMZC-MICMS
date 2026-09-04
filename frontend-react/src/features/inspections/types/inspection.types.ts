@@ -16,6 +16,17 @@ export type EquipmentTypeKey =
   | "firefighting"
   | "loosegear"
   | "calibration"
+  // Requested directly: incorporate HMZC's own
+  // HMZC_FRC_Service_Report_Template.docx (Installation/Replacement of
+  // the self-righting bag & CO2 activation bottle) as its own listed
+  // subsection under Lifesaving Appliances, alongside lifeboat/
+  // rescueboat/freefall_* — see TYPE_GROUPS in InspectionWorkspace.tsx.
+  // First tried as a toggle nested inside a Rescue Boat certificate
+  // (data-presence-gated, kind stayed "boat"); moved to its own kind
+  // ("frcservice", see EquipmentTypeConfig below) once that turned out
+  // not to be discoverable enough — it never showed up in the
+  // Lifesaving Appliances subsection list itself.
+  | "frc_service"
   // Requested directly: "photo report for FFE and Calibration should
   // be all together for the vessel but not for each inspection, make
   // a section for photo report that the technician can select and
@@ -165,17 +176,8 @@ export interface InspectionCertificate {
   // Calibration fields (type === "calibration")
   calibration?: CalibrationData;
 
-  // Fast Rescue Craft (FRC) Service Report — an extra selectable
-  // report available specifically for Rescue Boat (type ===
-  // "rescueboat") certificates, alongside the usual Statement/
-  // Checklist flow every "boat"-kind type shares. Requested directly:
-  // incorporate HMZC's own HMZC_FRC_Service_Report_Template.docx.
-  // Deliberately data-presence-gated (mirrors ffe?/looseGear?/
-  // calibration? above) rather than a distinct EquipmentTypeConfig
-  // `kind`, since "boat" is shared by lifeboat/rescueboat/freefall_*
-  // and this report only ever makes sense for a Rescue Boat — see the
-  // "Report Type" toggle in InspectionWorkspace.tsx that sets/clears
-  // this field without changing `type` or `kind` at all.
+  // Fast Rescue Craft (FRC) Service Report fields (type ===
+  // "frc_service") — see FRCServiceReportData's own comment below.
   frcServiceReport?: FRCServiceReportData;
 
   remarks: string;
@@ -740,10 +742,12 @@ export interface LooseGearData {
   defectReport?: LooseGearDefectReportData;
 }
 
-// ---- Fast Rescue Craft (FRC) Service Report — see
-// data/frcServiceReport.ts for the fixed component/check-item lists
-// and InspectionCertificate.frcServiceReport's own comment above for
-// how a certificate carries this. ----
+// ---- Fast Rescue Craft (FRC) Service Report — its own equipment type
+// (type === "frc_service", kind: "frcservice" — see
+// inspectionChecklists.ts's INSPECTION_TYPES entry), listed as its own
+// subsection under Lifesaving Appliances (TYPE_GROUPS in
+// InspectionWorkspace.tsx) rather than nested inside Rescue Boat. See
+// data/frcServiceReport.ts for the fixed component/check-item lists. ----
 export type FRCServiceType = "installation" | "replacement" | "";
 export type FRCCheckAnswer = "yes" | "no" | "na" | "";
 
@@ -763,11 +767,10 @@ export interface FRCSparePartRow {
 }
 
 export interface FRCServiceReportData {
-  // Always "frc_service" — not a real choice, just so the backend's
-  // Certificate.sub_type / this app's reportTypeLabel resolvers (which
-  // both key off a `payload.<field>.subType` string, see
-  // models/certificate.py) can label this the same way every other
-  // sub-typed certificate already is.
+  // Always "frc_service" — kept even though `frc_service` is now its
+  // own EquipmentTypeKey (no further sub-types of its own, unlike ffe/
+  // loosegear/calibration), just for consistency with every other
+  // per-kind data object here carrying its own subType field.
   subType: "frc_service";
   serviceType: FRCServiceType;
   attendingEngineer: string;
@@ -797,7 +800,7 @@ export interface FRCServiceReportData {
 }
 
 export interface EquipmentTypeConfig {
-  kind: "boat" | "crane" | "ffe" | "loosegear" | "calibration" | "photoreport";
+  kind: "boat" | "crane" | "ffe" | "loosegear" | "calibration" | "photoreport" | "frcservice";
   typeName: string;
   label: string;
   statementIntro?: string;

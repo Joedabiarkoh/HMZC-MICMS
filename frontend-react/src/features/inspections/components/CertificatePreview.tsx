@@ -37,14 +37,7 @@ function equipLabel(s: EquipResult) {
 }
 
 export default function CertificatePreview({ cert, config }: Props) {
-  // Fast Rescue Craft (FRC) Service Report — an extra selectable report
-  // for Rescue Boat certificates specifically, switched on/off by
-  // InspectionWorkspace.tsx's "Report Type" toggle without changing
-  // `type`/`config.kind` at all (unlike every other special-cased kind
-  // below), so this checks the data's presence directly rather than
-  // config.kind. See InspectionCertificate.frcServiceReport's own
-  // comment in inspection.types.ts.
-  if (cert.frcServiceReport) {
+  if (config.kind === "frcservice" && cert.frcServiceReport) {
     return <FRCServiceReportPage cert={cert} data={cert.frcServiceReport} />;
   }
 
@@ -335,14 +328,14 @@ function frcCheckLabel(v?: FRCCheckAnswer) {
 
 // Requested directly: incorporate HMZC's own FRC Service Report
 // template (Installation/Replacement of the self-righting bag & CO2
-// activation bottle) — an extra selectable report for Rescue Boat
-// certificates specifically, dispatched by cert.frcServiceReport's own
-// presence at the top of the default export above rather than by
-// config.kind (which stays "boat", shared with lifeboat/freefall_*, so
-// switching this on can't accidentally affect those). See
-// FRCServiceReportForm.tsx for the matching edit-side form and
-// InspectionWorkspace.tsx's "Report Type" toggle for how a Rescue Boat
-// draft switches into this.
+// activation bottle) — its own listed subsection under Lifesaving
+// Appliances (type === "frc_service", kind: "frcservice"), same
+// dispatch pattern as every other special-cased kind above. First
+// tried as a toggle nested inside a Rescue Boat certificate (data-
+// presence-gated, kind stayed "boat"); moved to its own kind once that
+// turned out not to be discoverable in the Lifesaving Appliances
+// subsection list itself. See FRCServiceReportForm.tsx for the
+// matching edit-side form.
 function FRCServiceReportPage({ cert, data }: { cert: InspectionCertificate; data: FRCServiceReportData }) {
   return (
     <CertPageFrame cert={cert}>
