@@ -998,8 +998,17 @@ function CalibrationCertificatePage({ cert, calibration }: { cert: InspectionCer
 
       <table className="insp-id-table">
         <tbody>
+          {/* Requested directly: "drag the cell division... forward so
+              the statement all make one straight line" — .insp-label-cell's
+              shared 16% width (sized for short labels like "Vessel"/
+              "Date" in the usual 4-column layout) left "Next Calibration
+              Date" cramped against a value cell spanning the other 84%,
+              instead of reading as one continuous line. Widened just for
+              this row's own label cell via inline style (table-layout:
+              fixed takes its column widths from this table's only row,
+              so this doesn't affect any other .insp-id-table). */}
           <tr>
-            <td className="insp-label-cell">Next Calibration Date</td><td colSpan={3}>{fmtDate(calibration.nextCalibrationDate)}</td>
+            <td className="insp-label-cell" style={{ width: "50%" }}>Next Calibration Date</td><td colSpan={3}>{fmtDate(calibration.nextCalibrationDate)}</td>
           </tr>
         </tbody>
       </table>
