@@ -14,10 +14,11 @@ import FFEForm from "../components/FFEForm";
 import LooseGearForm from "../components/LooseGearForm";
 import CalibrationForm from "../components/CalibrationForm";
 import PhotoReportForm from "../components/PhotoReportForm";
+import FRCServiceReportForm from "../components/FRCServiceReportForm";
 import { getFFEConfig } from "../data/ffeCertTypes";
 import { getCalibrationConfig } from "../data/calibrationCertTypes";
 import { exportCertificateDocx } from "../utils/certificateDocxExport";
-import { LOOSE_GEAR_STATUS_CODES, checklistProgress, freshCertificate, freshLooseGearStandardReportData, freshLooseGearState } from "../data/inspectionHelpers";
+import { LOOSE_GEAR_STATUS_CODES, checklistProgress, freshCertificate, freshFRCServiceReportState, freshLooseGearStandardReportData, freshLooseGearState, generateCertNo } from "../data/inspectionHelpers";
 import { dirtyKey } from "../data/dirtyKey";
 import { useAuth } from "../../../context/AuthContext";
 import { hasPermission, PERM } from "../../auth/types/auth.types";
@@ -606,6 +607,24 @@ export default function InspectionWorkspace() {
 
     if (!current.vesselName.trim() && !current.imoNo.trim()) {
       problems.push("Vessel name or IMO number is required");
+    }
+
+    // FRC Service Report — checked ahead of cfg.kind === "boat" below
+    // since it's a Rescue Boat draft switched into a completely
+    // different report shape (see the "Report Type" toggle further
+    // down); none of the generic boat blockers (checklist progress,
+    // minPhotos) apply to it.
+    if (current.frcServiceReport) {
+      if (!current.frcServiceReport.serviceType) {
+        problems.push("Service Type (Installation/Replacement) must be selected");
+      }
+      if (!current.engineerName.trim()) {
+        problems.push("Attending Engineer name is required");
+      }
+      if (!current.engineerSig) {
+        problems.push("Attending Engineer signature is required");
+      }
+      return problems;
     }
 
     if (cfg.kind === "ffe") {
@@ -1362,6 +1381,97 @@ export default function InspectionWorkspace() {
     );
   }
 
+  // FRC Service Report — an extra selectable report for Rescue Boat
+  // certificates specifically (requested directly, incorporating
+  // HMZC's own HMZC_FRC_Service_Report_Template.docx), same reasoning
+  // as the loosegear/calibration/photoreport branches above for being
+  // its own dedicated branch: a report shape that doesn't fit the
+  // boat/crane subtab structure at all. Checked by cert.type ===
+  // "rescueboat" + current.frcServiceReport's presence rather than
+  // cfg.kind (which stays "boat", shared with lifeboat/freefall_*) —
+  // see the "Report Type" toggle rendered below, in the normal Rescue
+  // Boat branch, for how a draft switches into/out of this.
+  if (type === "rescueboat" && current.frcServiceReport) {
+    return (
+      <div className="inspections-page" data-type={type}>
+        <TopBar
+          type={type}
+          onTypeChange={handleTypeChange}
+          jobTabs={openJobTabs}
+          activeJobNo={current.jobRef}
+          onActivateTab={activateJobTab}
+          onCloseTab={closeJobTab}
+          onNewJob={handleNewJob}
+        />
+        {syncError && (
+          <div style={{ margin: "10px 20px 0", background: "#FBF0E2", border: "1px solid #B4690E", color: "#7A4A08", borderRadius: 6, padding: "8px 12px", fontSize: 12, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+            <span>{syncError}</span>
+            {pendingSyncCount > 0 && (
+              <button className="insp-btn insp-btn-outline" style={{ padding: "3px 10px", fontSize: 11 }} onClick={retrySync}>Retry Now</button>
+            )}
+          </div>
+        )}
+        <div className="insp-layout">
+          <div className="insp-panel">
+            <div className="insp-panel-header" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+              <span>FRC Service Report</span>
+              <button
+                className="insp-btn insp-btn-outline"
+                style={{ padding: "3px 10px", fontSize: 11 }}
+                onClick={() => updateField("frcServiceReport", undefined)}
+                title="Switch this Rescue Boat certificate back to the usual Periodic Maintenance Statement/Checklist flow"
+              >
+                Switch to Periodic Maintenance
+              </button>
+            </div>
+            <div className="insp-panel-body">
+              <FRCServiceReportForm current={current} updateField={updateField} openCertificate={openCertificateWithSave} />
+            </div>
+          </div>
+          <div className="insp-panel">
+            <div className="insp-panel-header">Certificate Preview</div>
+            <div className="insp-cert-scroll">
+              <CertificatePreview cert={current} config={cfg} />
+            </div>
+          </div>
+        </div>
+        {getFinalizeBlockers().length > 0 && (
+          <div className="no-print" style={{ margin: "0 20px 10px", background: "#FBF0E2", border: "1px solid #B4690E", borderRadius: 6, padding: "8px 12px", fontSize: 12, color: "#7A4A08" }}>
+            <strong>Not ready to finalize yet:</strong> {getFinalizeBlockers().join(" · ")}
+          </div>
+        )}
+        <div className="insp-btn-row">
+          <div className="insp-btn-group">
+            <button className="insp-btn insp-btn-outline" onClick={() => handleSave("draft")}>Save Draft</button>
+            <button
+              className="insp-btn insp-btn-primary"
+              onClick={() => handleSave("final")}
+              disabled={getFinalizeBlockers().length > 0}
+              title={getFinalizeBlockers().length > 0 ? `Not ready to finalize: ${getFinalizeBlockers().join("; ")}` : undefined}
+            >
+              Finalize &amp; Save
+            </button>
+          </div>
+          <div className="insp-btn-group insp-btn-group--secondary">
+            <button className="insp-btn insp-btn-outline" onClick={handlePrint}>Print</button>
+            <button
+              className="insp-btn insp-btn-outline"
+              onClick={handleExportWord}
+              disabled={!canExportWord}
+              title={canExportWord ? undefined : "Available once this certificate is finalized"}
+            >
+              Save as Word
+            </button>
+            {current.jobRef && (
+              <button className="insp-btn insp-btn-outline" onClick={addCertificateToCurrentJob} title="Starts another certificate of this same type under the job already open — no need to search for the vessel/job again.">+ Add Certificate</button>
+            )}
+            <button className="insp-btn insp-btn-outline" onClick={() => { forceSaveIfDirty(); startNewDraft(type); }} title="Starts over from the Job Picker — for a different vessel, job, or equipment type.">New Certificate</button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   const isBoat = cfg.kind === "boat";
   const subtabs: { key: SubTab; label: string }[] = isBoat
     ? [
@@ -1411,6 +1521,32 @@ export default function InspectionWorkspace() {
           {pendingSyncCount > 0 && (
             <button className="insp-btn insp-btn-outline" style={{ padding: "3px 10px", fontSize: 11 }} onClick={retrySync}>Retry Now</button>
           )}
+        </div>
+      )}
+
+      {/* Requested directly: incorporate HMZC's own
+          HMZC_FRC_Service_Report_Template.docx as an extra selectable
+          report available specifically when working a Rescue Boat
+          (FRC) certificate — same "one equipment type, several
+          distinct report shapes" pattern Loose Gear uses for its own
+          sub-types, except this only ever applies to Rescue Boat.
+          Switching regenerates certNo with the FRC-specific tag (see
+          generateCertNo's own comment on the `frcService` param) since
+          a still-unsaved draft's old number isn't tied to anything
+          real yet — matches LooseGearForm.tsx's changeSubType. */}
+      {type === "rescueboat" && (
+        <div className="no-print" style={{ margin: "10px 20px 0", display: "flex", justifyContent: "flex-end" }}>
+          <button
+            className="insp-btn insp-btn-outline"
+            style={{ padding: "3px 10px", fontSize: 11 }}
+            onClick={() => {
+              updateField("frcServiceReport", freshFRCServiceReportState());
+              updateField("certNo", generateCertNo("rescueboat", allCertNos, undefined, true));
+            }}
+            title="Switch this Rescue Boat certificate to the FRC Service Report (self-righting bag & CO₂ bottle installation/replacement)"
+          >
+            Switch to FRC Service Report
+          </button>
         </div>
       )}
 

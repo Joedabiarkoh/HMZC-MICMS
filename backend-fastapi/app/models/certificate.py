@@ -74,7 +74,19 @@ class Certificate(BaseModel):
     # Pydantic's from_attributes picks these up automatically wherever
     # a Certificate is returned as a CertificateSummary, same as any
     # real column — no per-route change needed.
-    _SUBTYPE_PAYLOAD_KEY = {"firefighting": "ffe", "loosegear": "looseGear", "calibration": "calibration"}
+    # "rescueboat" added when the FRC Service Report — an extra
+    # selectable report for Rescue Boat certificates specifically, see
+    # frontend InspectionCertificate.frcServiceReport's own comment —
+    # was introduced; every other rescueboat certificate has no
+    # "frcServiceReport" key in its payload at all, so .get() below
+    # correctly returns None for those, same as any equipment_type with
+    # no real sub-type.
+    _SUBTYPE_PAYLOAD_KEY = {
+        "firefighting": "ffe",
+        "loosegear": "looseGear",
+        "calibration": "calibration",
+        "rescueboat": "frcServiceReport",
+    }
 
     @property
     def sub_type(self):
