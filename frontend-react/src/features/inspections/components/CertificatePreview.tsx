@@ -989,7 +989,12 @@ function CalibrationCertificatePage({ cert, calibration }: { cert: InspectionCer
       <FFEItemsTable title={cfg.itemTableLabel} columns={cfg.itemColumns} rows={calibration.items} certNo={cert.certNo} />
       <FFEItemsTable title={cfg.items2Label} columns={cfg.items2Columns} rows={calibration.items2} certNo={cert.certNo} />
 
-      {cfg.note && <div style={{ fontSize: 10, color: "var(--insp-muted)", marginTop: 8 }}>{cfg.note}</div>}
+      {/* Requested directly: `note` can carry internal filling-in
+          guidance (CalibrationForm.tsx shows it while editing) that has
+          no business printing on the issued certificate — certNote is
+          the certificate-facing text, falling back to `note` for every
+          sub-type that doesn't need the two to differ. */}
+      {(cfg.certNote || cfg.note) && <div style={{ fontSize: 10, color: "var(--insp-muted)", marginTop: 8 }}>{cfg.certNote || cfg.note}</div>}
 
       <div className="insp-remarks-box">Comments: {calibration.comments || "None"}</div>
       <div style={{ fontSize: 10, color: "var(--insp-muted)", marginTop: 8 }}>
