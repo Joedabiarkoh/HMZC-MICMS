@@ -996,6 +996,14 @@ function CalibrationCertificatePage({ cert, calibration }: { cert: InspectionCer
           sub-type that doesn't need the two to differ. */}
       {(cfg.certNote || cfg.note) && <div style={{ fontSize: 10, color: "var(--insp-muted)", marginTop: 8 }}>{cfg.certNote || cfg.note}</div>}
 
+      <table className="insp-id-table">
+        <tbody>
+          <tr>
+            <td className="insp-label-cell">Next Calibration Date</td><td colSpan={3}>{fmtDate(calibration.nextCalibrationDate)}</td>
+          </tr>
+        </tbody>
+      </table>
+
       <div className="insp-remarks-box">Comments: {calibration.comments || "None"}</div>
       <div style={{ fontSize: 10, color: "var(--insp-muted)", marginTop: 8 }}>
         This Certificate is valid for {cfg.validityYears === 2 ? "Two Years" : "One Year"} from the date of issue.

@@ -285,6 +285,7 @@ export function freshCalibrationState(subTypeId: string): CalibrationData {
     technicalValues,
     items: [] as Record<string, string>[],
     items2,
+    nextCalibrationDate: "",
     comments: "",
   };
 }

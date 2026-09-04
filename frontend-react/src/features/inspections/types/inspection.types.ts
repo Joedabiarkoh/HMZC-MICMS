@@ -305,6 +305,13 @@ export interface CalibrationData {
   technicalValues: Record<string, string>; // keyed by CalibrationSubTypeConfig.technicalFields[].key
   items: FFEItemRow[]; // "Unit(s) Under Test" register
   items2: FFEItemRow[]; // the calibration results/readings register
+  // Requested directly: "on all calibration certificate, before the
+  // comment, create a section for next calibration date" — an explicit
+  // due-date field, distinct from the validityYears-derived "valid for
+  // One/Two Years from date of issue" line every sub-type already
+  // prints (CalibrationSubTypeConfig.validityYears), since a next-due
+  // date can be scheduled/adjusted independently of that default term.
+  nextCalibrationDate: string;
   comments: string;
 }
 
