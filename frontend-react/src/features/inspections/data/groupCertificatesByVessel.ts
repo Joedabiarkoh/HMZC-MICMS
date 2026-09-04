@@ -58,13 +58,6 @@ function subTypeLabel(equipmentType: string, subType: string | null | undefined,
   if (equipmentType === "calibration") {
     return findCalibrationConfig(subType)?.label || null;
   }
-  // FRC Service Report — the only "rescueboat" sub-type there is (see
-  // InspectionCertificate.frcServiceReport's own comment in
-  // inspection.types.ts), so no lookup table needed, just the one
-  // fixed label.
-  if (equipmentType === "rescueboat" && subType === "frc_service") {
-    return "FRC Service Report";
-  }
   return null;
 }
 
@@ -72,7 +65,7 @@ export function reportTypeLabel(cert: InspectionCertificate): string {
   const base = INSPECTION_TYPES[cert.type]?.typeName || cert.type;
   const sub = subTypeLabel(
     cert.type,
-    cert.looseGear?.subType || cert.ffe?.subType || cert.calibration?.subType || cert.frcServiceReport?.subType,
+    cert.looseGear?.subType || cert.ffe?.subType || cert.calibration?.subType,
     cert.ffe?.variant
   );
   return sub ? `${base} — ${sub}` : base;

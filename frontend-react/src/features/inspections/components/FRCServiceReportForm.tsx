@@ -20,14 +20,11 @@ interface Props {
 /**
  * Requested directly: incorporate HMZC's own FRC Service Report
  * template (Installation/Replacement of the self-righting bag & CO2
- * activation bottle) into the app — an extra selectable report type
- * for Rescue Boat (FRC) certificates specifically, alongside the usual
- * Periodic Maintenance Statement/Checklist flow every "boat"-kind type
- * shares. See InspectionWorkspace.tsx's "Report Type" toggle for how a
- * Rescue Boat draft switches into/out of this form, and
- * InspectionCertificate.frcServiceReport's own comment in
- * inspection.types.ts for why this is a data-presence switch rather
- * than a new EquipmentTypeConfig kind.
+ * activation bottle) into the app — its own listed subsection under
+ * Lifesaving Appliances (type === "frc_service", kind: "frcservice",
+ * see TYPE_GROUPS/INSPECTION_TYPES) rather than nested inside Rescue
+ * Boat, since that turned out not to be discoverable enough on its
+ * own.
  */
 export default function FRCServiceReportForm({ current, updateField, openCertificate }: Props) {
   const data = current.frcServiceReport;

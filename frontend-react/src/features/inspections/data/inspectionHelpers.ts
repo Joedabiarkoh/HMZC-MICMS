@@ -116,15 +116,7 @@ const LOOSE_GEAR_SUBTYPE_TAGS: Partial<Record<LooseGearSubTypeId, string>> = {
 export function generateCertNo(
   type: EquipmentTypeKey,
   existingNumbers: Set<string>,
-  looseGearSubType?: LooseGearSubTypeId,
-  // Requested directly: give the FRC Service Report its own
-  // recognizable prefix instead of sharing Rescue Boat's flat "RB" tag
-  // — same reasoning as LOOSE_GEAR_SUBTYPE_TAGS above, easier to find/
-  // sort by report type in the Certificate Log. Only ever true when
-  // InspectionWorkspace.tsx's "Report Type" toggle has switched a
-  // Rescue Boat draft to the FRC Service Report — see
-  // InspectionCertificate.frcServiceReport's own comment.
-  frcService?: boolean
+  looseGearSubType?: LooseGearSubTypeId
 ): string {
   const d = new Date();
   const ymd = `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, "0")}${String(d.getDate()).padStart(2, "0")}`;
@@ -136,11 +128,9 @@ export function generateCertNo(
     // exhaustive over EquipmentTypeKey — it just never gets hit by a
     // brand-new certificate anymore.
     photo_report: "PR", ffe_photo_report: "FPR", calibration_photo_report: "CPR",
+    frc_service: "FRC",
   };
-  const tag =
-    (type === "loosegear" && looseGearSubType && LOOSE_GEAR_SUBTYPE_TAGS[looseGearSubType]) ||
-    (type === "rescueboat" && frcService && "FRC") ||
-    tags[type];
+  const tag = (type === "loosegear" && looseGearSubType && LOOSE_GEAR_SUBTYPE_TAGS[looseGearSubType]) || tags[type];
   const count = Array.from(existingNumbers).filter((k) => k.includes(ymd) && k.includes(tag)).length + 1;
   // Requested directly: "CERT/HMZCS/RB/20260807-001 this certificate
   // number for all certificate take out the (S)" — was HMZCS, now
@@ -199,6 +189,8 @@ export function freshCertificate(type: EquipmentTypeKey, existingNumbers: Set<st
     base.looseGear = freshLooseGearState();
   } else if (cfg.kind === "calibration") {
     base.calibration = freshCalibrationState(CALIBRATION_CERT_TYPES[0].id);
+  } else if (cfg.kind === "frcservice") {
+    base.frcServiceReport = freshFRCServiceReportState();
   }
 
   return base;

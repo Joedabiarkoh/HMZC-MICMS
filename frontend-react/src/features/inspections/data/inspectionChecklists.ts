@@ -390,6 +390,15 @@ export const INSPECTION_TYPES: Record<EquipmentTypeKey, EquipmentTypeConfig> = {
   firefighting: {
     kind: "ffe", typeName: "Firefighting Equipment", label: "Firefighting Equipment",
   },
+  // Built from HMZC's own HMZC_FRC_Service_Report_Template.docx
+  // (Installation/Replacement of the self-righting bag & CO2
+  // activation bottle) — its own listed subsection under Lifesaving
+  // Appliances (see TYPE_GROUPS in InspectionWorkspace.tsx) rather than
+  // a Rescue Boat sub-type, since that turned out not to be
+  // discoverable enough on its own.
+  frc_service: {
+    kind: "frcservice", typeName: "Fast Rescue Craft (FRC) Service Report", label: "FRC Service Report",
+  },
   // Built from HMZC's own LOLER 1998 "Report of Thorough Examination"
   // templates (single-item and "multiple items" register variants) —
   // see LooseGearItem's own comment in inspection.types.ts for the
