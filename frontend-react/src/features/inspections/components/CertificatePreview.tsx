@@ -1,9 +1,10 @@
 import { useLayoutEffect, useRef, useState } from "react";
 import type { ReactNode, RefObject } from "react";
-import { EquipmentTypeConfig, InspectionCertificate, ChecklistStatus, EquipResult, CalibrationData, FFEData, LooseGearData, LooseGearDefectReportData, LooseGearMultipleItemsData, LooseGearStandardReportData, LooseGearStatutoryAnswers, LooseGearVisualCertData, LooseGearYesNo, NDTCommonData, NDTFooterData, MPIData, PTData, RTData, UTData, VTData, ETData, LoadTestData, PhotoEvidence } from "../types/inspection.types";
+import { EquipmentTypeConfig, InspectionCertificate, ChecklistStatus, EquipResult, CalibrationData, FFEData, FRCCheckAnswer, FRCServiceReportData, LooseGearData, LooseGearDefectReportData, LooseGearMultipleItemsData, LooseGearStandardReportData, LooseGearStatutoryAnswers, LooseGearVisualCertData, LooseGearYesNo, NDTCommonData, NDTFooterData, MPIData, PTData, RTData, UTData, VTData, ETData, LoadTestData, PhotoEvidence } from "../types/inspection.types";
 import { getFFEConfig, getEffectiveFFELabel, getEffectiveFFENote } from "../data/ffeCertTypes";
 import { getCalibrationConfig } from "../data/calibrationCertTypes";
-import { DEFECT_REPORT_COLUMNS, LOOSE_GEAR_STATUS_CODES, MULTIPLE_ITEMS_REGISTER_COLUMNS, normalizedSerialNos } from "../data/inspectionHelpers";
+import { DEFECT_REPORT_COLUMNS, FRC_SPARE_PARTS_COLUMNS, LOOSE_GEAR_STATUS_CODES, MULTIPLE_ITEMS_REGISTER_COLUMNS, normalizedSerialNos } from "../data/inspectionHelpers";
+import { FRC_COMPONENT_ROWS, FRC_FUNCTION_CHECKS, FRC_SCOPE_OF_WORK, FRC_SERVICE_TYPE_LABELS, FRC_CERTIFICATION_STATEMENT } from "../data/frcServiceReport";
 import { RegisterPreviewTable } from "./RegisterTable";
 import { ABS_LOGO_DATA_URI, BUREAU_VERITAS_LOGO_DATA_URI, CRALOG_LOGO_DATA_URI, DNV_LOGO_DATA_URI } from "../assets/approvalLogos";
 import { APP_BUILD_VERSION } from "../data/appVersion";
@@ -36,6 +37,17 @@ function equipLabel(s: EquipResult) {
 }
 
 export default function CertificatePreview({ cert, config }: Props) {
+  // Fast Rescue Craft (FRC) Service Report — an extra selectable report
+  // for Rescue Boat certificates specifically, switched on/off by
+  // InspectionWorkspace.tsx's "Report Type" toggle without changing
+  // `type`/`config.kind` at all (unlike every other special-cased kind
+  // below), so this checks the data's presence directly rather than
+  // config.kind. See InspectionCertificate.frcServiceReport's own
+  // comment in inspection.types.ts.
+  if (cert.frcServiceReport) {
+    return <FRCServiceReportPage cert={cert} data={cert.frcServiceReport} />;
+  }
+
   if (config.kind === "ffe" && cert.ffe) {
     return <FFECertificatePage cert={cert} ffe={cert.ffe} />;
   }
@@ -314,6 +326,173 @@ function PhotoReportCertificatePage({ cert, config }: { cert: InspectionCertific
       )}
       <SignatureGrid cert={cert} masterLabel="Captain Signature" techLabel="Service Engineer" hideFitForPurpose />
     </CertPageFrame>
+  );
+}
+
+function frcCheckLabel(v?: FRCCheckAnswer) {
+  return { yes: "YES", no: "NO", na: "N/A", "": "—" }[v || ""] || "—";
+}
+
+// Requested directly: incorporate HMZC's own FRC Service Report
+// template (Installation/Replacement of the self-righting bag & CO2
+// activation bottle) — an extra selectable report for Rescue Boat
+// certificates specifically, dispatched by cert.frcServiceReport's own
+// presence at the top of the default export above rather than by
+// config.kind (which stays "boat", shared with lifeboat/freefall_*, so
+// switching this on can't accidentally affect those). See
+// FRCServiceReportForm.tsx for the matching edit-side form and
+// InspectionWorkspace.tsx's "Report Type" toggle for how a Rescue Boat
+// draft switches into this.
+function FRCServiceReportPage({ cert, data }: { cert: InspectionCertificate; data: FRCServiceReportData }) {
+  return (
+    <CertPageFrame cert={cert}>
+      <div className="insp-cert-title-row">
+        <h2>FRC Service Report</h2>
+        <span className="insp-badge">SELF-RIGHTING BAG &amp; CO₂ BOTTLE</span>
+      </div>
+
+      <table className="insp-id-table">
+        <tbody>
+          <tr>
+            <td className="insp-label-cell">Report No.</td><td>{cert.certNo}</td>
+            <td className="insp-label-cell">Date of Service</td><td>{fmtDate(cert.dateOfServicing)}</td>
+          </tr>
+          <tr>
+            <td className="insp-label-cell">Job Ref.</td><td>{cert.jobRef || "—"}</td>
+            <td className="insp-label-cell">Service Type</td><td>{FRC_SERVICE_TYPE_LABELS[data.serviceType] || "—"}</td>
+          </tr>
+          <tr>
+            <td className="insp-label-cell">Attending Engineer</td><td>{data.attendingEngineer || cert.engineerName || "—"}</td>
+            <td className="insp-label-cell">Next Service Due</td><td>{fmtDate(data.nextServiceDue)}</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div style={{ fontWeight: 700, fontSize: 11.5, color: "var(--insp-navy)", margin: "10px 0 4px" }}>Client &amp; Vessel Details</div>
+      <table className="insp-id-table">
+        <tbody>
+          <tr>
+            <td className="insp-label-cell">Client / Owner</td><td>{data.clientOwner || "—"}</td>
+            <td className="insp-label-cell">Vessel / Installation Name</td><td>{cert.vesselName || "—"}</td>
+          </tr>
+          <tr>
+            <td className="insp-label-cell">IMO No. / Reg. No.</td><td>{cert.imoNo || "—"}</td>
+            <td className="insp-label-cell">Location / Port</td><td>{cert.location || "—"}</td>
+          </tr>
+          <tr>
+            <td className="insp-label-cell">Vessel Type</td><td>{data.vesselType || "—"}</td>
+            <td className="insp-label-cell">Contact Person</td><td>{data.contactPerson || "—"}</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div style={{ fontWeight: 700, fontSize: 11.5, color: "var(--insp-navy)", margin: "10px 0 4px" }}>FRC / Equipment Details</div>
+      <table className="insp-id-table">
+        <tbody>
+          <tr>
+            <td className="insp-label-cell">FRC Make &amp; Model</td><td>{data.frcMakeModel || "—"}</td>
+            <td className="insp-label-cell">Hull / Serial No.</td><td>{data.hullSerialNo || "—"}</td>
+          </tr>
+          <tr>
+            <td className="insp-label-cell">Manufacturer</td><td>{data.manufacturer || "—"}</td>
+            <td className="insp-label-cell">Year of Manufacture</td><td>{data.yearOfManufacture || "—"}</td>
+          </tr>
+          <tr>
+            <td className="insp-label-cell">Seating Capacity</td><td>{data.seatingCapacity || "—"}</td>
+            <td className="insp-label-cell">Davit / Launching Appliance</td><td>{data.davitLaunchingAppliance || "—"}</td>
+          </tr>
+          <tr>
+            <td className="insp-label-cell">Date of Last Service</td><td>{fmtDate(data.dateOfLastService)}</td>
+            <td className="insp-label-cell">Class / Flag</td><td>{data.classFlag || "—"}</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div style={{ fontWeight: 700, fontSize: 11.5, color: "var(--insp-navy)", margin: "10px 0 4px" }}>Scope of Work</div>
+      <p style={{ fontSize: 11.5, lineHeight: 1.6 }}>{FRC_SCOPE_OF_WORK}</p>
+
+      <div style={{ fontWeight: 700, fontSize: 11.5, color: "var(--insp-navy)", margin: "10px 0 4px" }}>Components Removed / Installed</div>
+      <table className="insp-print-chk">
+        <thead>
+          <CertNoTheadRow certNo={cert.certNo} colSpan={6} />
+          <tr><th>#</th><th>Description</th><th>Old Serial / Part No. (Removed)</th><th>New Serial / Part No. (Installed)</th><th>Qty</th><th>Expiry / Next Due Date</th></tr>
+        </thead>
+        <tbody>
+          {data.components.map((row, i) => (
+            <tr key={row.key}>
+              <td>{i + 1}</td>
+              <td>{FRC_COMPONENT_ROWS.find((c) => c.key === row.key)?.description || "—"}</td>
+              <td>{row.oldSerial || "—"}</td>
+              <td>{row.newSerial || "—"}</td>
+              <td>{row.qty || "—"}</td>
+              <td>{fmtDate(row.expiry)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+
+      <div style={{ fontWeight: 700, fontSize: 11.5, color: "var(--insp-navy)", margin: "10px 0 4px" }}>Testing &amp; Function Checks</div>
+      <table className="insp-print-chk">
+        <thead>
+          <CertNoTheadRow certNo={cert.certNo} colSpan={2} />
+          <tr><th>Check Performed</th><th>Result</th></tr>
+        </thead>
+        <tbody>
+          {FRC_FUNCTION_CHECKS.map((c) => (
+            <tr key={c.key}>
+              <td>{c.label}</td>
+              <td><span className={`insp-pill ${data.checks[c.key] === "yes" ? "good" : data.checks[c.key] === "no" ? "repair" : ""}`}>{frcCheckLabel(data.checks[c.key])}</span></td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+
+      <div className="insp-remarks-box">Findings / Remarks: {data.findingsRemarks || "None"}</div>
+      <div className="insp-remarks-box">Recommendations: {data.recommendations || "None"}</div>
+
+      <div style={{ fontWeight: 700, fontSize: 11.5, color: "var(--insp-navy)", margin: "10px 0 4px" }}>Spare Parts / Materials Used</div>
+      <RegisterPreviewTable
+        columns={FRC_SPARE_PARTS_COLUMNS}
+        rows={data.spareParts as unknown as Record<string, string>[]}
+        certNoHeaderRow={(colSpan) => <CertNoTheadRow certNo={cert.certNo} colSpan={colSpan} />}
+        emptyMessage="No spare parts recorded."
+      />
+
+      <div style={{ fontSize: 10, color: "var(--insp-muted)", marginTop: 8 }}>{FRC_CERTIFICATION_STATEMENT}</div>
+      {cert.issuedBy && (
+        <div style={{ fontSize: 10, color: "var(--insp-muted)", marginTop: 4 }}>
+          Issued by {cert.issuedBy}{cert.issuedAt ? ` — ${new Date(cert.issuedAt).toLocaleString()}` : ""}
+        </div>
+      )}
+      <FRCSignatureGrid cert={cert} data={data} />
+    </CertPageFrame>
+  );
+}
+
+// The template's own sign-off is Engineer + Client Representative, not
+// the app's usual Master/Captain + Technician pair — same reasoning as
+// examinerDetailsTable's docx counterpart (certificateDocxExport.ts)
+// and LooseGearForm's Standard Report signer for dropping the shared
+// SignatureGrid in favor of a bespoke grid here. Engineer reuses
+// cert.engineerName/engineerSig (every other certificate type's
+// technician role) and gets the HMZC stamp, same convention as
+// SignBox's own stamp comment (never the other party's box); Client
+// Representative is FRC-specific (FRCServiceReportData.clientRepName/
+// clientRepSig) and gets no stamp.
+function FRCSignatureGrid({ cert, data }: { cert: InspectionCertificate; data: FRCServiceReportData }) {
+  return (
+    <table style={{ width: "100%", borderCollapse: "collapse", marginTop: 12, breakInside: "avoid", pageBreakInside: "avoid" } as any}>
+      <tbody>
+        <tr style={{ breakInside: "avoid", pageBreakInside: "avoid" } as any}>
+          <td style={{ width: "50%", verticalAlign: "top", paddingRight: 7 }}>
+            <SignBox label="Attending Engineer" name={cert.engineerName} sig={cert.engineerSig} stamp />
+          </td>
+          <td style={{ width: "50%", verticalAlign: "top", paddingLeft: 7 }}>
+            <SignBox label="Client Representative" name={data.clientRepName} sig={data.clientRepSig} />
+          </td>
+        </tr>
+      </tbody>
+    </table>
   );
 }
 

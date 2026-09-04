@@ -48,6 +48,8 @@ import {
   EquipmentTypeConfig,
   EquipResult,
   FFEData,
+  FRCCheckAnswer,
+  FRCServiceReportData,
   CalibrationData,
   InspectionCertificate,
   LooseGearData,
@@ -58,7 +60,8 @@ import {
 } from "../types/inspection.types";
 import { getFFEConfig, getEffectiveFFELabel, getEffectiveFFENote } from "../data/ffeCertTypes";
 import { getCalibrationConfig } from "../data/calibrationCertTypes";
-import { DEFECT_REPORT_COLUMNS, LOOSE_GEAR_STATUS_CODES, MULTIPLE_ITEMS_REGISTER_COLUMNS, RegisterColumn, normalizedSerialNos } from "../data/inspectionHelpers";
+import { DEFECT_REPORT_COLUMNS, FRC_SPARE_PARTS_COLUMNS, LOOSE_GEAR_STATUS_CODES, MULTIPLE_ITEMS_REGISTER_COLUMNS, RegisterColumn, normalizedSerialNos } from "../data/inspectionHelpers";
+import { FRC_COMPONENT_ROWS, FRC_FUNCTION_CHECKS, FRC_SCOPE_OF_WORK, FRC_SERVICE_TYPE_LABELS, FRC_CERTIFICATION_STATEMENT } from "../data/frcServiceReport";
 import { HMZC_LOGO_DATA_URI } from "../assets/logo";
 import { HMZC_STAMP_DATA_URI } from "../assets/stamp";
 
@@ -427,6 +430,108 @@ function issuedByLine(cert: InspectionCertificate): Paragraph[] {
   if (!cert.issuedBy) return [];
   const when = cert.issuedAt ? ` — ${new Date(cert.issuedAt).toLocaleString()}` : "";
   return [textP(`Issued by ${cert.issuedBy}${when}`, { color: MUTED, size: 16 })];
+}
+
+function frcCheckLabel(v?: FRCCheckAnswer): string {
+  return { yes: "YES", no: "NO", na: "N/A", "": "—" }[v || ""] || "—";
+}
+
+// The template's own sign-off is Engineer + Client Representative, not
+// the app's usual Master/Captain + Technician pair — same reasoning as
+// examinerDetailsTable above (Loose Gear's Standard Report) for
+// dropping the shared signatureBlock() in favor of a bespoke table
+// here. Engineer reuses cert.engineerName/engineerSig and gets the
+// stamp (see signCellContent's own `stamp` param — never the other
+// party's box); Client Representative is FRC-specific.
+async function frcSignatureBlock(cert: InspectionCertificate, data: FRCServiceReportData): Promise<Table> {
+  const [engineerContent, clientContent] = await Promise.all([
+    signCellContent("Attending Engineer", cert.engineerName, cert.engineerSig, true),
+    signCellContent("Client Representative", data.clientRepName, data.clientRepSig, false),
+  ]);
+  return new Table({
+    width: { size: 100, type: WidthType.PERCENTAGE },
+    borders: { top: THIN_BORDER, bottom: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" }, left: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" }, right: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" }, insideHorizontal: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" }, insideVertical: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" } },
+    rows: [
+      new TableRow({
+        children: [
+          new TableCell({ width: { size: 50, type: WidthType.PERCENTAGE }, margins: { top: 120, right: 200 }, children: engineerContent }),
+          new TableCell({ width: { size: 50, type: WidthType.PERCENTAGE }, margins: { top: 120, left: 200 }, children: clientContent }),
+        ],
+      }),
+    ],
+  });
+}
+
+// Requested directly: incorporate HMZC's own FRC Service Report
+// template (Installation/Replacement of the self-righting bag & CO2
+// activation bottle) — dispatched by cert.frcServiceReport's own
+// presence in exportCertificateDocx below, same as
+// CertificatePreview.tsx's matching print/preview page.
+async function buildFRCServiceReportSection(cert: InspectionCertificate, data: FRCServiceReportData): Promise<Block[]> {
+  const blocks: Block[] = [badgeLine("Fast Rescue Craft (FRC) Service Report", "Self-Righting Bag & CO2 Bottle")];
+  blocks.push(
+    kvTable([
+      ["Report No.", cert.certNo],
+      ["Date of Service", fmtDate(cert.dateOfServicing)],
+      ["Job Ref.", cert.jobRef || "—"],
+      ["Service Type", FRC_SERVICE_TYPE_LABELS[data.serviceType] || "—"],
+      ["Attending Engineer", data.attendingEngineer || cert.engineerName || "—"],
+      ["Next Service Due", fmtDate(data.nextServiceDue)],
+    ])
+  );
+  blocks.push(
+    heading("Client & Vessel Details"),
+    kvTable([
+      ["Client / Owner", data.clientOwner || "—"],
+      ["Vessel / Installation Name", cert.vesselName || "—"],
+      ["IMO No. / Reg. No.", cert.imoNo || "—"],
+      ["Location / Port", cert.location || "—"],
+      ["Vessel Type", data.vesselType || "—"],
+      ["Contact Person", data.contactPerson || "—"],
+    ])
+  );
+  blocks.push(
+    heading("FRC / Equipment Details"),
+    kvTable([
+      ["FRC Make & Model", data.frcMakeModel || "—"],
+      ["Hull / Serial No.", data.hullSerialNo || "—"],
+      ["Manufacturer", data.manufacturer || "—"],
+      ["Year of Manufacture", data.yearOfManufacture || "—"],
+      ["Seating Capacity", data.seatingCapacity || "—"],
+      ["Davit / Launching Appliance", data.davitLaunchingAppliance || "—"],
+      ["Date of Last Service", fmtDate(data.dateOfLastService)],
+      ["Class / Flag", data.classFlag || "—"],
+    ])
+  );
+  blocks.push(heading("Scope of Work"), textP(FRC_SCOPE_OF_WORK, { size: 18 }));
+  blocks.push(
+    heading("Components Removed / Installed"),
+    dataTable(
+      ["#", "Description", "Old Serial / Part No. (Removed)", "New Serial / Part No. (Installed)", "Qty", "Expiry / Next Due Date"],
+      data.components.map((row, i) => [
+        String(i + 1),
+        FRC_COMPONENT_ROWS.find((c) => c.key === row.key)?.description || "—",
+        row.oldSerial || "—",
+        row.newSerial || "—",
+        row.qty || "—",
+        fmtDate(row.expiry),
+      ])
+    )
+  );
+  blocks.push(
+    heading("Testing & Function Checks"),
+    dataTable(["Check Performed", "Result"], FRC_FUNCTION_CHECKS.map((c) => [c.label, frcCheckLabel(data.checks[c.key])]))
+  );
+  blocks.push(new Paragraph({ text: "" }), remarksBox("Findings / Remarks", data.findingsRemarks || "None"));
+  blocks.push(new Paragraph({ text: "" }), remarksBox("Recommendations", data.recommendations || "None"));
+  blocks.push(
+    heading("Spare Parts / Materials Used"),
+    registerTable(FRC_SPARE_PARTS_COLUMNS, data.spareParts as unknown as Record<string, string>[])
+  );
+  blocks.push(new Paragraph({ text: "" }), textP(FRC_CERTIFICATION_STATEMENT, { size: 14, color: MUTED }));
+  blocks.push(new Paragraph({ text: "" }), ...issuedByLine(cert));
+  blocks.push(await frcSignatureBlock(cert, data));
+  return blocks;
 }
 
 // ---- per-kind section builders ----
@@ -1256,7 +1361,9 @@ function downloadBlob(blob: Blob, filename: string) {
 export async function exportCertificateDocx(cert: InspectionCertificate, config: EquipmentTypeConfig): Promise<void> {
   const children: Block[] = [];
 
-  if (config.kind === "ffe" && cert.ffe) {
+  if (cert.frcServiceReport) {
+    children.push(...(await buildFRCServiceReportSection(cert, cert.frcServiceReport)));
+  } else if (config.kind === "ffe" && cert.ffe) {
     children.push(...(await buildFFESection(cert, cert.ffe)));
   } else if (config.kind === "loosegear" && cert.looseGear) {
     children.push(...(await buildLooseGearSection(cert, cert.looseGear)));

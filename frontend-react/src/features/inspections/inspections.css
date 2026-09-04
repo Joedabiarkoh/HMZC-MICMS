@@ -274,7 +274,22 @@ table.insp-page-frame > tfoot > tr > td {
      is what was producing the double-image artifact in the first
      place; consistency (and no stretching) took priority. */
   background-repeat: repeat-y; background-position: center top;
-  background-size: auto 1032px; opacity: .05; pointer-events: none; z-index: 0;
+  /* Requested directly: "reduce the size of the background logo to
+     110% and let it appear a bit more than it is now." background-size
+     stays height-locked to exactly one page (see this whole comment's
+     own history above — that's what keeps it to one full,
+     undistorted icon per page) — the actual on-page shrink to ~110% of
+     the certificate's content width (was ~203%) is baked into the
+     watermarkIcon.ts asset itself instead: the same icon now sits
+     inside a taller transparent SVG canvas, so scaling that canvas'
+     fixed height to one page also shrinks the icon's own displayed
+     size, without touching the repeat-y/one-per-page math at all — see
+     that file's own comment for the exact numbers. opacity nudged up
+     from .05 to .08 to make it "appear a bit more," then back down
+     slightly to .06 on later request ("reduce the visibility small") —
+     still a bit more visible than the original .05, just not as much
+     as .08 turned out to be. */
+  background-size: auto 1032px; opacity: .06; pointer-events: none; z-index: 0;
   /* Requested directly: "the stamp is not showing." Chrome (and most
      browsers) suppress CSS background-image/background-color in
      print output by default unless the user has "Background

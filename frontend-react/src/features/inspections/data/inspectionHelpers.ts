@@ -1,12 +1,16 @@
 import { INSPECTION_TYPES } from "./inspectionChecklists";
 import { FFE_CERT_TYPES } from "./ffeCertTypes";
 import { CALIBRATION_CERT_TYPES } from "./calibrationCertTypes";
+import { FRC_COMPONENT_ROWS, FRC_FUNCTION_CHECKS } from "./frcServiceReport";
 import {
   CalibrationData,
   ChecklistSection,
   ChecklistSectionDef,
   EquipmentTypeKey,
   FFEChecklistResult,
+  FRCCheckAnswer,
+  FRCServiceReportData,
+  FRCSparePartRow,
   InspectionCertificate,
   LooseGearData,
   LooseGearDefectReportData,
@@ -109,7 +113,19 @@ const LOOSE_GEAR_SUBTYPE_TAGS: Partial<Record<LooseGearSubTypeId, string>> = {
   defect_report: "DR",
 };
 
-export function generateCertNo(type: EquipmentTypeKey, existingNumbers: Set<string>, looseGearSubType?: LooseGearSubTypeId): string {
+export function generateCertNo(
+  type: EquipmentTypeKey,
+  existingNumbers: Set<string>,
+  looseGearSubType?: LooseGearSubTypeId,
+  // Requested directly: give the FRC Service Report its own
+  // recognizable prefix instead of sharing Rescue Boat's flat "RB" tag
+  // — same reasoning as LOOSE_GEAR_SUBTYPE_TAGS above, easier to find/
+  // sort by report type in the Certificate Log. Only ever true when
+  // InspectionWorkspace.tsx's "Report Type" toggle has switched a
+  // Rescue Boat draft to the FRC Service Report — see
+  // InspectionCertificate.frcServiceReport's own comment.
+  frcService?: boolean
+): string {
   const d = new Date();
   const ymd = `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, "0")}${String(d.getDate()).padStart(2, "0")}`;
   const tags: Record<EquipmentTypeKey, string> = {
@@ -121,7 +137,10 @@ export function generateCertNo(type: EquipmentTypeKey, existingNumbers: Set<stri
     // brand-new certificate anymore.
     photo_report: "PR", ffe_photo_report: "FPR", calibration_photo_report: "CPR",
   };
-  const tag = (type === "loosegear" && looseGearSubType && LOOSE_GEAR_SUBTYPE_TAGS[looseGearSubType]) || tags[type];
+  const tag =
+    (type === "loosegear" && looseGearSubType && LOOSE_GEAR_SUBTYPE_TAGS[looseGearSubType]) ||
+    (type === "rescueboat" && frcService && "FRC") ||
+    tags[type];
   const count = Array.from(existingNumbers).filter((k) => k.includes(ymd) && k.includes(tag)).length + 1;
   // Requested directly: "CERT/HMZCS/RB/20260807-001 this certificate
   // number for all certificate take out the (S)" — was HMZCS, now
@@ -361,6 +380,18 @@ export const DEFECT_REPORT_COLUMNS: RegisterColumn[] = [
     disabledPlaceholder: "N/A — immediate danger",
   },
   { key: "repairParticulars", label: "Repair/Renewal/Alteration Particulars" },
+];
+
+// The FRC Service Report's own "Spare Parts / Materials Used" table —
+// genuinely open-ended (unlike its fixed Components Removed/Installed
+// table, see FRC_COMPONENT_ROWS in frcServiceReport.ts), so it reuses
+// the same RegisterEditTable/RegisterPreviewTable infrastructure the
+// two Loose Gear registers above already do.
+export const FRC_SPARE_PARTS_COLUMNS: RegisterColumn[] = [
+  { key: "description", label: "Description" },
+  { key: "partNo", label: "Part No." },
+  { key: "qty", label: "Qty" },
+  { key: "unit", label: "Unit" },
 ];
 
 function freshLooseGearStatutoryAnswers(): LooseGearStatutoryAnswers {
@@ -623,4 +654,40 @@ export function freshLooseGearState(subTypeId: LooseGearData["subType"] = "stand
   else if (subTypeId === "et") base.et = freshETData();
   else if (subTypeId === "defect_report") base.defectReport = freshLooseGearDefectReportData();
   return base;
+}
+
+export function freshFRCSparePartRow(): FRCSparePartRow {
+  return { description: "", partNo: "", qty: "", unit: "" };
+}
+
+// Built when InspectionWorkspace.tsx's "Report Type" toggle switches a
+// Rescue Boat draft to the FRC Service Report — see
+// InspectionCertificate.frcServiceReport's own comment for why this is
+// a data-presence switch rather than a sub-type selector nested inside
+// an existing data object the way freshLooseGearState above is.
+export function freshFRCServiceReportState(): FRCServiceReportData {
+  return {
+    subType: "frc_service",
+    serviceType: "",
+    attendingEngineer: "",
+    nextServiceDue: "",
+    clientOwner: "",
+    vesselType: "",
+    contactPerson: "",
+    frcMakeModel: "",
+    hullSerialNo: "",
+    manufacturer: "",
+    yearOfManufacture: "",
+    seatingCapacity: "",
+    davitLaunchingAppliance: "",
+    dateOfLastService: "",
+    classFlag: "",
+    components: FRC_COMPONENT_ROWS.map((c) => ({ key: c.key, oldSerial: "", newSerial: "", qty: "", expiry: "" })),
+    checks: Object.fromEntries(FRC_FUNCTION_CHECKS.map((c) => [c.key, "" as FRCCheckAnswer])),
+    findingsRemarks: "",
+    recommendations: "",
+    spareParts: [freshFRCSparePartRow(), freshFRCSparePartRow()],
+    clientRepName: "",
+    clientRepSig: "",
+  };
 }

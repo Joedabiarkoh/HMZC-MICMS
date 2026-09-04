@@ -147,7 +147,17 @@ table.line-items-table .remove-btn { background: none; border: none; color: var(
      so every repeat-y tile is exactly one page tall — one full,
      undistorted icon per page, never a partial second one. */
   background-repeat: repeat-y; background-position: center top;
-  background-size: auto 1032px; opacity: .05; pointer-events: none; z-index: 0;
+  /* Requested directly: "reduce the size of the background logo to
+     110% and let it appear a bit more than it is now." background-size
+     stays height-locked to one page (see this rule's own history just
+     above) — the actual on-page shrink to ~110% width is baked into
+     the watermarkIcon.ts asset itself now (a taller transparent canvas
+     around the same icon, see that file's own comment), not a change
+     here. opacity nudged up from .05 to .08, then back down slightly to
+     .06 on later request ("reduce the visibility small") — still a bit
+     more visible than the original .05, just not as much as .08 turned
+     out to be. */
+  background-size: auto 1032px; opacity: .06; pointer-events: none; z-index: 0;
   /* Requested directly: "the stamp is not showing" — see
      inspections.css's own comment on .insp-cert-page::before for the
      full reasoning (Chrome suppresses background-image in print by

@@ -165,6 +165,19 @@ export interface InspectionCertificate {
   // Calibration fields (type === "calibration")
   calibration?: CalibrationData;
 
+  // Fast Rescue Craft (FRC) Service Report — an extra selectable
+  // report available specifically for Rescue Boat (type ===
+  // "rescueboat") certificates, alongside the usual Statement/
+  // Checklist flow every "boat"-kind type shares. Requested directly:
+  // incorporate HMZC's own HMZC_FRC_Service_Report_Template.docx.
+  // Deliberately data-presence-gated (mirrors ffe?/looseGear?/
+  // calibration? above) rather than a distinct EquipmentTypeConfig
+  // `kind`, since "boat" is shared by lifeboat/rescueboat/freefall_*
+  // and this report only ever makes sense for a Rescue Boat — see the
+  // "Report Type" toggle in InspectionWorkspace.tsx that sets/clears
+  // this field without changing `type` or `kind` at all.
+  frcServiceReport?: FRCServiceReportData;
+
   remarks: string;
   remarksAuto: boolean;
   outstanding: Record<string, string>;
@@ -725,6 +738,62 @@ export interface LooseGearData {
   vt?: VTData;
   et?: ETData;
   defectReport?: LooseGearDefectReportData;
+}
+
+// ---- Fast Rescue Craft (FRC) Service Report — see
+// data/frcServiceReport.ts for the fixed component/check-item lists
+// and InspectionCertificate.frcServiceReport's own comment above for
+// how a certificate carries this. ----
+export type FRCServiceType = "installation" | "replacement" | "";
+export type FRCCheckAnswer = "yes" | "no" | "na" | "";
+
+export interface FRCComponentRow {
+  key: string; // one of FRC_COMPONENT_ROWS' own keys (data/frcServiceReport.ts)
+  oldSerial: string;
+  newSerial: string;
+  qty: string;
+  expiry: string;
+}
+
+export interface FRCSparePartRow {
+  description: string;
+  partNo: string;
+  qty: string;
+  unit: string;
+}
+
+export interface FRCServiceReportData {
+  // Always "frc_service" — not a real choice, just so the backend's
+  // Certificate.sub_type / this app's reportTypeLabel resolvers (which
+  // both key off a `payload.<field>.subType` string, see
+  // models/certificate.py) can label this the same way every other
+  // sub-typed certificate already is.
+  subType: "frc_service";
+  serviceType: FRCServiceType;
+  attendingEngineer: string;
+  nextServiceDue: string;
+  clientOwner: string;
+  vesselType: string;
+  contactPerson: string;
+  frcMakeModel: string;
+  hullSerialNo: string;
+  manufacturer: string;
+  yearOfManufacture: string;
+  seatingCapacity: string;
+  davitLaunchingAppliance: string;
+  dateOfLastService: string;
+  classFlag: string;
+  components: FRCComponentRow[];
+  checks: Record<string, FRCCheckAnswer>;
+  findingsRemarks: string;
+  recommendations: string;
+  spareParts: FRCSparePartRow[];
+  // Engineer name/signature reuse cert.engineerName/engineerSig, same
+  // as every other certificate type's technician role — only the
+  // "Client Representative" side (this template's second signer, in
+  // place of the usual Master/Captain) needs its own fields here.
+  clientRepName: string;
+  clientRepSig: string;
 }
 
 export interface EquipmentTypeConfig {
