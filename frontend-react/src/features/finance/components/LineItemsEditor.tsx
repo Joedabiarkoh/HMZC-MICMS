@@ -1,14 +1,18 @@
-import { LineItem } from "../types/finance.types";
+import { DiscountType, LineItem } from "../types/finance.types";
 
 interface Props {
   lineItems: LineItem[];
   onChange: (items: LineItem[]) => void;
 }
 
+function lineDiscount(item: LineItem): number {
+  const gross = item.quantity * item.unit_price;
+  return item.discount_type === "amount" ? item.discount_amount : gross * (item.discount_percent / 100);
+}
+
 function recompute(item: LineItem): LineItem {
   const gross = item.quantity * item.unit_price;
-  const discount = gross * (item.discount_percent / 100);
-  return { ...item, line_total: Math.max(0, gross - discount) };
+  return { ...item, line_total: Math.max(0, gross - lineDiscount(item)) };
 }
 
 /**
@@ -16,14 +20,27 @@ function recompute(item: LineItem): LineItem {
  * inputted by the person issuing and the price should come along when
  * the item is selected, but the person issuing should be able to change
  * the price if the need be and offer discount incase required" —
- * quantity, unit_price, and discount_percent are all editable per line,
+ * quantity, unit_price, and discount are all editable per line,
  * regardless of what the catalog said when the item was picked.
+ *
+ * Requested directly, later: "the invoice and quotation discount is
+ * only accepting discount based on percentages, allow lumpsum discount
+ * when need be" — discount_type picks which of discount_percent/
+ * discount_amount is actually applied (see recompute above); both
+ * values stay editable regardless of which is selected, so toggling
+ * back to the other type doesn't lose whatever was typed into it.
  */
 export default function LineItemsEditor({ lineItems, onChange }: Props) {
   function updateField(index: number, field: keyof LineItem, value: string) {
     const next = [...lineItems];
-    const numeric = field === "quantity" || field === "unit_price" || field === "discount_percent";
+    const numeric = field === "quantity" || field === "unit_price" || field === "discount_percent" || field === "discount_amount";
     next[index] = recompute({ ...next[index], [field]: numeric ? Number(value) || 0 : value });
+    onChange(next);
+  }
+
+  function updateDiscountType(index: number, discountType: DiscountType) {
+    const next = [...lineItems];
+    next[index] = recompute({ ...next[index], discount_type: discountType });
     onChange(next);
   }
 
@@ -35,11 +52,11 @@ export default function LineItemsEditor({ lineItems, onChange }: Props) {
     <table className="line-items-table">
       <thead>
         <tr>
-          <th style={{ width: "12%" }}>Code</th>
-          <th style={{ width: "32%" }}>Description</th>
-          <th style={{ width: "10%" }}>Qty</th>
-          <th style={{ width: "14%" }}>Unit Price</th>
-          <th style={{ width: "12%" }}>Discount %</th>
+          <th style={{ width: "11%" }}>Code</th>
+          <th style={{ width: "28%" }}>Description</th>
+          <th style={{ width: "9%" }}>Qty</th>
+          <th style={{ width: "13%" }}>Unit Price</th>
+          <th style={{ width: "19%" }}>Discount</th>
           <th style={{ width: "14%" }}>Line Total</th>
           <th style={{ width: "6%" }}></th>
         </tr>
@@ -58,7 +75,31 @@ export default function LineItemsEditor({ lineItems, onChange }: Props) {
               <input type="number" min="0" step="0.01" value={item.unit_price} onChange={(e) => updateField(i, "unit_price", e.target.value)} aria-label={`Unit price for line ${i + 1}`} />
             </td>
             <td>
-              <input type="number" min="0" max="100" step="0.1" value={item.discount_percent} onChange={(e) => updateField(i, "discount_percent", e.target.value)} aria-label={`Discount percent for line ${i + 1}`} />
+              <div className="line-discount-cell">
+                <select
+                  value={item.discount_type}
+                  onChange={(e) => updateDiscountType(i, e.target.value as DiscountType)}
+                  aria-label={`Discount type for line ${i + 1}`}
+                >
+                  <option value="percent">%</option>
+                  <option value="amount">Flat</option>
+                </select>
+                {item.discount_type === "amount" ? (
+                  <input
+                    type="number" min="0" step="0.01"
+                    value={item.discount_amount}
+                    onChange={(e) => updateField(i, "discount_amount", e.target.value)}
+                    aria-label={`Discount amount for line ${i + 1}`}
+                  />
+                ) : (
+                  <input
+                    type="number" min="0" max="100" step="0.1"
+                    value={item.discount_percent}
+                    onChange={(e) => updateField(i, "discount_percent", e.target.value)}
+                    aria-label={`Discount percent for line ${i + 1}`}
+                  />
+                )}
+              </div>
             </td>
             <td>${item.line_total.toFixed(2)}</td>
             <td>
@@ -81,13 +122,15 @@ export function newLineFromItem(item: { id: number; code: string; name: string; 
     description: item.name,
     quantity: 1,
     unit_price: item.unit_price,
+    discount_type: "percent",
     discount_percent: 0,
+    discount_amount: 0,
     line_total: 0,
   });
 }
 
 export function computeTotals(lineItems: LineItem[]) {
   const subtotal = lineItems.reduce((sum, item) => sum + item.quantity * item.unit_price, 0);
-  const discountTotal = lineItems.reduce((sum, item) => sum + item.quantity * item.unit_price * (item.discount_percent / 100), 0);
+  const discountTotal = lineItems.reduce((sum, item) => sum + lineDiscount(item), 0);
   return { subtotal, discountTotal, total: subtotal - discountTotal };
 }

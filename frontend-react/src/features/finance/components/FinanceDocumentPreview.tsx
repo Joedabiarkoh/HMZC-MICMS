@@ -149,7 +149,11 @@ export default function FinanceDocumentPreview({
               <td>{item.description}</td>
               <td>{item.quantity}</td>
               <td>{money(item.unit_price)}</td>
-              <td>{item.discount_percent > 0 ? `${item.discount_percent}%` : "—"}</td>
+              <td>
+                {item.discount_type === "amount"
+                  ? (item.discount_amount > 0 ? money(item.discount_amount) : "—")
+                  : (item.discount_percent > 0 ? `${item.discount_percent}%` : "—")}
+              </td>
               <td>{money(item.line_total)}</td>
             </tr>
           ))}

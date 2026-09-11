@@ -90,7 +90,18 @@ class LineItem(BaseModel):
     description: str
     quantity: float
     unit_price: float
+    # Requested directly: "the invoice and quotation discount is only
+    # accepting discount based on percentages, allow lumpsum discount
+    # when need be" — discount_type picks which of discount_percent/
+    # discount_amount the frontend actually applied to line_total; both
+    # are stored regardless of which is active so reopening the
+    # document for editing doesn't lose whichever value isn't currently
+    # selected. Defaults to "percent" — the only discount this shape
+    # ever supported before — so it stays backward compatible with any
+    # in-flight client that hasn't picked up the new field yet.
+    discount_type: str = "percent"
     discount_percent: float = 0
+    discount_amount: float = 0
     line_total: float
 
 
