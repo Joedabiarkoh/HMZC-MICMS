@@ -34,6 +34,16 @@ class Quotation(BaseModel):
 
     line_items = Column(JSON, nullable=False, default=list)
     subtotal = Column(Float, nullable=False, default=0)
+    # Requested directly: "can we make the discount lumpsum for all the
+    # invoice and not each line item" — a second discount, applied to
+    # the whole document on top of whatever each line item already
+    # discounts (see LineItem.discount_type's own comment for that
+    # per-line version, added first). Same percent/amount duality;
+    # discount_total below is the two combined, still the one number
+    # the printed document and Finance Dashboard actually sum/display.
+    overall_discount_type = Column(String, nullable=False, default="percent")
+    overall_discount_percent = Column(Float, nullable=False, default=0)
+    overall_discount_amount = Column(Float, nullable=False, default=0)
     discount_total = Column(Float, nullable=False, default=0)
     total = Column(Float, nullable=False, default=0)
     # Every stored amount above (line items, subtotal, discount_total,
@@ -83,6 +93,10 @@ class Invoice(BaseModel):
 
     line_items = Column(JSON, nullable=False, default=list)
     subtotal = Column(Float, nullable=False, default=0)
+    # See Quotation.overall_discount_type's own comment above.
+    overall_discount_type = Column(String, nullable=False, default="percent")
+    overall_discount_percent = Column(Float, nullable=False, default=0)
+    overall_discount_amount = Column(Float, nullable=False, default=0)
     discount_total = Column(Float, nullable=False, default=0)
     total = Column(Float, nullable=False, default=0)
     # Same USD-is-the-stored-truth design as Quotation.currency above.
