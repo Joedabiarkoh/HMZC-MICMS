@@ -63,14 +63,27 @@ export interface FinanceItem {
   created_at: string;
 }
 
+// Requested directly: "the invoice and quotation discount is only
+// accepting discount based on percentages, allow lumpsum discount
+// when need be" — a line can now discount by either a percentage of
+// its own gross (quantity * unit_price) or a flat currency amount,
+// picked per line via discount_type. Both discount_percent and
+// discount_amount stay on the item even when the other type is
+// selected (so switching back and forth doesn't lose whichever value
+// isn't currently active) — only the one discount_type points at is
+// ever applied to line_total.
+export type DiscountType = "percent" | "amount";
+
 export interface LineItem {
   finance_item_id: number | null;
   code: string;
   description: string;
   quantity: number;
   unit_price: number; // may differ from the catalog price — the issuer can override it
-  discount_percent: number; // 0-100, per-line discount
-  line_total: number; // quantity * unit_price * (1 - discount_percent/100)
+  discount_type: DiscountType;
+  discount_percent: number; // 0-100, used when discount_type === "percent"
+  discount_amount: number; // flat currency amount, used when discount_type === "amount"
+  line_total: number; // quantity * unit_price, minus whichever discount is active
 }
 
 export interface FinanceUser {

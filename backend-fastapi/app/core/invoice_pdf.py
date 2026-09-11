@@ -297,12 +297,22 @@ def build_document_pdf(doc, kind: str, company: Optional[NotificationSettings]) 
     header_row = [Paragraph(f"<b>{h}</b>", _STYLE_NORMAL) for h in ["Code", "Description", "Qty", "Unit Price", "Discount", "Line Total"]]
     rows = [header_row]
     for li in (doc.line_items or []):
+        # Requested directly: "allow lumpsum discount when need be" —
+        # discount_type (added alongside discount_amount; see
+        # schemas.finance.LineItem) picks which discount actually
+        # applied to this row. Missing on any line saved before this
+        # field existed, so it defaults to "percent" here too, matching
+        # that same backward-compatible default.
+        if li.get("discount_type") == "amount":
+            discount_display = _money(float(li.get("discount_amount", 0)), currency, exchange_rate) if li.get("discount_amount") else "—"
+        else:
+            discount_display = f"{li.get('discount_percent', 0)}%" if li.get("discount_percent") else "—"
         rows.append([
             Paragraph(str(li.get("code", "")), _STYLE_NORMAL),
             Paragraph(str(li.get("description", "")), _STYLE_NORMAL),
             Paragraph(str(li.get("quantity", "")), _STYLE_NORMAL),
             Paragraph(_money(float(li.get('unit_price', 0)), currency, exchange_rate), _STYLE_NORMAL),
-            Paragraph(f"{li.get('discount_percent', 0)}%" if li.get("discount_percent") else "—", _STYLE_NORMAL),
+            Paragraph(discount_display, _STYLE_NORMAL),
             Paragraph(_money(float(li.get('line_total', 0)), currency, exchange_rate), _STYLE_NORMAL),
         ])
     items_table = Table(rows, colWidths=[60, 195, 30, 60, 55, 60], repeatRows=1)
