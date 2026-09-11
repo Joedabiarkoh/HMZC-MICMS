@@ -134,3 +134,27 @@ export function computeTotals(lineItems: LineItem[]) {
   const discountTotal = lineItems.reduce((sum, item) => sum + lineDiscount(item), 0);
   return { subtotal, discountTotal, total: subtotal - discountTotal };
 }
+
+// Requested directly: "can we make the discount lumpsum for all the
+// invoice and not each line item" — an additional, document-level
+// discount on top of computeTotals' per-line ones (not a replacement:
+// a line can still carry its own discount for a specific catalog item
+// while the invoice as a whole also gets one flat/percent cut).
+// Applied to what's left AFTER line-item discounts, mirroring how a
+// storewide discount stacks on top of item-level sale prices rather
+// than both being computed off the original, undiscounted subtotal —
+// clamped so it can't push the total negative if someone enters a
+// flat amount bigger than what's left.
+export function computeDocumentTotals(
+  lineItems: LineItem[],
+  overallDiscountType: DiscountType,
+  overallDiscountPercent: number,
+  overallDiscountAmount: number
+) {
+  const { subtotal, discountTotal: lineDiscountTotal } = computeTotals(lineItems);
+  const afterLineDiscounts = Math.max(0, subtotal - lineDiscountTotal);
+  const rawOverallDiscount = overallDiscountType === "amount" ? overallDiscountAmount : afterLineDiscounts * (overallDiscountPercent / 100);
+  const overallDiscount = Math.min(Math.max(0, rawOverallDiscount), afterLineDiscounts);
+  const discountTotal = lineDiscountTotal + overallDiscount;
+  return { subtotal, discountTotal, total: subtotal - discountTotal };
+}

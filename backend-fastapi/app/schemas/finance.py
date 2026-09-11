@@ -115,6 +115,12 @@ class QuotationCreate(BaseModel):
     status: str = "draft"
     line_items: List[LineItem]
     subtotal: float
+    # See LineItem.discount_type's own comment — same idea, one level
+    # up: a discount applied to the whole document, on top of whatever
+    # the line items already discount, not a replacement for them.
+    overall_discount_type: str = "percent"
+    overall_discount_percent: float = 0
+    overall_discount_amount: float = 0
     discount_total: float
     total: float
     currency: str = "USD"
@@ -146,6 +152,9 @@ class QuotationResponse(BaseModel):
     status: str
     line_items: List[Dict[str, Any]]
     subtotal: float
+    overall_discount_type: str = "percent"
+    overall_discount_percent: float = 0
+    overall_discount_amount: float = 0
     discount_total: float
     total: float
     currency: str = "USD"
@@ -171,6 +180,9 @@ class InvoiceCreate(BaseModel):
     status: str = "draft"
     line_items: List[LineItem]
     subtotal: float
+    overall_discount_type: str = "percent"
+    overall_discount_percent: float = 0
+    overall_discount_amount: float = 0
     discount_total: float
     total: float
     currency: str = "USD"
@@ -202,6 +214,9 @@ class InvoiceResponse(BaseModel):
     status: str
     line_items: List[Dict[str, Any]]
     subtotal: float
+    overall_discount_type: str = "percent"
+    overall_discount_percent: float = 0
+    overall_discount_amount: float = 0
     discount_total: float
     total: float
     currency: str = "USD"

@@ -107,6 +107,9 @@ export interface QuotationSavePayload {
   status: string;
   line_items: LineItem[];
   subtotal: number;
+  overall_discount_type: string;
+  overall_discount_percent: number;
+  overall_discount_amount: number;
   discount_total: number;
   total: number;
   currency: string;
@@ -149,6 +152,9 @@ export interface InvoiceSavePayload {
   status: string;
   line_items: LineItem[];
   subtotal: number;
+  overall_discount_type: string;
+  overall_discount_percent: number;
+  overall_discount_amount: number;
   discount_total: number;
   total: number;
   currency: string;

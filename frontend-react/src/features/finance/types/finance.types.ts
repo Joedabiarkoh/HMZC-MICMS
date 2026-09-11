@@ -102,7 +102,17 @@ export interface QuotationDoc {
   status: "draft" | "sent" | "accepted" | "rejected";
   line_items: LineItem[];
   subtotal: number;
-  discount_total: number;
+  // Requested directly: "can we make the discount lumpsum for all the
+  // invoice and not each line item" — a second, document-level
+  // discount, applied on top of whatever the line items already
+  // discount (see computeDocumentTotals in LineItemsEditor.tsx), not a
+  // replacement for per-line discounts. Same percent/amount duality as
+  // LineItem's own discount fields, and same reasoning for storing
+  // both values regardless of which type is active.
+  overall_discount_type: DiscountType;
+  overall_discount_percent: number;
+  overall_discount_amount: number;
+  discount_total: number; // line-item discounts + overall_discount, combined
   total: number;
   // Every amount above is always USD — see currencies.ts's own comment.
   // currency/exchange_rate (units of `currency` per 1 USD) are display-
@@ -134,7 +144,11 @@ export interface InvoiceDoc {
   status: "draft" | "issued" | "paid" | "void";
   line_items: LineItem[];
   subtotal: number;
-  discount_total: number;
+  // See QuotationDoc's own comment on these three fields.
+  overall_discount_type: DiscountType;
+  overall_discount_percent: number;
+  overall_discount_amount: number;
+  discount_total: number; // line-item discounts + overall_discount, combined
   total: number;
   currency: string;
   exchange_rate: number;

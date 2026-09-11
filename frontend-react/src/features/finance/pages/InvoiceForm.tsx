@@ -3,13 +3,14 @@ import { useNavigate, useParams } from "react-router-dom";
 import "../finance.css";
 import { useAuth } from "../../../context/AuthContext";
 import ItemPicker from "../components/ItemPicker";
-import LineItemsEditor, { newLineFromItem, computeTotals } from "../components/LineItemsEditor";
+import LineItemsEditor, { newLineFromItem, computeDocumentTotals } from "../components/LineItemsEditor";
+import OverallDiscountField from "../components/OverallDiscountField";
 import FinanceDocumentPreview from "../components/FinanceDocumentPreview";
 import InvoiceAttachments from "../components/InvoiceAttachments";
 import StagedInvoiceAttachments, { StagedAttachment } from "../components/StagedInvoiceAttachments";
 import { listInvoices, saveInvoice, deleteInvoice, openInvoicePdf, uploadInvoiceAttachment, DocumentConflictError } from "../services/finance.api";
 import { queueInvoiceSave } from "../../../offline/syncQueue";
-import { FinanceItem, LineItem, InvoiceDoc } from "../types/finance.types";
+import { DiscountType, FinanceItem, LineItem, InvoiceDoc } from "../types/finance.types";
 import { confirmAction } from "../../../components/ConfirmDialog";
 import { hasPermission, PERM } from "../../auth/types/auth.types";
 import { CURRENCIES, formatMoney } from "../data/currencies";
@@ -40,6 +41,13 @@ export default function InvoiceForm() {
   const [imoNo, setImoNo] = useState("");
   const [status, setStatus] = useState("draft");
   const [lineItems, setLineItems] = useState<LineItem[]>([]);
+  // Requested directly: "can we make the discount lumpsum for all the
+  // invoice and not each line item" — a document-level discount on top
+  // of whatever the line items above already discount, not a
+  // replacement for them. See computeDocumentTotals/OverallDiscountField.
+  const [overallDiscountType, setOverallDiscountType] = useState<DiscountType>("percent");
+  const [overallDiscountPercent, setOverallDiscountPercent] = useState(0);
+  const [overallDiscountAmount, setOverallDiscountAmount] = useState(0);
   // Same design as QuotationForm.tsx — every amount above stays in USD;
   // currency/exchangeRate only affect what's shown in the preview/PDF.
   const [currency, setCurrency] = useState("USD");
@@ -66,6 +74,9 @@ export default function InvoiceForm() {
       setImoNo(found.imo_no || "");
       setStatus(found.status);
       setLineItems(found.line_items);
+      setOverallDiscountType(found.overall_discount_type || "percent");
+      setOverallDiscountPercent(found.overall_discount_percent || 0);
+      setOverallDiscountAmount(found.overall_discount_amount || 0);
       setCurrency(found.currency || "USD");
       setExchangeRate(found.exchange_rate || 1);
       setVersion(found.version);
@@ -80,7 +91,7 @@ export default function InvoiceForm() {
   // already checked FIN_EDIT for its own canEdit prop) and with the
   // backend, which independently re-checks _can_edit on save regardless.
   const canEdit = hasPermission(user, PERM.FIN_EDIT) && (!invoiceNo || user?.role === "admin" || issuedById === user?.id);
-  const { subtotal, discountTotal, total } = computeTotals(lineItems);
+  const { subtotal, discountTotal, total } = computeDocumentTotals(lineItems, overallDiscountType, overallDiscountPercent, overallDiscountAmount);
 
   function addItem(item: FinanceItem) {
     setLineItems((prev) => [...prev, newLineFromItem(item)]);
@@ -97,6 +108,9 @@ export default function InvoiceForm() {
       status: newStatus || status,
       line_items: lineItems,
       subtotal,
+      overall_discount_type: overallDiscountType,
+      overall_discount_percent: overallDiscountPercent,
+      overall_discount_amount: overallDiscountAmount,
       discount_total: discountTotal,
       total,
       currency,
@@ -276,6 +290,18 @@ export default function InvoiceForm() {
             <div className="finance-panel" style={{ marginBottom: 16 }}>
               <h2 style={{ marginTop: 0 }}>Line Items</h2>
               <LineItemsEditor lineItems={lineItems} onChange={setLineItems} />
+              <div style={{ maxWidth: 260, marginTop: 10 }}>
+                <OverallDiscountField
+                  discountType={overallDiscountType}
+                  discountPercent={overallDiscountPercent}
+                  discountAmount={overallDiscountAmount}
+                  onChange={(patch) => {
+                    if (patch.discountType !== undefined) setOverallDiscountType(patch.discountType);
+                    if (patch.discountPercent !== undefined) setOverallDiscountPercent(patch.discountPercent);
+                    if (patch.discountAmount !== undefined) setOverallDiscountAmount(patch.discountAmount);
+                  }}
+                />
+              </div>
             </div>
           )}
           <FinanceDocumentPreview
