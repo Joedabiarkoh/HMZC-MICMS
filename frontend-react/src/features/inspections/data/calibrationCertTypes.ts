@@ -270,15 +270,22 @@ export const CALIBRATION_CERT_TYPES: CalibrationSubTypeConfig[] = [
     ],
     itemColumns: UNIT_UNDER_TEST_COLS,
     itemTableLabel: "Unit(s) Under Test",
+    // Requested directly: "the pressure calibrator gauge is missing
+    // the deviation on the calibration result section include that" —
+    // every sibling calibration sub-type's own results table already
+    // has one (Pressure Calibrator/Hand Pump's "Error", Temperature
+    // Calibrator's "Deviation (°C)"); this one only had Pressure/
+    // Indication with nothing showing how far off the reading was.
     items2Columns: [
       { key: "pressure", label: "Pressure" }, { key: "indication", label: "Indication" },
+      { key: "deviation", label: "Deviation" },
     ],
     items2Label: "Calibration Results",
     defaultItems2: [
-      { pressure: "0.00 BAR", indication: "0.00 BAR" },
-      { pressure: "20.00 BAR", indication: "20.0 BAR" },
-      { pressure: "40.00 BAR", indication: "40.0 BAR" },
-      { pressure: "60.00 BAR", indication: "60.0 BAR" },
+      { pressure: "0.00 BAR", indication: "0.00 BAR", deviation: "0.00" },
+      { pressure: "20.00 BAR", indication: "20.0 BAR", deviation: "0.00" },
+      { pressure: "40.00 BAR", indication: "40.0 BAR", deviation: "0.00" },
+      { pressure: "60.00 BAR", indication: "60.0 BAR", deviation: "0.00" },
     ],
     note: "Hand-held pressure test pump pressure tested — instrument found to have no leak or drop in pressure.",
     validityYears: 1,
