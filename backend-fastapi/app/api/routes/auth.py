@@ -144,7 +144,7 @@ def login(
             detail="Your account is pending administrator approval, or has been deactivated. Contact an administrator.",
         )
 
-    access_token = create_access_token({"sub": str(user.id)})
+    access_token = create_access_token({"sub": str(user.id), "tv": user.token_version})
     # Not in the pasted chat output — a login is one of the few events
     # worth a real audit trail entry on a certification platform (see
     # app/core/audit.py for what's scoped in vs deliberately left out).
@@ -344,6 +344,16 @@ def deactivate_user(
     if user.id == _admin.id:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="You can't deactivate your own account.")
     user.is_active = False
+    # Requested directly, from a security review: deactivating used to
+    # only block a NEW login — a token issued before the deactivation
+    # stayed valid until its own natural expiry regardless. Bumping
+    # token_version (see its own comment on User) makes an already-
+    # issued token stop working on this account's very next request,
+    # which matters most for exactly the scenario deactivate exists
+    # for: an admin has just discovered a compromised or departing
+    # account and wants it locked out NOW, not in up to
+    # ACCESS_TOKEN_EXPIRE_MINUTES.
+    user.token_version += 1
     db.commit()
     db.refresh(user)
     record_audit(db, request, "user.deactivated", user_id=_admin.id, resource_type="user", resource_id=str(user.id))
@@ -421,6 +431,11 @@ def reset_user_password(
     temp_password = generate_temporary_password()
     user.hashed_password = hash_password(temp_password)
     user.must_change_password = True
+    # Whatever token this account's old password authenticated stays
+    # valid otherwise — see User.token_version's own comment. A forced
+    # reset should mean the old credential (and anything already signed
+    # in against it) stops working right away.
+    user.token_version += 1
     db.commit()
     db.refresh(user)
 
@@ -472,6 +487,9 @@ def forgot_password(
         temp_password = generate_temporary_password()
         user.hashed_password = hash_password(temp_password)
         user.must_change_password = True
+        # See User.token_version's own comment — same reasoning as
+        # reset_user_password's admin-triggered version just above.
+        user.token_version += 1
         db.commit()
         db.refresh(user)
 
@@ -508,10 +526,41 @@ def change_password(
 
     current_user.hashed_password = hash_password(payload.new_password)
     current_user.must_change_password = False
+    # See User.token_version's own comment. This response still
+    # succeeds normally — get_current_user already validated the token
+    # this request came in on before this handler ran — but that SAME
+    # token fails the version check on the very next request. That's
+    # deliberate, standard practice for a password change (if the old
+    # token had leaked, this is what actually revokes it), and already
+    # lands gracefully: api/axios.ts's response interceptor treats any
+    # 401 as an expired session and bounces to sign-in with a clear
+    # message, not a silent broken page.
+    current_user.token_version += 1
     db.commit()
     db.refresh(current_user)
     record_audit(db, request, "user.password_changed", user_id=current_user.id, resource_type="user", resource_id=str(current_user.id))
     return current_user
+
+
+# Added alongside User.token_version, from a security review: there was
+# no way for someone to invalidate a token they suspected was stolen
+# (a device lost/left unlocked, a token they noticed logged somewhere
+# it shouldn't be) without also changing their password. This bumps
+# token_version directly — deliberately including THIS request's own
+# token, same reasoning as change_password above (the request already
+# succeeded by the time the bump happens; the token just can't be used
+# again after). Self-service, no admin needed, since this only ever
+# affects the caller's own account.
+@router.post("/logout-everywhere")
+def logout_everywhere(
+    request: Request,
+    db: Session = Depends(get_database),
+    current_user: User = Depends(get_current_user),
+):
+    current_user.token_version += 1
+    db.commit()
+    record_audit(db, request, "user.logout_everywhere", user_id=current_user.id, resource_type="user", resource_id=str(current_user.id))
+    return {"detail": "Signed out of every device. Sign in again to continue."}
 
 
 # Not in the pasted chat output — the mechanism behind "others with
