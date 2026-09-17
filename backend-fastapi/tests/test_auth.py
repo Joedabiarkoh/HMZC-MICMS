@@ -333,6 +333,71 @@ def test_logout_everywhere_revokes_current_token(client):
     assert relogin.status_code == 200, relogin.text
 
 
+def test_extra_permission_grants_exactly_one_capability(client, admin_token):
+    """
+    Requested directly, from a security review: the per-person
+    extra_permissions grant (PATCH /auth/users/{id}/permissions, see
+    its own comment) had no test coverage at all. UserRole.CLIENT gets
+    an empty permission set by default (core/permissions.py's
+    ROLE_DEFAULT_PERMISSIONS) — a clean baseline to confirm a single
+    granted permission unlocks exactly that one capability and nothing
+    else, not a broader "now basically an admin" effect.
+    """
+    create = client.post(
+        "/api/auth/users",
+        json={"email": "singlegrant@hmzc-test.com", "full_name": "Single Grant", "role": "client"},
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    user_id = create.json()["user"]["id"]
+    login = client.post(
+        "/api/auth/login",
+        data={"username": "singlegrant@hmzc-test.com", "password": create.json()["temporary_password"]},
+    )
+    headers = {"Authorization": f"Bearer {login.json()['access_token']}"}
+
+    # Before any grant: blocked from both finance and certificates.
+    before_finance = client.get("/api/finance/dashboard", headers=headers)
+    assert before_finance.status_code == 403
+    before_certs = client.get("/api/certificates", headers=headers)
+    assert before_certs.status_code == 403
+
+    grant = client.patch(
+        f"/api/auth/users/{user_id}/permissions",
+        json={"extra_permissions": ["finance.view"]},
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    assert grant.status_code == 200, grant.text
+
+    # The SAME token (permissions are checked live against the database
+    # on every request, not baked into the JWT — see
+    # get_user_permissions in core/permissions.py) now passes for
+    # finance.view specifically...
+    after_finance = client.get("/api/finance/dashboard", headers=headers)
+    assert after_finance.status_code == 200, after_finance.text
+
+    # ...but still gets 403 for certificates.view, which was never
+    # granted — the point of this test: one specific permission, not a
+    # blanket unlock.
+    after_certs = client.get("/api/certificates", headers=headers)
+    assert after_certs.status_code == 403
+
+
+def test_granting_unknown_permission_is_rejected(client, admin_token):
+    create = client.post(
+        "/api/auth/users",
+        json={"email": "badgrant@hmzc-test.com", "full_name": "Bad Grant", "role": "client"},
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    user_id = create.json()["user"]["id"]
+    response = client.patch(
+        f"/api/auth/users/{user_id}/permissions",
+        json={"extra_permissions": ["not_a_real_permission"]},
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    assert response.status_code == 400
+    assert "unknown permission" in response.json()["detail"].lower()
+
+
 # 1x1 transparent PNG, base64-encoded — smallest possible valid image for
 # exercising the data-URI decode path without shipping a real signature.
 _TINY_PNG_DATA_URI = (
