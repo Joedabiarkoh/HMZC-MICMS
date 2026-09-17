@@ -12,6 +12,7 @@ from app.api.deps import require_permission
 from app.core.config import settings
 from app.core.database import get_database
 from app.core.file_storage import delete_upload, read_upload, save_upload
+from app.core.finance_totals import verify_document_totals
 from app.core.invoice_pdf import build_document_pdf, merge_pdf_with_attachments
 from app.core.permissions import FIN_CATALOG_MANAGE, FIN_DELETE, FIN_EDIT, FIN_VIEW
 from app.models.expense import Expense
@@ -333,6 +334,19 @@ def save_invoice(
     db: Session = Depends(get_database),
     current_user: User = Depends(require_permission(FIN_EDIT)),
 ):
+    # Found during a security review: nothing previously verified that
+    # subtotal/discount_total/total actually matched the submitted line
+    # items — see finance_totals.py's own comment.
+    verify_document_totals(
+        inv_in.line_items,
+        inv_in.overall_discount_type,
+        inv_in.overall_discount_percent,
+        inv_in.overall_discount_amount,
+        inv_in.subtotal,
+        inv_in.discount_total,
+        inv_in.total,
+    )
+
     existing = db.query(Invoice).filter(Invoice.invoice_no == inv_in.invoice_no).first()
     if existing:
         if not _can_edit(existing.issued_by_id, current_user):
