@@ -28,8 +28,15 @@ RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates
     && apt-get update && apt-get install -y --no-install-recommends postgresql-client-18 \
     && rm -rf /var/lib/apt/lists/*
 
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+# -c constraints.txt pins the full transitive dependency closure too
+# (not just the direct packages requirements.txt names), so a rebuild
+# next month resolves to exactly the same versions this image was
+# actually tested against — see constraints.txt's own comment for how
+# it was generated and verified. Found during a security review:
+# requirements.txt previously had no version pins at all, so every
+# build silently pulled in whatever was newest that day.
+COPY requirements.txt constraints.txt .
+RUN pip install --no-cache-dir -r requirements.txt -c constraints.txt
 
 COPY . .
 

@@ -1,18 +1,26 @@
-fastapi
-uvicorn[standard]
-sqlalchemy
-psycopg2-binary
-alembic
-python-dotenv
-python-jose[cryptography]
-passlib[bcrypt]
+# Pinned to exact versions, verified against this app's own test suite
+# (all 22 backend tests passing) in a clean venv — see constraints.txt
+# for the full transitive dependency closure these resolve to, which
+# `docker build` also locks against (see Dockerfile) so a rebuild next
+# month can't silently pull in a different, unverified version of
+# anything. Bump deliberately: change a version here, reinstall into a
+# clean venv, regenerate constraints.txt (`pip freeze`), rerun the test
+# suite, commit all three together.
+fastapi==0.141.1
+uvicorn[standard]==0.53.0
+sqlalchemy==2.0.54
+psycopg2-binary==2.9.13
+alembic==1.20.0
+python-dotenv==1.2.3
+python-jose[cryptography]==3.5.0
+passlib[bcrypt]==1.7.4
 bcrypt==4.0.1
-pydantic[email]
-pydantic-settings
-python-multipart
-reportlab
-qrcode
-pillow
-pypdf
-boto3
-sentry-sdk[fastapi]
+pydantic[email]==2.13.5
+pydantic-settings==2.15.0
+python-multipart==0.0.32
+reportlab==5.0.1
+qrcode==8.2
+pillow==12.3.0
+pypdf==6.19.0
+boto3==1.43.96
+sentry-sdk[fastapi]==2.69.2
