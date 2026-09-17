@@ -40,6 +40,29 @@ RUN pip install --no-cache-dir -r requirements.txt -c constraints.txt
 
 COPY . .
 
+# Found during a security review: nothing here ever dropped root — the
+# app process ran as root for its entire life, so a container-escape or
+# dependency-RCE bug would hand an attacker root inside the container,
+# not just this app's own limited access. -r (system account, no
+# password/expiry fields) and -M (no home directory — nothing this app
+# does needs one) rather than a normal interactive user.
+#
+# /app/uploads is chowned here, in the image, specifically so a FRESH
+# named volume (docker-compose.yml's photo_uploads, mounted at this
+# same path) gets seeded with appuser ownership the first time Docker
+# creates it — Docker copies a new volume's initial content (and
+# permissions) from whatever already exists in the image at that mount
+# path. The actual subdirectories underneath it (photos/, attachments/,
+# supplier_boarding/ — see core/config.py's PHOTOS_DIR etc.) don't exist
+# yet at build time; core/photo_storage.py/file_storage.py's own
+# _ensure_dir() creates each one lazily, at runtime, the first time
+# something is actually uploaded — since that mkdir happens as appuser,
+# those inherit appuser ownership automatically with no extra chown
+# needed here.
+RUN useradd -r -M -s /usr/sbin/nologin appuser \
+    && mkdir -p /app/uploads \
+    && chown -R appuser:appuser /app/uploads
+
 # `alembic upgrade head` runs on every single container start, in every
 # environment (local Docker Compose and Railway alike) - not a
 # Railway-specific "preDeployCommand" setting, which would only live in
@@ -58,4 +81,21 @@ COPY . .
 # expands - Railway injects PORT and expects the app to listen on it,
 # but local Docker Compose doesn't set PORT at all, hence the :-8000
 # fallback matching docker-compose.yml's hardcoded "8000:8000" mapping.
-CMD alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}
+#
+# Still starts as root (no USER directive above) specifically so this
+# `chown -R` can also repair a volume that already existed BEFORE this
+# non-root change shipped — a production volume from an earlier root-
+# only deploy would otherwise stay root-owned forever and reject writes
+# from appuser. Cheap and idempotent on every subsequent start (nothing
+# to fix once it's already right), and the actual long-running process
+# — the only part that matters for the security review's own concern,
+# an RCE/escape bug getting root — still ends up running as appuser via
+# `su`, not root. `su` (not gosu/su-exec) since it's already present in
+# this Debian-based image; no extra package needed for a one-line handoff.
+# -p explicitly preserves the calling environment — without it,
+# DATABASE_URL/SECRET_KEY/PORT etc. (all passed in as container env
+# vars, not baked into the image) aren't guaranteed to survive the user
+# switch, and Settings() (core/config.py) would fail to even construct
+# without them, crash-looping the container. Confirmed by actually
+# building and running this image locally, not assumed.
+CMD chown -R appuser:appuser /app/uploads && su -p -s /bin/sh -c "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}" appuser
