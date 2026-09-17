@@ -13,7 +13,14 @@ quotation-specific tests below only cover the route wiring itself
 (save_quotation actually calls it, a mismatch is rejected) since the
 underlying computation is already covered in depth by the invoice
 tests above it and there's no reason to duplicate that.
+
+test_invoice_attachment_* below, added later still ("start the
+attachment content-type task"): confirms the invoice-attachment
+upload ROUTE actually calls core/file_storage.py's
+validate_upload_type, not just that the function works in isolation
+(see test_file_storage.py for the isolated unit tests).
 """
+import io
 
 
 def _invoice_payload(invoice_no="INV/HMZC/TEST-001", version=None, **overrides):
@@ -189,3 +196,36 @@ def test_quotation_with_wrong_total_is_rejected(client, admin_token):
     )
     assert response.status_code == 400, response.text
     assert "total" in response.json()["detail"].lower()
+
+
+def test_invoice_attachment_upload_rejects_mismatched_file_type(client, admin_token):
+    headers = {"Authorization": f"Bearer {admin_token}"}
+    invoice_no = "INV/HMZC/ATTACH-TEST-001"
+    created = client.post("/api/finance/invoices", json=_invoice_payload(invoice_no=invoice_no), headers=headers)
+    assert created.status_code == 200, created.text
+
+    upload_response = client.post(
+        f"/api/finance/invoices/{invoice_no}/attachments",
+        data={"label": "PO"},
+        files={"file": ("fake_report.pdf", io.BytesIO(b"<html>not really a pdf</html>"), "application/pdf")},
+        headers=headers,
+    )
+    assert upload_response.status_code == 400, upload_response.text
+    assert "pdf" in upload_response.json()["detail"].lower()
+
+
+def test_invoice_attachment_upload_accepts_real_pdf(client, admin_token):
+    headers = {"Authorization": f"Bearer {admin_token}"}
+    invoice_no = "INV/HMZC/ATTACH-TEST-002"
+    created = client.post("/api/finance/invoices", json=_invoice_payload(invoice_no=invoice_no), headers=headers)
+    assert created.status_code == 200, created.text
+
+    real_pdf_bytes = b"%PDF-1.4\n" + b"0" * 20
+    upload_response = client.post(
+        f"/api/finance/invoices/{invoice_no}/attachments",
+        data={"label": "PO"},
+        files={"file": ("real_report.pdf", io.BytesIO(real_pdf_bytes), "application/pdf")},
+        headers=headers,
+    )
+    assert upload_response.status_code == 201, upload_response.text
+    assert upload_response.json()["original_filename"] == "real_report.pdf"
