@@ -10,6 +10,7 @@ from app.core.database import get_database
 from app.core.imo_validation import is_valid_imo_checksum
 from app.core.permissions import CERT_DELETE, CERT_EDIT, CERT_VIEW, CERT_VIEW_ALL, get_user_permissions
 from app.core.photo_storage import collect_photo_filenames, delete_photo_files, externalize_photos, filter_deletable
+from app.core.rate_limit import check_rate_limit
 from app.models.certificate import Certificate
 from app.models.user import User
 from app.schemas.certificate import CertificateCreate, CertificateResponse, CertificateVerifyResult, VesselLookupResult, VesselSummary
@@ -328,8 +329,18 @@ def vessel_lookup(
 # missing/deleted cert_no returns valid: false rather than 404, so the
 # frontend verification page can show a clear "not a valid certificate"
 # message instead of a generic error page.
+#
+# Found during a security review: unlike /auth/login, /auth/register,
+# and /auth/forgot-password (all rate-limited), this had no limit at
+# all — cert_no follows a predictable CERT/HMZC/{TAG}/{YYYYMMDD}-{seq}
+# format, so without one this endpoint could be enumerated to harvest
+# vessel names, IMO numbers, and issuer names across every certificate
+# ever issued, not just the one certificate whoever's asking actually
+# holds. Same shared rate_limit.py limiter (10 requests/60s per IP) as
+# every other public-facing route already uses.
 @router.get("/verify/{cert_no:path}", response_model=CertificateVerifyResult)
-def verify_certificate(cert_no: str, db: Session = Depends(get_database)):
+def verify_certificate(cert_no: str, request: Request, db: Session = Depends(get_database)):
+    check_rate_limit(request, "verify")
     cert = (
         db.query(Certificate)
         .options(joinedload(Certificate.issued_by))

@@ -191,3 +191,21 @@ def test_finalized_certificate_editable_only_by_creator_or_admin(client):
     assert allowed_for_creator.status_code == 200, allowed_for_creator.text
     assert allowed_for_creator.json()["cert_no"] == final_cert["cert_no"]  # cert_no never changes
     assert allowed_for_creator.json()["version"] == 3
+
+
+def test_verify_certificate_rate_limited_after_repeated_attempts(client):
+    """
+    Requested directly, from a security review: /verify/{cert_no} is
+    deliberately public (no auth — see the route's own comment) and
+    cert_no follows a predictable format, so without a rate limit it
+    could be enumerated to harvest vessel names/IMO numbers/issuer
+    names across every certificate ever issued. Same limiter, same
+    10-requests-per-window threshold, as test_login_rate_limited_
+    after_repeated_attempts in test_auth.py — the 11th request within
+    the window is rejected with 429 regardless of whether the cert_no
+    being probed is even real.
+    """
+    for _ in range(10):
+        client.get("/api/certificates/verify/CERT/HMZC/LB/DOES-NOT-EXIST")
+    response = client.get("/api/certificates/verify/CERT/HMZC/LB/DOES-NOT-EXIST")
+    assert response.status_code == 429
