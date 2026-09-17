@@ -214,6 +214,125 @@ def test_admin_reset_password_forces_change_on_next_login(client, admin_token):
     assert me.json()["must_change_password"] is True
 
 
+def test_reset_password_revokes_already_issued_token(client, admin_token):
+    """
+    Requested directly, from a security review: the OLD password no
+    longer logging in (test_admin_reset_password_forces_change_on_next_
+    login above) isn't the same guarantee as a token issued BEFORE the
+    reset stopping working — a JWT is self-contained and, before
+    User.token_version existed, stayed valid until its own natural
+    expiry no matter what happened to the account afterward. This
+    confirms the actual gap: a token obtained under the old password
+    must fail on its very next use once the account is reset, not just
+    "the old password" failing at a future login attempt.
+    """
+    create_response = client.post(
+        "/api/auth/users",
+        json={"email": "tokenholder@hmzc-test.com", "full_name": "Token Holder", "role": "inspector"},
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    user_id = create_response.json()["user"]["id"]
+    original_password = create_response.json()["temporary_password"]
+
+    original_login = client.post("/api/auth/login", data={"username": "tokenholder@hmzc-test.com", "password": original_password})
+    assert original_login.status_code == 200, original_login.text
+    stolen_token = original_login.json()["access_token"]
+
+    # The token works right now, before the reset.
+    before = client.get("/api/auth/me", headers={"Authorization": f"Bearer {stolen_token}"})
+    assert before.status_code == 200, before.text
+
+    reset_response = client.post(f"/api/auth/users/{user_id}/reset-password", headers={"Authorization": f"Bearer {admin_token}"})
+    assert reset_response.status_code == 200, reset_response.text
+
+    # The same token — never re-issued, never told about the reset —
+    # must now be rejected rather than remaining valid until it expires.
+    after = client.get("/api/auth/me", headers={"Authorization": f"Bearer {stolen_token}"})
+    assert after.status_code == 401, after.text
+
+
+def test_deactivate_revokes_already_issued_token(client, admin_token):
+    """
+    Same gap as above, for the scenario deactivate actually exists for:
+    an admin discovers a compromised or departing account and needs it
+    locked out immediately, not just blocked from a fresh login.
+    """
+    create_response = client.post(
+        "/api/auth/users",
+        json={"email": "compromised@hmzc-test.com", "full_name": "Compromised", "role": "inspector"},
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    user_id = create_response.json()["user"]["id"]
+    temp_password = create_response.json()["temporary_password"]
+
+    login = client.post("/api/auth/login", data={"username": "compromised@hmzc-test.com", "password": temp_password})
+    assert login.status_code == 200, login.text
+    active_token = login.json()["access_token"]
+
+    deactivate_response = client.post(f"/api/auth/users/{user_id}/deactivate", headers={"Authorization": f"Bearer {admin_token}"})
+    assert deactivate_response.status_code == 200, deactivate_response.text
+
+    after = client.get("/api/auth/me", headers={"Authorization": f"Bearer {active_token}"})
+    assert after.status_code == 401, after.text
+
+
+def test_change_password_revokes_previous_token(client):
+    """
+    The self-service counterpart — changing your own password (e.g.
+    because you suspect a device or token was compromised) should
+    actually revoke whatever token was issued under the old password,
+    not just update the stored hash. The frontend's own 401 handling
+    (api/axios.ts's response interceptor) treats this as an expired
+    session and bounces to sign-in, which is the intended UX, not a bug.
+    """
+    client.post(
+        "/api/auth/register",
+        json={"email": "selfchanger@hmzc-test.com", "password": "originalpass123", "full_name": "Self Changer", "role": "inspector"},
+    )
+    login = client.post("/api/auth/login", data={"username": "selfchanger@hmzc-test.com", "password": "originalpass123"})
+    old_token = login.json()["access_token"]
+
+    change_response = client.post(
+        "/api/auth/change-password",
+        json={"current_password": "originalpass123", "new_password": "brandnewpass456"},
+        headers={"Authorization": f"Bearer {old_token}"},
+    )
+    assert change_response.status_code == 200, change_response.text
+
+    # The old token — the one used to make the change-password request
+    # itself — must fail on the next request after the change.
+    after = client.get("/api/auth/me", headers={"Authorization": f"Bearer {old_token}"})
+    assert after.status_code == 401, after.text
+
+    # A fresh login with the new password still works normally.
+    new_login = client.post("/api/auth/login", data={"username": "selfchanger@hmzc-test.com", "password": "brandnewpass456"})
+    assert new_login.status_code == 200, new_login.text
+
+
+def test_logout_everywhere_revokes_current_token(client):
+    """
+    Requested directly, from the same security review — self-service:
+    "sign out of every device" for someone who suspects a token leaked
+    but doesn't necessarily want to also change their password.
+    """
+    client.post(
+        "/api/auth/register",
+        json={"email": "paranoid@hmzc-test.com", "password": "password123", "full_name": "Paranoid", "role": "inspector"},
+    )
+    login = client.post("/api/auth/login", data={"username": "paranoid@hmzc-test.com", "password": "password123"})
+    token = login.json()["access_token"]
+
+    logout_response = client.post("/api/auth/logout-everywhere", headers={"Authorization": f"Bearer {token}"})
+    assert logout_response.status_code == 200, logout_response.text
+
+    after = client.get("/api/auth/me", headers={"Authorization": f"Bearer {token}"})
+    assert after.status_code == 401, after.text
+
+    # The account itself is untouched — a fresh login still works.
+    relogin = client.post("/api/auth/login", data={"username": "paranoid@hmzc-test.com", "password": "password123"})
+    assert relogin.status_code == 200, relogin.text
+
+
 # 1x1 transparent PNG, base64-encoded — smallest possible valid image for
 # exercising the data-URI decode path without shipping a real signature.
 _TINY_PNG_DATA_URI = (

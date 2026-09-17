@@ -90,6 +90,21 @@ class User(BaseModel):
     # photos). Nullable — most accounts (Sales, Admin, Client roles)
     # never sign a certificate at all, so there's no default to set.
     saved_signature_url = Column(String, nullable=True)
+    # Found during a security review: a JWT (core/security.py's
+    # create_access_token) was valid until its own natural expiry
+    # (ACCESS_TOKEN_EXPIRE_MINUTES) no matter what happened to the
+    # account afterward — an admin deactivating a compromised account,
+    # or a password reset, didn't invalidate a token already issued
+    # against it. Embedded in every new token's own "tv" claim (see
+    # login() in api/routes/auth.py) and checked against this column on
+    # every request (see get_current_user in api/deps.py); bumping this
+    # instantly invalidates every token issued before the bump,
+    # regardless of how much of its own expiry window is left. Bumped
+    # automatically wherever a password actually changes (change_password,
+    # reset_user_password, forgot_password) and on deactivate_user — see
+    # each of those in api/routes/auth.py — plus self-service via
+    # POST /auth/logout-everywhere.
+    token_version = Column(Integer, nullable=False, default=1)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 

@@ -35,11 +35,21 @@ def get_current_user(
         if user_id is None:
             raise credentials_exception
         token_data = TokenData(user_id=int(user_id))
+        token_version = payload.get("tv")
     except (JWTError, ValueError):
         raise credentials_exception
 
     user = db.query(User).filter(User.id == token_data.user_id).first()
     if user is None:
+        raise credentials_exception
+    # Found during a security review: this token's own "tv" claim (set
+    # at login, see login() below) must match the account's CURRENT
+    # token_version — see User.token_version's own comment for what
+    # bumping it does. A token with no "tv" claim at all (issued before
+    # this check existed) is treated the same as a mismatch, not given
+    # a free pass — same credentials_exception either way so a caller
+    # can't distinguish "revoked" from "never valid" and probe for which.
+    if token_version is None or token_version != user.token_version:
         raise credentials_exception
     if not user.is_active:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Inactive user")
