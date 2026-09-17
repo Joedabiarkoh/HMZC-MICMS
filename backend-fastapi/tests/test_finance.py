@@ -6,6 +6,13 @@ discount_total/total simply didn't match its own line items). These
 tests exercise that check directly, against a real request/response
 round-trip — not just the pure computation function in isolation —
 since the actual gap was in the route wiring, not the math itself.
+
+Extended to quotations on later request ("add it for quotations too")
+— same verify_document_totals call, same gap, same fix; the
+quotation-specific tests below only cover the route wiring itself
+(save_quotation actually calls it, a mismatch is rejected) since the
+underlying computation is already covered in depth by the invoice
+tests above it and there's no reason to duplicate that.
 """
 
 
@@ -126,3 +133,59 @@ def test_invoice_with_overall_document_discount(client, admin_token):
     response = client.post("/api/finance/invoices", json=payload, headers=headers)
     assert response.status_code == 200, response.text
     assert response.json()["total"] == 150.0
+
+
+def _quotation_payload(quotation_no="QTN/HMZC/TEST-001", version=None, **overrides):
+    payload = {
+        "quotation_no": quotation_no,
+        "customer": "Test Customer",
+        "vessel_name": "MV Test Vessel",
+        "imo_no": "1234567",
+        "status": "draft",
+        "line_items": [
+            {
+                "code": "ITM-1",
+                "description": "Test Item",
+                "quantity": 2,
+                "unit_price": 100.0,
+                "discount_type": "percent",
+                "discount_percent": 10,
+                "discount_amount": 0,
+                "line_total": 180.0,  # (2 * 100) - 10% = 180
+            }
+        ],
+        "subtotal": 200.0,
+        "overall_discount_type": "percent",
+        "overall_discount_percent": 0,
+        "overall_discount_amount": 0,
+        "discount_total": 20.0,
+        "total": 180.0,
+        "currency": "USD",
+        "exchange_rate": 1.0,
+        "conditions": [],
+    }
+    if version is not None:
+        payload["version"] = version
+    payload.update(overrides)
+    return payload
+
+
+def test_quotation_with_correct_totals_saves(client, admin_token):
+    headers = {"Authorization": f"Bearer {admin_token}"}
+    response = client.post("/api/finance/quotations", json=_quotation_payload(), headers=headers)
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["subtotal"] == 200.0
+    assert body["discount_total"] == 20.0
+    assert body["total"] == 180.0
+
+
+def test_quotation_with_wrong_total_is_rejected(client, admin_token):
+    headers = {"Authorization": f"Bearer {admin_token}"}
+    response = client.post(
+        "/api/finance/quotations",
+        json=_quotation_payload(total=1.0),
+        headers=headers,
+    )
+    assert response.status_code == 400, response.text
+    assert "total" in response.json()["detail"].lower()

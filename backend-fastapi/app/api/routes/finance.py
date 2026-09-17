@@ -219,6 +219,18 @@ def save_quotation(
     db: Session = Depends(get_database),
     current_user: User = Depends(require_permission(FIN_EDIT)),
 ):
+    # See finance_totals.py's own comment — same gap, same fix, as
+    # save_invoice below.
+    verify_document_totals(
+        q_in.line_items,
+        q_in.overall_discount_type,
+        q_in.overall_discount_percent,
+        q_in.overall_discount_amount,
+        q_in.subtotal,
+        q_in.discount_total,
+        q_in.total,
+    )
+
     existing = db.query(Quotation).filter(Quotation.quotation_no == q_in.quotation_no).first()
     if existing:
         if not _can_edit(existing.issued_by_id, current_user):
