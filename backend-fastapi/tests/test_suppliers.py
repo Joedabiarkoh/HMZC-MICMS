@@ -5,6 +5,14 @@ test coverage. Follows test_certificates.py/test_auth.py's conventions.
 
 import io
 
+# Requested directly, from a security review: uploads are now checked
+# against a real magic-byte signature for the claimed extension (see
+# core/file_storage.py's validate_upload_type) — plain placeholder text
+# like b"content" no longer passes as a ".xlsx" file, so every test
+# upload here needs to actually start with the ZIP signature docx/
+# xlsx/pptx share.
+_FAKE_XLSX_BYTES = b"PK\x03\x04" + b"pretend this is a filled-in xlsx form"
+
 
 def _admin_create_and_login(client, admin_token, email, role):
     create = client.post(
@@ -39,7 +47,7 @@ def test_boarding_template_downloads_successfully(client, admin_token):
 
 def test_upload_and_download_boarding_submission_roundtrip(client, admin_token):
     headers = {"Authorization": f"Bearer {admin_token}"}
-    file_bytes = b"pretend this is a filled-in xlsx form"
+    file_bytes = _FAKE_XLSX_BYTES
     upload_response = client.post(
         "/api/suppliers/boarding",
         data={"supplier_name": "Acme Marine Supplies", "notes": "Reviewed and approved"},
@@ -67,7 +75,7 @@ def test_view_only_role_can_download_but_not_upload_or_delete(client, admin_toke
     uploaded = client.post(
         "/api/suppliers/boarding",
         data={"supplier_name": "View Only Test Co", "notes": ""},
-        files={"file": ("form.xlsx", io.BytesIO(b"content"), "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")},
+        files={"file": ("form.xlsx", io.BytesIO(_FAKE_XLSX_BYTES), "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")},
         headers=admin_headers,
     )
     submission_id = uploaded.json()["id"]
@@ -85,7 +93,7 @@ def test_view_only_role_can_download_but_not_upload_or_delete(client, admin_toke
     upload_response = client.post(
         "/api/suppliers/boarding",
         data={"supplier_name": "Should Not Work", "notes": ""},
-        files={"file": ("form.xlsx", io.BytesIO(b"content"), "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")},
+        files={"file": ("form.xlsx", io.BytesIO(_FAKE_XLSX_BYTES), "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")},
         headers=sales_headers,
     )
     assert upload_response.status_code == 403
@@ -98,7 +106,7 @@ def test_delete_boarding_submission_removes_it(client, admin_token):
     uploaded = client.post(
         "/api/suppliers/boarding",
         data={"supplier_name": "Delete Me Co", "notes": ""},
-        files={"file": ("form.xlsx", io.BytesIO(b"content"), "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")},
+        files={"file": ("form.xlsx", io.BytesIO(_FAKE_XLSX_BYTES), "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")},
         headers=headers,
     )
     submission_id = uploaded.json()["id"]
