@@ -6,7 +6,7 @@ version: "3.9"
 services:
 
   postgres:
-    image: postgres:16
+    image: postgres:18
     container_name: hmzc_database
     environment:
       POSTGRES_USER: hmzc_user
@@ -14,8 +14,13 @@ services:
       POSTGRES_DB: hmzc_db
     ports:
       - "5432:5432"
+    # postgres:18+ images store data using major-version-specific directory
+    # names and expect the volume mounted one level up, at /var/lib/postgresql
+    # (not .../data as prior versions did) - mounting at .../data makes the
+    # image treat it as unexpected leftover data and refuse to start, even on
+    # a brand-new empty volume. See https://github.com/docker-library/postgres/pull/1259
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - postgres_data:/var/lib/postgresql
 
   backend:
     build: ./backend-fastapi
