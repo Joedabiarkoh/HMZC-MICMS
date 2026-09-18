@@ -589,17 +589,27 @@ connectivity distinction Certificates already had
 (`DocumentConflictError` in `finance.api.ts`, mirroring
 `CertificateConflictError`).
 
-One real limitation surfaced while fixing this, worth being upfront
-about rather than glossing over: Certificates have a local-first cache
-(`inspection.storage.ts` + the `certificates` state in
-`useInspections.ts`) that can show a not-yet-synced record immediately;
-Finance has no equivalent, since `Invoices.tsx`/`Quotations.tsx` always
-fetch from the server. A queued-but-unsynced invoice or quotation is
-genuinely saved (in IndexedDB) and will sync automatically, but it
-won't appear in the Invoices/Quotations list until it does — the save
-form says this explicitly rather than implying otherwise. Building a
-local cache for Finance to match Certificates' behavior is real,
-scoped follow-up work, not something folded into this fix.
+A follow-up gap surfaced while fixing this, since closed: Certificates
+have a local-first cache (`inspection.storage.ts` + the `certificates`
+state in `useInspections.ts`) that can show a not-yet-synced record
+immediately; Finance initially had no equivalent, since
+`Invoices.tsx`/`Quotations.tsx` always fetched from the server. A
+queued-but-unsynced invoice or quotation was genuinely saved (in
+IndexedDB) and would sync automatically, but wouldn't appear in the
+Invoices/Quotations list until it did.
+
+Finance now has its own local-first cache (`finance.storage.ts`,
+IndexedDB-backed rather than `inspection.storage.ts`'s localStorage,
+since every save gets cached here, not only offline ones — see that
+file's own comment on why). `InvoiceForm.tsx`/`QuotationForm.tsx` write
+through to it on every save (successful or queued-offline), and
+`Invoices.tsx`/`Quotations.tsx`/`Payments.tsx` merge it into what they
+show — including a still-pending offline save the server doesn't have
+yet — and fall back to it entirely if the server list fetch itself
+fails. Reconciliation (swapping a pending entry for the server's real
+`id`/`version` once the queued save actually syncs) happens centrally in
+`syncQueue.ts`'s `flushQueue()`, so it applies no matter which screen
+triggered the flush.
 
 ## Response to the readiness/percentage assessment — what got fixed
 

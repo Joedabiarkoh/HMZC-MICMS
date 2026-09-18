@@ -132,6 +132,11 @@ export interface QuotationDoc {
   version: number;
   created_at: string;
   updated_at: string | null;
+  // Frontend-only marker set by finance.storage.ts: this copy was saved
+  // on this device but hasn't been confirmed synced to the server yet
+  // (either mid-request or queued offline — see syncQueue.ts). Never
+  // present on data that actually came from the API.
+  _pending?: boolean;
 }
 
 export interface InvoiceDoc {
@@ -156,6 +161,8 @@ export interface InvoiceDoc {
   version: number;
   created_at: string;
   updated_at: string | null;
+  // See QuotationDoc._pending's own comment.
+  _pending?: boolean;
 }
 
 // Suggested defaults a NEW quotation starts with — matches what was

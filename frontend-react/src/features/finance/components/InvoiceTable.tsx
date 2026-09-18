@@ -26,7 +26,14 @@ export default function InvoiceTable({ invoices }: InvoiceTableProps) {
       <tbody>
         {invoices.map((inv) => (
           <tr key={inv.id}>
-            <td>{inv.invoice_no}</td>
+            <td>
+              {inv.invoice_no}
+              {inv._pending && (
+                <span title="Saved on this device — waiting to sync" style={{ marginLeft: 6, fontSize: 9.5, color: "#B4690E" }}>
+                  ● offline
+                </span>
+              )}
+            </td>
             <td>{inv.customer}</td>
             <td>{inv.vessel_name || "—"}</td>
             <td>{formatMoney(inv.total, inv.currency, inv.exchange_rate)}</td>

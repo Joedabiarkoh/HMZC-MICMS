@@ -2,6 +2,7 @@ import { InspectionCertificate } from "../features/inspections/types/inspection.
 import { saveCertificateRemote, deleteCertificateRemote, CertificateConflictError } from "../features/inspections/services/inspection.api";
 import { saveInvoice, saveQuotation, DocumentConflictError, InvoiceSavePayload, QuotationSavePayload } from "../features/finance/services/finance.api";
 import { InvoiceDoc, QuotationDoc } from "../features/finance/types/finance.types";
+import { saveInvoiceToCache, saveQuotationToCache } from "../features/finance/services/finance.storage";
 import { putOp, getAllOps, deleteOp, migrateLegacyQueue, QueueOp } from "./indexedDb";
 
 // Backed by IndexedDB (see indexedDb.ts) with exponential backoff: each
@@ -220,9 +221,18 @@ export async function flushQueue(): Promise<FlushResult> {
         succeeded.push({ resourceType: "certificate", resourceId: op.resourceId, kind: "delete" });
       } else if (op.resourceType === "invoice") {
         const synced = await saveInvoice(op.payload);
+        // Reconciliation: overwrite the pending local-cache entry (see
+        // finance.storage.ts) with the server's authoritative copy —
+        // real id/version/issued_by — and clear its `_pending` flag.
+        // Done here, not in a page-level hook, so it happens no matter
+        // which screen's flush actually triggered this sync (the nav's
+        // SyncStatusBadge "Retry Now", or useInspections's periodic/
+        // online-event flush).
+        await saveInvoiceToCache(synced, false);
         succeeded.push({ resourceType: "invoice", resourceId: op.resourceId, kind: "save", invoice: synced });
       } else if (op.resourceType === "quotation") {
         const synced = await saveQuotation(op.payload);
+        await saveQuotationToCache(synced, false);
         succeeded.push({ resourceType: "quotation", resourceId: op.resourceId, kind: "save", quotation: synced });
       }
       await deleteOp(op.id);

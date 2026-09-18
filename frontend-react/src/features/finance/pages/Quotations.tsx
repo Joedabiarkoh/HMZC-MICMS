@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import "../finance.css";
 import { listQuotations } from "../services/finance.api";
+import { getCachedQuotations, saveQuotationToCache } from "../services/finance.storage";
 import { QuotationDoc } from "../types/finance.types";
 import QuotationTable from "../components/QuotationTable";
 import { exportRowsToCsv } from "../../../utils/exportCsv";
@@ -15,8 +16,20 @@ export default function Quotations() {
 
   useEffect(() => {
     listQuotations()
-      .then(setQuotations)
-      .catch((e) => setErr(e?.response?.data?.detail || "Could not load quotations."))
+      .then(async (server) => {
+        // See Invoices.tsx's identical merge for why — keeps the cache
+        // warm and surfaces any quotation still queued offline that the
+        // server doesn't have yet.
+        await Promise.all(server.map((q) => saveQuotationToCache(q, false)));
+        const cached = await getCachedQuotations();
+        const pendingOnly = cached.filter((c) => c._pending && !server.some((s) => s.quotation_no === c.quotation_no));
+        setQuotations([...pendingOnly, ...server]);
+      })
+      .catch(async (e) => {
+        setErr(e?.response?.data?.detail || "Could not load quotations.");
+        const cached = await getCachedQuotations();
+        if (cached.length > 0) setQuotations(cached);
+      })
       .finally(() => setLoading(false));
   }, []);
 

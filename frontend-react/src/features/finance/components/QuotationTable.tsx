@@ -28,7 +28,14 @@ export default function QuotationTable({ quotations }: QuotationTableProps) {
       <tbody>
         {quotations.map((q) => (
           <tr key={q.id}>
-            <td>{q.quotation_no}</td>
+            <td>
+              {q.quotation_no}
+              {q._pending && (
+                <span title="Saved on this device — waiting to sync" style={{ marginLeft: 6, fontSize: 9.5, color: "#B4690E" }}>
+                  ● offline
+                </span>
+              )}
+            </td>
             <td>{q.customer}</td>
             <td>{q.vessel_name || "—"}</td>
             <td>{formatMoney(q.total, q.currency, q.exchange_rate)}</td>

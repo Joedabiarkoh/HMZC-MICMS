@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import "../finance.css";
 import { listInvoices } from "../services/finance.api";
+import { getCachedInvoices, saveInvoiceToCache } from "../services/finance.storage";
 import { InvoiceDoc } from "../types/finance.types";
 import InvoiceTable from "../components/InvoiceTable";
 import { exportRowsToCsv } from "../../../utils/exportCsv";
@@ -19,8 +20,25 @@ export default function Invoices() {
 
   useEffect(() => {
     listInvoices()
-      .then(setInvoices)
-      .catch((e) => setErr(e?.response?.data?.detail || "Could not load invoices."))
+      .then(async (server) => {
+        // Keep the local cache warm with the authoritative server copy
+        // of everything it returned (see finance.storage.ts), then
+        // surface any invoice still only in the cache — i.e. a save
+        // still queued from an offline session on this device (see
+        // InvoiceForm.tsx's handleSave) — that the server doesn't have
+        // yet, so it's visible here instead of missing until it syncs.
+        await Promise.all(server.map((inv) => saveInvoiceToCache(inv, false)));
+        const cached = await getCachedInvoices();
+        const pendingOnly = cached.filter((c) => c._pending && !server.some((s) => s.invoice_no === c.invoice_no));
+        setInvoices([...pendingOnly, ...server]);
+      })
+      .catch(async (e) => {
+        setErr(e?.response?.data?.detail || "Could not load invoices.");
+        // Offline entirely — fall back to whatever this device has
+        // cached locally rather than showing an empty list.
+        const cached = await getCachedInvoices();
+        if (cached.length > 0) setInvoices(cached);
+      })
       .finally(() => setLoading(false));
   }, []);
 

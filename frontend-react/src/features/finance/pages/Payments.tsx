@@ -4,6 +4,7 @@ import "../finance.css";
 import { useAuth } from "../../../context/AuthContext";
 import { hasPermission, PERM } from "../../auth/types/auth.types";
 import { listInvoices, saveInvoice } from "../services/finance.api";
+import { getCachedInvoices, saveInvoiceToCache } from "../services/finance.storage";
 import { InvoiceDoc } from "../types/finance.types";
 import { confirmAction } from "../../../components/ConfirmDialog";
 import { exportRowsToCsv } from "../../../utils/exportCsv";
@@ -50,8 +51,21 @@ export default function Payments() {
   function load() {
     setLoading(true);
     listInvoices()
-      .then(setInvoices)
-      .catch((e) => setErr(e?.response?.data?.detail || "Could not load invoices."))
+      .then(async (server) => {
+        // See Invoices.tsx's identical merge for why — an invoice saved
+        // offline (e.g. one already marked "issued" before connectivity
+        // dropped) should still show up here as outstanding rather than
+        // only appearing once it syncs.
+        await Promise.all(server.map((inv) => saveInvoiceToCache(inv, false)));
+        const cached = await getCachedInvoices();
+        const pendingOnly = cached.filter((c) => c._pending && !server.some((s) => s.invoice_no === c.invoice_no));
+        setInvoices([...pendingOnly, ...server]);
+      })
+      .catch(async (e) => {
+        setErr(e?.response?.data?.detail || "Could not load invoices.");
+        const cached = await getCachedInvoices();
+        if (cached.length > 0) setInvoices(cached);
+      })
       .finally(() => setLoading(false));
   }
   useEffect(load, []);

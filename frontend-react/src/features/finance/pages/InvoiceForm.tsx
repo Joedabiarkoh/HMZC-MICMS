@@ -9,6 +9,7 @@ import FinanceDocumentPreview from "../components/FinanceDocumentPreview";
 import InvoiceAttachments from "../components/InvoiceAttachments";
 import StagedInvoiceAttachments, { StagedAttachment } from "../components/StagedInvoiceAttachments";
 import { listInvoices, saveInvoice, deleteInvoice, openInvoicePdf, uploadInvoiceAttachment, DocumentConflictError } from "../services/finance.api";
+import { getCachedInvoice, saveInvoiceToCache, buildPendingInvoiceDoc } from "../services/finance.storage";
 import { queueInvoiceSave } from "../../../offline/syncQueue";
 import { DiscountType, FinanceItem, LineItem, InvoiceDoc } from "../types/finance.types";
 import { confirmAction } from "../../../components/ConfirmDialog";
@@ -59,31 +60,65 @@ export default function InvoiceForm() {
   const [issuedById, setIssuedById] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  // The last full InvoiceDoc this form actually had in hand (from the
+  // server or the local cache), used as the base when an offline save
+  // needs to synthesize a cacheable doc — see buildPendingInvoiceDoc.
+  const [lastKnownDoc, setLastKnownDoc] = useState<InvoiceDoc | null>(null);
+  // Set when this invoice was loaded from the local cache rather than
+  // the server — i.e. it's a save still queued from an offline session
+  // (see finance.storage.ts) — so the form can say so instead of quietly
+  // looking identical to a confirmed, synced invoice.
+  const [localOnly, setLocalOnly] = useState(false);
+
+  function applyInvoice(found: InvoiceDoc) {
+    setDocNo(found.invoice_no);
+    setCustomer(found.customer);
+    setVesselName(found.vessel_name || "");
+    setImoNo(found.imo_no || "");
+    setStatus(found.status);
+    setLineItems(found.line_items);
+    setOverallDiscountType(found.overall_discount_type || "percent");
+    setOverallDiscountPercent(found.overall_discount_percent || 0);
+    setOverallDiscountAmount(found.overall_discount_amount || 0);
+    setCurrency(found.currency || "USD");
+    setExchangeRate(found.exchange_rate || 1);
+    setVersion(found.version);
+    setIssuedBy(found.issued_by ? (found.issued_by.full_name || found.issued_by.email) : null);
+    setIssuedById(found.issued_by?.id ?? null);
+    setIssuedAt(found.created_at);
+    setLastKnownDoc(found);
+    setLocalOnly(!!found._pending);
+  }
 
   useEffect(() => {
     if (!invoiceNo) {
       listInvoices().then((all) => setDocNo(generateInvoiceNo(all))).catch(() => setDocNo(generateInvoiceNo([])));
       return;
     }
-    listInvoices().then((all) => {
-      const found = all.find((i) => i.invoice_no === invoiceNo);
-      if (!found) { setError("Invoice not found."); return; }
-      setDocNo(found.invoice_no);
-      setCustomer(found.customer);
-      setVesselName(found.vessel_name || "");
-      setImoNo(found.imo_no || "");
-      setStatus(found.status);
-      setLineItems(found.line_items);
-      setOverallDiscountType(found.overall_discount_type || "percent");
-      setOverallDiscountPercent(found.overall_discount_percent || 0);
-      setOverallDiscountAmount(found.overall_discount_amount || 0);
-      setCurrency(found.currency || "USD");
-      setExchangeRate(found.exchange_rate || 1);
-      setVersion(found.version);
-      setIssuedBy(found.issued_by ? (found.issued_by.full_name || found.issued_by.email) : null);
-      setIssuedById(found.issued_by?.id ?? null);
-      setIssuedAt(found.created_at);
-    });
+    listInvoices()
+      .then((all) => {
+        const found = all.find((i) => i.invoice_no === invoiceNo);
+        if (found) {
+          applyInvoice(found);
+          saveInvoiceToCache(found, false);
+          return;
+        }
+        // Not (yet) on the server — may be a save still queued from an
+        // offline session on this device. Check the local cache before
+        // giving up.
+        return getCachedInvoice(invoiceNo).then((cached) => {
+          if (cached) applyInvoice(cached);
+          else setError("Invoice not found.");
+        });
+      })
+      .catch(() => {
+        // Couldn't reach the server at all — fall back entirely to
+        // whatever this device has cached locally.
+        getCachedInvoice(invoiceNo).then((cached) => {
+          if (cached) applyInvoice(cached);
+          else setError("Invoice not found — and this device is offline, so it can't check the server either.");
+        });
+      });
   }, [invoiceNo]);
 
   // Same fix as QuotationForm.tsx's canEdit — ownership alone used to be
@@ -123,6 +158,9 @@ export default function InvoiceForm() {
       setStatus(saved.status);
       setCurrency(saved.currency);
       setExchangeRate(saved.exchange_rate);
+      setLastKnownDoc(saved);
+      setLocalOnly(false);
+      await saveInvoiceToCache(saved, false);
       // Requested directly: documents loaded while creating the invoice
       // (before it had a real invoice_id to attach to) get uploaded now,
       // right after the invoice that owns them actually exists. Best
@@ -152,22 +190,19 @@ export default function InvoiceForm() {
       } else if (!e?.response) {
         // No response at all means the request never reached the
         // server (offline, DNS failure, etc.) rather than the server
-        // rejecting it — this was previously just a lost invoice with
-        // a generic error message. Now queued the same way an offline
-        // certificate save is (see syncQueue.ts) so it isn't lost.
-        //
-        // Deliberately does NOT navigate to the invoice's detail route
-        // the way a real save does — unlike Certificates (which have a
-        // local-first cache in inspection.storage.ts that can serve a
-        // not-yet-synced record immediately), Finance has no local
-        // cache at all; navigating there would immediately re-fetch
-        // from the server, find nothing, and show "Invoice not found."
-        // Full offline parity for Finance (a local cache so a queued
-        // invoice shows up in the Invoices list before it's synced,
-        // the way Certificate Log already does) is real follow-up work,
-        // not something this fix does — see the root README.
+        // rejecting it. Queued the same way an offline certificate save
+        // is (see syncQueue.ts) so it isn't lost, and now also cached
+        // locally (finance.storage.ts) the same way Certificates already
+        // are — so it shows up in the Invoices list and can be reopened
+        // immediately, then gets reconciled with the server's real
+        // id/version once flushQueue() actually syncs it.
+        const pendingDoc = buildPendingInvoiceDoc(payload, lastKnownDoc, user);
+        await saveInvoiceToCache(pendingDoc, true);
         await queueInvoiceSave(payload);
-        setError(`Saved on this device as ${payload.invoice_no} — couldn't reach the server. It'll sync automatically once you're back online (see the sync status in the header), but it won't appear in the Invoices list until then.`);
+        setLastKnownDoc(pendingDoc);
+        setLocalOnly(true);
+        setError(`Saved on this device as ${payload.invoice_no} — couldn't reach the server. It'll sync automatically once you're back online (see the sync status in the header).`);
+        if (!invoiceNo) navigate(`/finance/invoices/${encodeURIComponent(payload.invoice_no)}`, { replace: true });
       } else {
         setError(e?.response?.data?.detail || "Could not save the invoice.");
       }
@@ -194,6 +229,11 @@ export default function InvoiceForm() {
       <h1>{invoiceNo ? `Invoice ${docNo}` : "New Invoice"}</h1>
       <p className="finance-subtitle">HMZC LTD — Marine Engineering Services</p>
       {error && <div className="no-print" style={{ background: "#FBEEEC", border: "1px solid var(--insp-red)", color: "#7A241B", borderRadius: 6, padding: "8px 12px", fontSize: 12, marginBottom: 12 }}>{error}</div>}
+      {localOnly && !error && (
+        <div className="no-print" style={{ background: "#FFF7E0", border: "1px solid #D9A441", color: "#7A5B1B", borderRadius: 6, padding: "8px 12px", fontSize: 12, marginBottom: 12 }}>
+          Saved on this device — waiting to sync to the server. It'll update automatically once that happens.
+        </div>
+      )}
 
       <div className="finance-form-layout">
         <div className="finance-panel">

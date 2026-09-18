@@ -8,6 +8,7 @@ import OverallDiscountField from "../components/OverallDiscountField";
 import FinanceDocumentPreview from "../components/FinanceDocumentPreview";
 import ConditionsEditor from "../components/ConditionsEditor";
 import { listQuotations, saveQuotation, deleteQuotation, downloadQuotationPdf, DocumentConflictError } from "../services/finance.api";
+import { getCachedQuotation, saveQuotationToCache, buildPendingQuotationDoc } from "../services/finance.storage";
 import { queueQuotationSave } from "../../../offline/syncQueue";
 import { DiscountType, FinanceItem, LineItem, QuotationDoc, DEFAULT_QUOTATION_CONDITIONS } from "../types/finance.types";
 import { confirmAction } from "../../../components/ConfirmDialog";
@@ -61,32 +62,60 @@ export default function QuotationForm() {
   const [issuedById, setIssuedById] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  // See InvoiceForm.tsx's identical fields for why these exist.
+  const [lastKnownDoc, setLastKnownDoc] = useState<QuotationDoc | null>(null);
+  const [localOnly, setLocalOnly] = useState(false);
+
+  function applyQuotation(found: QuotationDoc) {
+    setDocNo(found.quotation_no);
+    setCustomer(found.customer);
+    setVesselName(found.vessel_name || "");
+    setImoNo(found.imo_no || "");
+    setStatus(found.status);
+    setLineItems(found.line_items);
+    setOverallDiscountType(found.overall_discount_type || "percent");
+    setOverallDiscountPercent(found.overall_discount_percent || 0);
+    setOverallDiscountAmount(found.overall_discount_amount || 0);
+    setCurrency(found.currency || "USD");
+    setExchangeRate(found.exchange_rate || 1);
+    setConditions(found.conditions || []);
+    setVersion(found.version);
+    setIssuedBy(found.issued_by ? (found.issued_by.full_name || found.issued_by.email) : null);
+    setIssuedById(found.issued_by?.id ?? null);
+    setIssuedAt(found.created_at);
+    setLastKnownDoc(found);
+    setLocalOnly(!!found._pending);
+  }
 
   useEffect(() => {
     if (!quotationNo) {
       listQuotations().then((all) => setDocNo(generateQuotationNo(all))).catch(() => setDocNo(generateQuotationNo([])));
       return;
     }
-    listQuotations().then((all) => {
-      const found = all.find((q) => q.quotation_no === quotationNo);
-      if (!found) { setError("Quotation not found."); return; }
-      setDocNo(found.quotation_no);
-      setCustomer(found.customer);
-      setVesselName(found.vessel_name || "");
-      setImoNo(found.imo_no || "");
-      setStatus(found.status);
-      setLineItems(found.line_items);
-      setOverallDiscountType(found.overall_discount_type || "percent");
-      setOverallDiscountPercent(found.overall_discount_percent || 0);
-      setOverallDiscountAmount(found.overall_discount_amount || 0);
-      setCurrency(found.currency || "USD");
-      setExchangeRate(found.exchange_rate || 1);
-      setConditions(found.conditions || []);
-      setVersion(found.version);
-      setIssuedBy(found.issued_by ? (found.issued_by.full_name || found.issued_by.email) : null);
-      setIssuedById(found.issued_by?.id ?? null);
-      setIssuedAt(found.created_at);
-    });
+    listQuotations()
+      .then((all) => {
+        const found = all.find((q) => q.quotation_no === quotationNo);
+        if (found) {
+          applyQuotation(found);
+          saveQuotationToCache(found, false);
+          return;
+        }
+        // Not (yet) on the server — may be a save still queued from an
+        // offline session on this device. Check the local cache before
+        // giving up.
+        return getCachedQuotation(quotationNo).then((cached) => {
+          if (cached) applyQuotation(cached);
+          else setError("Quotation not found.");
+        });
+      })
+      .catch(() => {
+        // Couldn't reach the server at all — fall back entirely to
+        // whatever this device has cached locally.
+        getCachedQuotation(quotationNo).then((cached) => {
+          if (cached) applyQuotation(cached);
+          else setError("Quotation not found — and this device is offline, so it can't check the server either.");
+        });
+      });
   }, [quotationNo]);
 
   // Root-caused from an audit pass: ownership alone used to be enough to
@@ -132,17 +161,26 @@ export default function QuotationForm() {
       setStatus(saved.status);
       setCurrency(saved.currency);
       setExchangeRate(saved.exchange_rate);
+      setLastKnownDoc(saved);
+      setLocalOnly(false);
+      await saveQuotationToCache(saved, false);
       if (!quotationNo) navigate(`/finance/quotations/${encodeURIComponent(saved.quotation_no)}`, { replace: true });
     } catch (e: any) {
       if (e instanceof DocumentConflictError) {
         setError(e.message);
       } else if (!e?.response) {
-        // Same reasoning as InvoiceForm.tsx's handleSave — queued
-        // instead of lost, but deliberately not navigated to its detail
-        // route, since Finance has no local cache to serve a
-        // not-yet-synced record from (unlike Certificates).
+        // Same reasoning as InvoiceForm.tsx's handleSave — queued so
+        // it isn't lost, and cached locally (finance.storage.ts) so it
+        // shows up in the Quotations list and can be reopened
+        // immediately, then reconciled with the server's real
+        // id/version once flushQueue() actually syncs it.
+        const pendingDoc = buildPendingQuotationDoc(payload, lastKnownDoc, user);
+        await saveQuotationToCache(pendingDoc, true);
         await queueQuotationSave(payload);
-        setError(`Saved on this device as ${payload.quotation_no} — couldn't reach the server. It'll sync automatically once you're back online (see the sync status in the header), but it won't appear in the Quotations list until then.`);
+        setLastKnownDoc(pendingDoc);
+        setLocalOnly(true);
+        setError(`Saved on this device as ${payload.quotation_no} — couldn't reach the server. It'll sync automatically once you're back online (see the sync status in the header).`);
+        if (!quotationNo) navigate(`/finance/quotations/${encodeURIComponent(payload.quotation_no)}`, { replace: true });
       } else {
         setError(e?.response?.data?.detail || "Could not save the quotation.");
       }
@@ -169,6 +207,11 @@ export default function QuotationForm() {
       <h1>{quotationNo ? `Quotation ${docNo}` : "New Quotation"}</h1>
       <p className="finance-subtitle">HMZC LTD — Marine Engineering Services</p>
       {error && <div className="no-print" style={{ background: "#FBEEEC", border: "1px solid var(--insp-red)", color: "#7A241B", borderRadius: 6, padding: "8px 12px", fontSize: 12, marginBottom: 12 }}>{error}</div>}
+      {localOnly && !error && (
+        <div className="no-print" style={{ background: "#FFF7E0", border: "1px solid #D9A441", color: "#7A5B1B", borderRadius: 6, padding: "8px 12px", fontSize: 12, marginBottom: 12 }}>
+          Saved on this device — waiting to sync to the server. It'll update automatically once that happens.
+        </div>
+      )}
 
       <div className="finance-form-layout">
         <div className="finance-panel">
