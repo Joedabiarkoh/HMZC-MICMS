@@ -216,13 +216,21 @@ export function freshFFEState(subTypeId: string) {
     comment: "",
   }));
 
+  // See FFESubTypeConfig.defaultItems2's own comment — only fire_pump
+  // sets this today, same reasoning as Calibration's freshCalibrationState.
+  const items2 = (cfg.defaultItems2 || []).map((row) => {
+    const full: Record<string, string> = {};
+    for (const c of cfg.items2Columns || []) full[c.key] = row[c.key] || "";
+    return full;
+  });
+
   return {
     subType: cfg.id,
     certClass: "",
     placeOfService: "",
     technicalValues,
     items: [] as Record<string, string>[],
-    items2: [] as Record<string, string>[],
+    items2,
     checklist,
     comments: "",
     variant: "",
