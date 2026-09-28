@@ -984,10 +984,17 @@ function CalibrationCertificatePage({ cert, calibration }: { cert: InspectionCer
       {!!cfg.technicalFields.length && (
         <>
           <div style={{ fontWeight: 700, fontSize: 11.5, color: "var(--insp-navy)", margin: "10px 0 4px" }}>Calibration Reference</div>
+          {/* Requested directly, reviewing the UTI certificate's Calibration
+              Reference table (long field labels like "Calibration Reference
+              Equipment Manufacturer" and "Probe Sensor Test — Deviation"
+              cramped against .insp-label-cell's shared 16% width) — 60/40
+              label/value split instead. Same technique as FFE's Technical
+              Description 50/50 split above: this table is shared by every
+              Calibration sub-type's own technicalFields, not just UTI's. */}
           <table className="insp-id-table">
             <tbody>
               {cfg.technicalFields.map((f) => (
-                <tr key={f.key}><td className="insp-label-cell">{f.label}</td><td colSpan={3}>{calibration.technicalValues[f.key] || "—"}</td></tr>
+                <tr key={f.key}><td className="insp-label-cell" style={{ width: "60%" }}>{f.label}</td><td colSpan={3}>{calibration.technicalValues[f.key] || "—"}</td></tr>
               ))}
             </tbody>
           </table>
