@@ -88,6 +88,15 @@ export interface FFESubTypeConfig {
   // existing item-table-before-checklist order is untouched.
   itemsAfterChecklist?: boolean;
   readingsRows?: { key: string; label: string; maxAllowed: string }[];
+  // Requested directly, from the Fire Pump certificate's Performance
+  // Test Results table (fixed named tests — No Flow/Shut-off Pressure,
+  // 100% Rated Capacity, etc. — not a register of serialized units):
+  // same defaultItems2 pattern CalibrationSubTypeConfig already uses
+  // (see calibrationCertTypes.ts) — items2 starts pre-loaded with these
+  // rows (see freshFFEState below) instead of empty, so the technician
+  // fills in Required/Actual against a fixed test list rather than
+  // having to add rows and retype each test's name from scratch.
+  defaultItems2?: Record<string, string>[];
   validityYears: 1 | 2;
   note?: string;
   // Requested directly: `note` can carry internal filling-in guidance
@@ -1062,6 +1071,74 @@ export const FFE_CERT_TYPES: FFESubTypeConfig[] = [
     itemsAfterChecklist: true,
     validityYears: 1,
     note: "Adapted from this project's standard clean-agent/fixed-gas-system pattern (matches the CO2 System checklist above) — the source template (CERT Novec System Certificate.doc) couldn't be read in this environment (legacy .doc, no Word/LibreOffice available to convert it). Worth checking this against the actual Novec template once it can be opened, in case its checklist genuinely differs from CO2's.",
+  },
+  {
+    // Requested directly, from HMZC_Fire_Pump_Certificate_and_Checklist.docx
+    // — annual inspection & performance test of the vessel's main/
+    // emergency fire pump. technicalFields describe the one pump fitted
+    // (same shape as co2_system etc. above); the 19-item checklist keeps
+    // the source template's own numbering, with items 16-19 (the
+    // Emergency Fire Pump subsection in the source) folded into each
+    // item's own description as a lead-in phrase, since
+    // FFEChecklistItemDef has no separate section-header row — same
+    // convention as every other flat checklistItems array here.
+    // Performance Test Results (Required/Actual/Satisfactory per named
+    // test, not a register of serialized units) is modeled as items2
+    // pre-seeded via defaultItems2 (see FFESubTypeConfig's own comment
+    // and freshFFEState in inspectionHelpers.ts) so the technician fills
+    // in Required/Actual against the template's own fixed 6 tests
+    // instead of adding rows and retyping each test's name.
+    id: "fire_pump",
+    label: "Fire Pump — Annual Inspection & Performance Test",
+    archetype: "system",
+    technicalFields: [
+      { key: "manufacturer", label: "Manufacturer" },
+      { key: "modelSerialNo", label: "Model / Serial No" },
+      { key: "type", label: "Type (Main / Emergency / Other)" },
+      { key: "ratedCapacity", label: "Rated Capacity (m³/h)" },
+      { key: "ratedPressure", label: "Rated Pressure (bar)" },
+      { key: "ratedSpeed", label: "Rated Speed (RPM)" },
+      { key: "driverPower", label: "Driver (Electric / Diesel) & Power (kW)" },
+      { key: "locationOfPump", label: "Location of Pump" },
+    ],
+    checklistItems: [
+      { no: "1", description: "Pump foundation, casing and supports visually inspected – secure, no cracks, corrosion or damage" },
+      { no: "2", description: "Shaft, coupling and coupling guard inspected – aligned, secure and correctly fitted" },
+      { no: "3", description: "Mechanical seal / gland and bearings checked – no excessive leakage, noise, vibration or heat" },
+      { no: "4", description: "Suction and discharge valves checked – operable, accessible and correctly positioned" },
+      { no: "5", description: "Non-return valve and flexible connections checked for proper condition" },
+      { no: "6", description: "Suction and discharge pipework inspected – no leakage, damage or obstruction" },
+      { no: "7", description: "Pressure gauges checked for condition and calibration status" },
+      { no: "8", description: "Electrical connections, motor ventilation / cooling checked – secure and satisfactory" },
+      { no: "9", description: "Local start / stop controls functionally tested" },
+      { no: "10", description: "Remote start (bridge / ECR / fire control station) functionally tested" },
+      { no: "11", description: "Automatic start on fire main pressure drop tested" },
+      { no: "12", description: "Alarms, indicators and control panel checked" },
+      { no: "13", description: "Pump performance tested – readings recorded in the Performance Test Results table below" },
+      { no: "14", description: "Fire main pressure and hydrant / hose flow checked at the most remote point" },
+      { no: "15", description: "Instructions, identification plates and warning signs checked" },
+      { no: "16", description: "Emergency Fire Pump (where fitted): independent power source and independent sea suction verified" },
+      { no: "17", description: "Emergency Fire Pump (where fitted): diesel fuel, cooling, exhaust and starting batteries checked" },
+      { no: "18", description: "Emergency Fire Pump (where fitted): start-up, priming and delivery pressure / flow verified; engine alarms checked" },
+      { no: "19", description: "Emergency Fire Pump (where fitted): service label applied and pump left in operational condition" },
+    ],
+    items2Columns: [
+      { key: "test", label: "Performance Test" },
+      { key: "required", label: "Required" },
+      { key: "actual", label: "Actual" },
+      { key: "result", label: "Satisfactory / Not Satisfactory" },
+    ],
+    items2Label: "Performance Test Results",
+    defaultItems2: [
+      { test: "No Flow / Shut-off Pressure (bar)" },
+      { test: "100% Rated Capacity (m³/h / bar)" },
+      { test: "Maximum Required Flow (m³/h / bar)" },
+      { test: "Running Speed (RPM)" },
+      { test: "Motor Current / Engine Load (A)" },
+      { test: "Auto Start Time (sec)" },
+    ],
+    itemsAfterChecklist: true,
+    validityYears: 1,
   },
 
   // ---------- Archetype: checklist (small, no item register) ----------

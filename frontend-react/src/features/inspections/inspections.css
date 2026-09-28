@@ -103,6 +103,9 @@
   border-radius: 20px;
   color: #fff;
   background: var(--insp-accent);
+  /* Same print-background issue as table.insp-print-chk th above — this
+     badge's white text needs its background to survive print too. */
+  print-color-adjust: exact; -webkit-print-color-adjust: exact;
 }
 
 /* ---- subtabs ---- */
@@ -414,7 +417,16 @@ table.insp-print-chk { width: 100%; border-collapse: collapse; font-size: 9px; m
    padding 2px→1.5px vertical together reclaim ~30-40px across a
    17-row checklist on their own — not the whole 127px by themselves,
    see .insp-remarks-box's own comment for where the rest comes from. */
-table.insp-print-chk th { background: var(--insp-navy); color: #fff; text-align: left; padding: 3px 6px; font-size: 9px; text-transform: uppercase; }
+/* Requested directly: "the head banner blue colour does not appear
+   when printed" — like .insp-cert-page::before/.insp-letterhead-logo
+   above, a plain background-color is dropped by the browser's print
+   output unless "Background graphics" is checked, which silently left
+   this header's white text invisible on white paper. print-color-
+   adjust: exact forces it to always render. Switched navy to steel
+   (a muted blue-grey already in the palette, see theme.css) at the
+   same time, so the banner stays legible even on a printer/setting
+   that still doesn't honor print-color-adjust. */
+table.insp-print-chk th { background: var(--insp-steel); color: #fff; text-align: left; padding: 3px 6px; font-size: 9px; text-transform: uppercase; print-color-adjust: exact; -webkit-print-color-adjust: exact; }
 table.insp-print-chk td { padding: 1px 6px; border: 1px solid #E4E7E9; line-height: 1.1; }
 table.insp-print-chk tr.insp-section-row td { background: #EEF1F3; font-weight: 700; color: var(--insp-navy); font-size: 9.5px; text-transform: uppercase; }
 

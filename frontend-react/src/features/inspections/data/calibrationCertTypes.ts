@@ -311,6 +311,43 @@ export const CALIBRATION_CERT_TYPES: CalibrationSubTypeConfig[] = [
     validityYears: 1,
   },
   {
+    // Requested directly, from "CERT - UTI 01.docx" — Ullage/Temperature/
+    // Interface Detector, a portable tank-gauging instrument (tape +
+    // probe) used to measure ullage, temperature and oil/water interface
+    // in cargo/ballast tanks. itemColumns reuses the standard Unit(s)
+    // Under Test register unchanged (the source template's own
+    // Manufacture/Model/SL No/Range row is that exact shape). The
+    // source's separate small "Calibration Reference" register
+    // (Equipment/Manufacturer) and "status/Deviation" register (Test
+    // Temperature, Probe Sensor Test, Tape Length) are both folded into
+    // technicalFields as flat label/value pairs — this config-driven
+    // architecture only has one further register slot (items2), which
+    // is used below for the actual Readings-in-Deg.-C test data instead,
+    // since that's the part with a variable number of rows.
+    id: "uti_detector",
+    label: "Ullage/Temperature Interface Detector (UTI)",
+    technicalFields: [
+      { key: "calRefEquipment", label: "Calibration Reference Equipment" },
+      { key: "calRefEquipmentManufacturer", label: "Calibration Reference Equipment Manufacturer" },
+      { key: "testTemperatureStatus", label: "Test Temperature — Status" },
+      { key: "testTemperatureDeviation", label: "Test Temperature — Deviation" },
+      { key: "probeSensorTestStatus", label: "Probe Sensor Test — Status" },
+      { key: "probeSensorTestDeviation", label: "Probe Sensor Test — Deviation" },
+      { key: "tapeLengthStatus", label: "Tape Length — Status" },
+      { key: "tapeLengthDeviation", label: "Tape Length — Deviation" },
+    ],
+    itemColumns: UNIT_UNDER_TEST_COLS,
+    itemTableLabel: "Unit(s) Under Test",
+    items2Columns: [
+      { key: "range", label: "Range" }, { key: "applied", label: "Applied" },
+      { key: "measuredAsFound", label: "Measured (As Found)" }, { key: "measuredAsLeft", label: "Measured (As Left)" },
+      { key: "errorAsFound", label: "Error (As Found)" }, { key: "errorAsLeft", label: "Error (As Left)" },
+    ],
+    items2Label: "Readings in Deg. C",
+    note: "UUT Accuracy: ± 0.3°C. Test method variation: NIL. The Ullage, Temperature & Interface Detection was checked and found working satisfactorily. The linear scale was calibrated using a certified measuring rule and found no visible deviation. Calibration based on manufacturer's procedure, WI & BS No. 1041 Part III: 1989. Reference Equipment Traceability: National or International Standards.",
+    validityYears: 1,
+  },
+  {
     id: "odme",
     label: "Oil Discharge Monitoring Equipment (ODME)",
     technicalFields: [],
