@@ -79,6 +79,17 @@ export async function deactivateUser(userId: number): Promise<User> {
 }
 
 /**
+ * Admin-only. Clears locked_until/failed attempts on an account that
+ * tripped the login lockout (see /auth/login's 423 response), letting
+ * a genuine user back in right away instead of waiting out the lockout
+ * window.
+ */
+export async function unlockUser(userId: number): Promise<User> {
+  const response = await api.post(`/auth/users/${userId}/unlock`);
+  return response.data;
+}
+
+/**
  * Admin-only. Permanently removes the account — different from
  * deactivateUser, which only suspends sign-in. The backend refuses this
  * (400) if the account has ever issued a certificate, quotation, or

@@ -5,6 +5,7 @@ from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_admin_user, get_current_user
+from app.core.account_lockout import is_locked, lock_remaining_seconds, register_failed_attempt, reset_failed_attempts, unlock_account
 from app.core.audit import record_audit
 from app.core.database import get_database
 from app.core.email import send_account_created_email, send_password_reset_email
@@ -132,7 +133,26 @@ def login(
     # OAuth2PasswordRequestForm's "username" field carries the email —
     # this project logs in by email, not a separate username.
     user = db.query(User).filter(User.email == form_data.username).first()
+
+    # Checked before verifying the password: a locked account should be
+    # rejected outright, not re-hashed/re-checked against on every retry
+    # while it's locked (see core/account_lockout.py — this is a
+    # different, per-account control from check_rate_limit's per-IP
+    # one). Only reachable for an account that actually exists, so this
+    # inevitably reveals that the account exists — the same accepted
+    # tradeoff every mainstream login form (GitHub, Google, etc.) makes;
+    # the wrong-password branch below stays deliberately generic so it
+    # doesn't ALSO become an enumeration channel.
+    if user and is_locked(user):
+        minutes_left = max(1, lock_remaining_seconds(user) // 60 + 1)
+        raise HTTPException(
+            status_code=status.HTTP_423_LOCKED,
+            detail=f"This account is temporarily locked after too many failed sign-in attempts. Try again in about {minutes_left} minute{'s' if minutes_left != 1 else ''}, or contact an administrator to unlock it now.",
+        )
+
     if not user or not verify_password(form_data.password, user.hashed_password):
+        if user:
+            register_failed_attempt(db, user)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect email or password",
@@ -144,6 +164,7 @@ def login(
             detail="Your account is pending administrator approval, or has been deactivated. Contact an administrator.",
         )
 
+    reset_failed_attempts(db, user)
     access_token = create_access_token({"sub": str(user.id), "tv": user.token_version})
     # Not in the pasted chat output — a login is one of the few events
     # worth a real audit trail entry on a certification platform (see
@@ -357,6 +378,25 @@ def deactivate_user(
     db.commit()
     db.refresh(user)
     record_audit(db, request, "user.deactivated", user_id=_admin.id, resource_type="user", resource_id=str(user.id))
+    return user
+
+
+# The admin-facing complement to account lockout (core/account_lockout.py):
+# a genuine user who trips MAX_FAILED_ATTEMPTS shouldn't have to just
+# wait out LOCKOUT_MINUTES if an admin is available to vouch for them
+# right now.
+@router.post("/users/{user_id}/unlock", response_model=UserResponse)
+def unlock_user(
+    user_id: int,
+    request: Request,
+    db: Session = Depends(get_database),
+    _admin: User = Depends(get_current_admin_user),
+):
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+    unlock_account(db, user)
+    record_audit(db, request, "user.unlocked", user_id=_admin.id, resource_type="user", resource_id=str(user.id))
     return user
 
 

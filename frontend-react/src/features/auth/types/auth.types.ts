@@ -66,6 +66,12 @@ export interface User {
   // this person signs so they don't have to redraw it each time. null
   // if they've never saved one.
   saved_signature_url: string | null;
+  // Set once too many failed sign-in attempts lock the account (see
+  // POST /auth/login's 423 response and POST /auth/users/{id}/unlock)
+  // — null for an unlocked account, or a past ISO timestamp once the
+  // lockout has expired on its own (treat that the same as null, don't
+  // show a stale "locked" state for it).
+  locked_until: string | null;
 }
 
 export function hasPermission(user: User | null, permission: string): boolean {

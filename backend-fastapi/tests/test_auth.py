@@ -113,6 +113,100 @@ def test_login_rate_limited_after_repeated_attempts(client):
     assert response.status_code == 429
 
 
+def test_account_locks_after_max_failed_attempts(client, admin_token):
+    """
+    core/account_lockout.py's MAX_FAILED_ATTEMPTS is 5 — a different,
+    per-account control from the per-IP rate limiter above (which this
+    stays well under: 5 wrong attempts + 1 more login < the 10/min
+    window). Once locked, even the CORRECT password is rejected with
+    423, not just further wrong ones — the lock blocks the account
+    outright, it doesn't just keep counting failures.
+    """
+    create_response = client.post(
+        "/api/auth/users",
+        json={"email": "getslocked@hmzc-test.com", "full_name": "Gets Locked", "role": "inspector"},
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    temp_password = create_response.json()["temporary_password"]
+
+    for _ in range(5):
+        response = client.post("/api/auth/login", data={"username": "getslocked@hmzc-test.com", "password": "wrongpassword"})
+        assert response.status_code == 401, response.text
+
+    locked_response = client.post("/api/auth/login", data={"username": "getslocked@hmzc-test.com", "password": temp_password})
+    assert locked_response.status_code == 423, locked_response.text
+    assert "locked" in locked_response.json()["detail"].lower()
+
+
+def test_successful_login_resets_failed_attempts(client, admin_token):
+    """A few wrong attempts (not enough to lock) shouldn't linger — a
+    genuine successful login should clear the counter back to a clean
+    slate, confirmed here via locked_until on the admin Users listing."""
+    create_response = client.post(
+        "/api/auth/users",
+        json={"email": "typo@hmzc-test.com", "full_name": "Typo Prone", "role": "inspector"},
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    user_id = create_response.json()["user"]["id"]
+    temp_password = create_response.json()["temporary_password"]
+
+    for _ in range(3):
+        client.post("/api/auth/login", data={"username": "typo@hmzc-test.com", "password": "wrongpassword"})
+
+    success = client.post("/api/auth/login", data={"username": "typo@hmzc-test.com", "password": temp_password})
+    assert success.status_code == 200, success.text
+
+    users = client.get("/api/auth/users", headers={"Authorization": f"Bearer {admin_token}"}).json()
+    this_user = next(u for u in users if u["id"] == user_id)
+    assert this_user["locked_until"] is None
+
+
+def test_admin_can_unlock_locked_account(client, admin_token):
+    """The admin-facing complement to lockout — POST .../unlock lets a
+    genuine user back in immediately instead of waiting out LOCKOUT_MINUTES."""
+    create_response = client.post(
+        "/api/auth/users",
+        json={"email": "rescued@hmzc-test.com", "full_name": "Rescued", "role": "inspector"},
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    user_id = create_response.json()["user"]["id"]
+    temp_password = create_response.json()["temporary_password"]
+
+    for _ in range(5):
+        client.post("/api/auth/login", data={"username": "rescued@hmzc-test.com", "password": "wrongpassword"})
+
+    still_locked = client.post("/api/auth/login", data={"username": "rescued@hmzc-test.com", "password": temp_password})
+    assert still_locked.status_code == 423, still_locked.text
+
+    unlock_response = client.post(f"/api/auth/users/{user_id}/unlock", headers={"Authorization": f"Bearer {admin_token}"})
+    assert unlock_response.status_code == 200, unlock_response.text
+    assert unlock_response.json()["locked_until"] is None
+
+    after_unlock = client.post("/api/auth/login", data={"username": "rescued@hmzc-test.com", "password": temp_password})
+    assert after_unlock.status_code == 200, after_unlock.text
+
+
+def test_non_admin_cannot_unlock_accounts(client, admin_token):
+    create_response = client.post(
+        "/api/auth/users",
+        json={"email": "notyours@hmzc-test.com", "full_name": "Not Yours", "role": "inspector"},
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    user_id = create_response.json()["user"]["id"]
+
+    sales_create = client.post(
+        "/api/auth/users",
+        json={"email": "salesperson2@hmzc-test.com", "full_name": "Sales", "role": "sales"},
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    sales_temp_password = sales_create.json()["temporary_password"]
+    sales_login = client.post("/api/auth/login", data={"username": "salesperson2@hmzc-test.com", "password": sales_temp_password})
+    sales_token = sales_login.json()["access_token"]
+
+    response = client.post(f"/api/auth/users/{user_id}/unlock", headers={"Authorization": f"Bearer {sales_token}"})
+    assert response.status_code == 403, response.text
+
+
 def test_admin_can_reactivate_deactivated_account(client, admin_token):
     """
     Was test_admin_can_approve_pending_account, built on a self-
