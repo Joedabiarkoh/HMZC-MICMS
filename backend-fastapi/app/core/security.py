@@ -13,12 +13,16 @@ from app.core.config import settings
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 
-def create_access_token(data: dict):
+def create_access_token(data: dict, expires_minutes: int = None):
     payload = data.copy()
 
-    expire = datetime.utcnow() + timedelta(
-        minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES
-    )
+    # expires_minutes lets a caller issue a much shorter-lived token than
+    # the normal session length — added for the 2FA login challenge (see
+    # login()/verify_two_factor() in api/routes/auth.py), which is a
+    # pending-credential token that should die in minutes, not sit valid
+    # for a full ACCESS_TOKEN_EXPIRE_MINUTES session like a real one.
+    minutes = expires_minutes if expires_minutes is not None else settings.ACCESS_TOKEN_EXPIRE_MINUTES
+    expire = datetime.utcnow() + timedelta(minutes=minutes)
 
     payload.update({"exp": expire})
 

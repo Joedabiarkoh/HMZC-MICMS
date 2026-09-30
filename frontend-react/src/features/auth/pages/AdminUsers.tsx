@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import "../auth.css";
 import { useAuth } from "../../../context/AuthContext";
-import { listUsers, updateUserRole, approveUser, deactivateUser, unlockUser, deleteUser, resetUserPassword, updateUserPermissions, updateUserProfile, createUser } from "../services/auth.api";
+import { listUsers, updateUserRole, approveUser, deactivateUser, unlockUser, adminDisableTwoFactor, deleteUser, resetUserPassword, updateUserPermissions, updateUserProfile, createUser } from "../services/auth.api";
 import { User, UserRole, ROLE_LABELS, ALL_PERMISSIONS, PERM } from "../types/auth.types";
 import { confirmAction } from "../../../components/ConfirmDialog";
 
@@ -142,6 +142,18 @@ export default function AdminUsers() {
     setUsers((prev) => prev.map((x) => (x.id === updated.id ? updated : x)));
   }
 
+  async function disable2fa(u: User) {
+    const ok = await confirmAction({
+      title: "Disable two-factor authentication?",
+      message: `${u.email} will lose their current authenticator setup and recovery codes. Only do this if they've lost their device and every recovery code — they'll need to set it up again${u.role === "admin" || u.role === "finance" ? " (their role requires it)" : ""}.`,
+      confirmLabel: "Disable 2FA",
+      danger: true,
+    });
+    if (!ok) return;
+    const updated = await adminDisableTwoFactor(u.id);
+    setUsers((prev) => prev.map((x) => (x.id === updated.id ? updated : x)));
+  }
+
   async function remove(u: User) {
     const ok = await confirmAction({
       title: "Delete account?",
@@ -261,6 +273,22 @@ export default function AdminUsers() {
           </td>
           <td>
             <span className={`role-pill ${u.role}`}>{ROLE_LABELS[u.role] || u.role}</span>
+            {u.two_factor_enabled && (
+              <span
+                title="Two-factor authentication is enabled on this account."
+                style={{ marginLeft: 6, fontSize: 10, fontWeight: 700, color: "#4C7A3A", background: "#EAF1E7", border: "1px solid #4C7A3A", borderRadius: 10, padding: "1px 7px" }}
+              >
+                2FA
+              </span>
+            )}
+            {u.requires_2fa_setup && (
+              <span
+                title="This role requires two-factor authentication, and it isn't set up yet."
+                style={{ marginLeft: 6, fontSize: 10, fontWeight: 700, color: "#B4690E", background: "#FBF0E2", border: "1px solid #B4690E", borderRadius: 10, padding: "1px 7px" }}
+              >
+                2FA needed
+              </span>
+            )}
             {isLocked(u) && (
               <span
                 title="Too many failed sign-in attempts — locks out on its own after a while, or use Unlock below."
@@ -279,6 +307,16 @@ export default function AdminUsers() {
                 onClick={() => unlock(u)}
               >
                 Unlock
+              </button>
+            )}
+            {u.two_factor_enabled && (
+              <button
+                className="auth-btn"
+                style={{ width: "auto", padding: "5px 10px", fontSize: 11, background: "#fff", color: "#455A73", border: "1px solid #455A73" }}
+                onClick={() => disable2fa(u)}
+                title="For someone who's lost both their authenticator device and every recovery code"
+              >
+                Disable 2FA
               </button>
             )}
             {u.role !== "admin" && (

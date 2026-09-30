@@ -85,6 +85,7 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { to: "/account/signature", label: "My Signature" },
       { to: "/account/change-password", label: "Change Password" },
+      { to: "/account/two-factor", label: "Two-Factor Authentication" },
     ],
   },
 ];

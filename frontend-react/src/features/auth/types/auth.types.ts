@@ -72,6 +72,14 @@ export interface User {
   // lockout has expired on its own (treat that the same as null, don't
   // show a stale "locked" state for it).
   locked_until: string | null;
+  // Whether TOTP two-factor is currently active on this account (see
+  // POST /auth/2fa/setup + /confirm). requires_2fa_setup is what
+  // RequireAuth.tsx actually gates navigation on — true only for an
+  // Admin/Finance account that hasn't enabled 2FA yet (see the backend
+  // User.requires_2fa_setup property's own comment); every other role
+  // can still turn 2FA on voluntarily, it just isn't forced.
+  two_factor_enabled: boolean;
+  requires_2fa_setup: boolean;
 }
 
 export function hasPermission(user: User | null, permission: string): boolean {
@@ -99,6 +107,29 @@ export interface PasswordResetResult {
   temporary_password: string;
   user: User;
   email_sent: boolean;
+}
+
+// ---- Added for TOTP two-factor auth (see backend's core/two_factor.py) ----
+
+// Matches backend-fastapi's LoginResponse — access_token/token_type are
+// only present when mfa_required is false; otherwise challenge_token is
+// what gets sent to verifyTwoFactor.
+export interface LoginResult {
+  access_token: string | null;
+  token_type: string | null;
+  mfa_required: boolean;
+  challenge_token: string | null;
+}
+
+export interface TwoFactorSetupResult {
+  secret: string;
+  qr_code_data_uri: string;
+}
+
+export interface TwoFactorConfirmResult {
+  // Shown exactly once — see the backend schema's own comment.
+  recovery_codes: string[];
+  user: User;
 }
 
 export interface AdminCreateUserPayload {

@@ -2,6 +2,7 @@ from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.security import OAuth2PasswordRequestForm
+from jose import JWTError, jwt
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_admin_user, get_current_user
@@ -14,12 +15,20 @@ from app.core.permissions import ALL_PERMISSIONS
 from app.core.photo_storage import delete_photo_files, externalize_signature, collect_photo_filenames, filter_deletable
 from app.core.rate_limit import check_rate_limit
 from app.core.security import create_access_token, generate_temporary_password, hash_password, verify_password
+from app.core.two_factor import consume_recovery_code, generate_recovery_codes, generate_secret, looks_like_totp_code, provisioning_qr_data_uri, verify_totp_code
 from app.models.audit_log import AuditLog
 from app.models.certificate import Certificate
 from app.models.finance_document import Invoice, Quotation
 from app.models.user import User, UserRole
 from app.schemas.audit import AuditLogResponse
-from app.schemas.user import AdminCreateUser, AdminUpdateProfile, ForgotPasswordRequest, PasswordChange, PasswordResetResult, PermissionUpdate, SignatureUpdate, Token, UserCreate, UserResponse
+from app.schemas.user import AdminCreateUser, AdminUpdateProfile, ForgotPasswordRequest, LoginResponse, PasswordChange, PasswordResetResult, PermissionUpdate, SignatureUpdate, Token, TwoFactorConfirmRequest, TwoFactorConfirmResult, TwoFactorDisableRequest, TwoFactorSetupResult, TwoFactorVerify, UserCreate, UserResponse
+
+# 5 minutes — long enough to switch to an authenticator app and type a
+# code, short enough that a leaked/logged challenge_token (e.g. in a
+# browser history or a proxy log) is worthless well before someone could
+# realistically reuse it. Separate constant from ACCESS_TOKEN_EXPIRE_MINUTES
+# on purpose — this is a pending-credential token, not a session one.
+MFA_CHALLENGE_EXPIRE_MINUTES = 5
 
 # Transcribed from the pasted Module 2 chat output (app/api/v1/auth.py),
 # adapted to match what already existed in this project:
@@ -123,7 +132,7 @@ def create_user(
     return PasswordResetResult(temporary_password=temp_password, user=user, email_sent=email_sent)
 
 
-@router.post("/login", response_model=Token)
+@router.post("/login", response_model=LoginResponse)
 def login(
     request: Request,
     form_data: OAuth2PasswordRequestForm = Depends(),
@@ -165,12 +174,152 @@ def login(
         )
 
     reset_failed_attempts(db, user)
+
+    # The password alone was correct, but this account also needs a
+    # second factor — don't issue a real access_token yet. Instead hand
+    # back a short-lived challenge_token proving "this request already
+    # supplied the right password," which POST /auth/login/2fa exchanges
+    # for the real token once the actual TOTP/recovery code checks out.
+    if user.two_factor_enabled:
+        challenge_token = create_access_token({"sub": str(user.id), "mfa_challenge": True}, expires_minutes=MFA_CHALLENGE_EXPIRE_MINUTES)
+        return LoginResponse(mfa_required=True, challenge_token=challenge_token)
+
     access_token = create_access_token({"sub": str(user.id), "tv": user.token_version})
     # Not in the pasted chat output — a login is one of the few events
     # worth a real audit trail entry on a certification platform (see
     # app/core/audit.py for what's scoped in vs deliberately left out).
     record_audit(db, request, "login", user_id=user.id, resource_type="user", resource_id=str(user.id))
+    return LoginResponse(access_token=access_token, token_type="bearer")
+
+
+# The second step of a 2FA login (see login()'s own comment) — separate
+# from get_current_user's own JWT check (app/api/deps.py) since a
+# challenge_token is deliberately a different, narrower kind of token:
+# it carries no "tv" claim and isn't checked against token_version, only
+# its own mfa_challenge claim and its own short expiry.
+@router.post("/login/2fa", response_model=Token)
+def verify_two_factor(
+    payload: TwoFactorVerify,
+    request: Request,
+    db: Session = Depends(get_database),
+):
+    check_rate_limit(request, "2fa")
+    try:
+        claims = jwt.decode(payload.challenge_token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+        if not claims.get("mfa_challenge"):
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or expired sign-in session. Please sign in again.")
+        user_id = int(claims["sub"])
+    except (JWTError, KeyError, ValueError):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or expired sign-in session. Please sign in again.")
+
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user or not user.two_factor_enabled or not user.is_active:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or expired sign-in session. Please sign in again.")
+
+    verified = False
+    if looks_like_totp_code(payload.code):
+        verified = verify_totp_code(user.totp_secret, payload.code)
+    if not verified:
+        remaining = consume_recovery_code(user.totp_recovery_codes, payload.code)
+        if remaining is not None:
+            user.totp_recovery_codes = remaining
+            db.commit()
+            verified = True
+
+    if not verified:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Incorrect authentication code.")
+
+    access_token = create_access_token({"sub": str(user.id), "tv": user.token_version})
+    record_audit(db, request, "login", user_id=user.id, resource_type="user", resource_id=str(user.id))
     return {"access_token": access_token, "token_type": "bearer"}
+
+
+# ---- TOTP two-factor enrollment (self-service) ----
+
+@router.post("/2fa/setup", response_model=TwoFactorSetupResult)
+def setup_two_factor(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_database),
+):
+    if current_user.two_factor_enabled:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Two-factor authentication is already enabled on this account. Disable it first to set up a new device.")
+    secret = generate_secret()
+    current_user.totp_secret = secret
+    db.commit()
+    return TwoFactorSetupResult(secret=secret, qr_code_data_uri=provisioning_qr_data_uri(secret, current_user.email))
+
+
+@router.post("/2fa/confirm", response_model=TwoFactorConfirmResult)
+def confirm_two_factor(
+    payload: TwoFactorConfirmRequest,
+    request: Request,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_database),
+):
+    if current_user.two_factor_enabled:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Two-factor authentication is already enabled on this account.")
+    if not current_user.totp_secret:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Start setup first — call /auth/2fa/setup to get a code to scan.")
+    if not verify_totp_code(current_user.totp_secret, payload.code):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="That code didn't match. Check your authenticator app and try again.")
+
+    plaintext_codes, hashed_codes = generate_recovery_codes()
+    current_user.two_factor_enabled = True
+    current_user.totp_recovery_codes = hashed_codes
+    db.commit()
+    db.refresh(current_user)
+    record_audit(db, request, "user.2fa_enabled", user_id=current_user.id, resource_type="user", resource_id=str(current_user.id))
+    return TwoFactorConfirmResult(recovery_codes=plaintext_codes, user=current_user)
+
+
+# Requested directly, alongside enforcing 2FA for Admin/Finance: a
+# self-service off switch still needs to exist (someone changing
+# authenticator apps, or genuinely done needing it on a role where it's
+# only recommended, not required) — gated on the current password (not
+# just an active session) so a stolen/left-open browser tab can't
+# silently strip an account's second factor on its own.
+@router.post("/2fa/disable", response_model=UserResponse)
+def disable_two_factor(
+    payload: TwoFactorDisableRequest,
+    request: Request,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_database),
+):
+    if not verify_password(payload.current_password, current_user.hashed_password):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Current password is incorrect")
+    current_user.two_factor_enabled = False
+    current_user.totp_secret = None
+    current_user.totp_recovery_codes = []
+    db.commit()
+    db.refresh(current_user)
+    record_audit(db, request, "user.2fa_disabled", user_id=current_user.id, resource_type="user", resource_id=str(current_user.id))
+    return current_user
+
+
+# The admin-assisted recovery path — mirrors reset_user_password's own
+# reasoning: someone who's lost both their authenticator device AND
+# every recovery code has no self-service way back in (2FA has no
+# "forgot my code" equivalent by design), so an admin who can otherwise
+# vouch for their identity needs a way to clear it. Requires re-setup
+# from scratch afterward (see requires_2fa_setup) if their role still
+# needs it.
+@router.post("/users/{user_id}/disable-2fa", response_model=UserResponse)
+def admin_disable_two_factor(
+    user_id: int,
+    request: Request,
+    db: Session = Depends(get_database),
+    admin: User = Depends(get_current_admin_user),
+):
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+    user.two_factor_enabled = False
+    user.totp_secret = None
+    user.totp_recovery_codes = []
+    db.commit()
+    db.refresh(user)
+    record_audit(db, request, "user.2fa_disabled_by_admin", user_id=admin.id, resource_type="user", resource_id=str(user.id))
+    return user
 
 
 @router.get("/me", response_model=UserResponse)

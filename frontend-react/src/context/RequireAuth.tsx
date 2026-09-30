@@ -2,6 +2,7 @@ import { Navigate, Outlet, useLocation } from "react-router-dom";
 import { useAuth } from "./AuthContext";
 
 const CHANGE_PASSWORD_PATH = "/account/change-password";
+const TWO_FACTOR_SETUP_PATH = "/account/two-factor";
 
 /**
  * Used as a layout route (`<Route element={<RequireAuth />}>`), not a
@@ -23,6 +24,14 @@ export default function RequireAuth() {
   if (!user) return <Navigate to="/signin" replace />;
   if (user.must_change_password && location.pathname !== CHANGE_PASSWORD_PATH) {
     return <Navigate to={CHANGE_PASSWORD_PATH} replace />;
+  }
+  // "2FA for Admin and Finance roles specifically" — see the backend
+  // User.requires_2fa_setup property's own comment. Checked after
+  // must_change_password (a temporary password should be replaced
+  // first) but before anything else — mirrors that same forced-redirect
+  // pattern exactly, just for a second, independent requirement.
+  if (user.requires_2fa_setup && location.pathname !== TWO_FACTOR_SETUP_PATH) {
+    return <Navigate to={TWO_FACTOR_SETUP_PATH} replace />;
   }
   return <Outlet />;
 }

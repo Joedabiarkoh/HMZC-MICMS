@@ -1,5 +1,5 @@
 import api from "../../../api/axios";
-import { AdminCreateUserPayload, AuditLogEntry, CompanyInfo, ExpiryReminderSettings, LoginPayload, PasswordChangePayload, PasswordResetResult, PermissionUpdatePayload, RegisterPayload, User } from "../types/auth.types";
+import { AdminCreateUserPayload, AuditLogEntry, CompanyInfo, ExpiryReminderSettings, LoginPayload, LoginResult, PasswordChangePayload, PasswordResetResult, PermissionUpdatePayload, RegisterPayload, TwoFactorConfirmResult, TwoFactorSetupResult, User } from "../types/auth.types";
 
 // Calls the backend routes added alongside this frontend module:
 // backend-fastapi/app/api/routes/auth.py (register/login/me/users), the
@@ -16,13 +16,55 @@ export async function registerUser(payload: RegisterPayload): Promise<User> {
  * form fields, not JSON) because that's what FastAPI's OAuth2PasswordRequestForm
  * expects server-side — see login() in auth.py. "username" carries the email.
  */
-export async function loginUser(payload: LoginPayload): Promise<{ access_token: string; token_type: string }> {
+export async function loginUser(payload: LoginPayload): Promise<LoginResult> {
   const form = new URLSearchParams();
   form.append("username", payload.email);
   form.append("password", payload.password);
   const response = await api.post("/auth/login", form, {
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
   });
+  return response.data;
+}
+
+/**
+ * The second step of a 2FA login (see loginUser's own comment on why
+ * this is separate) — exchanges a challenge_token plus the actual
+ * 6-digit authenticator code (or an 8-character recovery code) for the
+ * real access token.
+ */
+export async function verifyTwoFactor(challengeToken: string, code: string): Promise<{ access_token: string; token_type: string }> {
+  const response = await api.post("/auth/login/2fa", { challenge_token: challengeToken, code });
+  return response.data;
+}
+
+/** Self-service. Starts 2FA enrollment — the secret is written but stays
+ * inert (not yet enabled) until confirmTwoFactor proves it was scanned. */
+export async function setupTwoFactor(): Promise<TwoFactorSetupResult> {
+  const response = await api.post("/auth/2fa/setup");
+  return response.data;
+}
+
+/** Self-service. Proves the QR code was actually scanned right; only
+ * this call flips two_factor_enabled on and generates recovery codes. */
+export async function confirmTwoFactor(code: string): Promise<TwoFactorConfirmResult> {
+  const response = await api.post("/auth/2fa/confirm", { code });
+  return response.data;
+}
+
+/** Self-service. Requires the current password (not just an active
+ * session) so a stolen/left-open browser tab can't silently strip 2FA. */
+export async function disableTwoFactor(currentPassword: string): Promise<User> {
+  const response = await api.post("/auth/2fa/disable", { current_password: currentPassword });
+  return response.data;
+}
+
+/**
+ * Admin-only. The recovery path for someone who's lost both their
+ * authenticator device and every recovery code — 2FA has no
+ * self-service "forgot my code" option by design.
+ */
+export async function adminDisableTwoFactor(userId: number): Promise<User> {
+  const response = await api.post(`/auth/users/${userId}/disable-2fa`);
   return response.data;
 }
 
