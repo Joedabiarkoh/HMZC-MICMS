@@ -22,6 +22,7 @@ export default function TwoFactorSetup() {
   const [qrDataUri, setQrDataUri] = useState("");
   const [code, setCode] = useState("");
   const [recoveryCodes, setRecoveryCodes] = useState<string[] | null>(null);
+  const [confirmEmailSent, setConfirmEmailSent] = useState(false);
   const [disablePassword, setDisablePassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [err, setErr] = useState("");
@@ -48,6 +49,7 @@ export default function TwoFactorSetup() {
       const result = await confirmTwoFactor(code);
       updateUser(result.user);
       setRecoveryCodes(result.recovery_codes);
+      setConfirmEmailSent(result.email_sent);
     } catch (e: any) {
       setErr(e?.response?.data?.detail || "That code didn't match. Check your authenticator app and try again.");
     } finally {
@@ -87,6 +89,11 @@ export default function TwoFactorSetup() {
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, fontFamily: "monospace", fontSize: 13, fontWeight: 700, background: "#F4F6F7", border: "1px solid #DCE1E5", borderRadius: 6, padding: 12, marginBottom: 14 }}>
             {recoveryCodes.map((c) => <div key={c}>{c}</div>)}
           </div>
+          <p style={{ fontSize: 11.5, color: confirmEmailSent ? "#4C7A3A" : "#6B7480", fontWeight: 600, margin: "0 0 14px" }}>
+            {confirmEmailSent
+              ? "A confirmation was also emailed to you, in case this wasn't you."
+              : "(A confirmation email couldn't be sent — SMTP isn't configured on the server.)"}
+          </p>
           <button className="auth-btn" onClick={() => navigate("/inspections")}>
             I've saved these — Continue
           </button>

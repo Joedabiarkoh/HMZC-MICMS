@@ -135,6 +135,65 @@ def send_expiry_reminder_email(to_emails: list[str], certificates: list[dict]) -
     return sent_all
 
 
+# Requested directly, from a security review's additional-layers list:
+# a 2FA state change is exactly the kind of event that should surface
+# somewhere the account holder will actually see it even if they're not
+# the one who's currently signed in — someone who's genuinely lost
+# their device needs to know it happened; someone who DIDN'T do it
+# needs a channel to find out their account was touched at all. Same
+# fire-and-forget pattern as every other email here (see send_email's
+# own comment) — the actual enable/disable already succeeded server-
+# side before either of these is called, so a failed send never blocks
+# or reverts it.
+
+
+def send_2fa_enabled_email(to_email: str, full_name: str) -> bool:
+    subject = "Two-factor authentication enabled — HMZC Certification Platform"
+    text = (
+        f"Hi {full_name or to_email},\n\n"
+        f"Two-factor authentication was just turned on for your HMZC Certification Platform account.\n\n"
+        f"From now on, signing in will also ask for a code from your authenticator app. Keep the "
+        f"recovery codes you were just shown somewhere safe — they're the only way back in if you "
+        f"ever lose access to that app, and they won't be shown again.\n\n"
+        f"If you didn't do this, contact your administrator right away."
+    )
+    html = (
+        f"<p>Hi {full_name or to_email},</p>"
+        f"<p>Two-factor authentication was just turned on for your <strong>HMZC Certification Platform</strong> account.</p>"
+        f"<p>From now on, signing in will also ask for a code from your authenticator app. Keep the "
+        f"recovery codes you were just shown somewhere safe — they're the only way back in if you "
+        f"ever lose access to that app, and they won't be shown again.</p>"
+        f"<p style=\"color:#6B7480;font-size:12px;\">If you didn't do this, contact your "
+        f"administrator right away.</p>"
+    )
+    return send_email(to_email, subject, text, html)
+
+
+def send_2fa_disabled_email(to_email: str, full_name: str, by_admin: bool = False) -> bool:
+    subject = "Two-factor authentication turned off — HMZC Certification Platform"
+    who = "An administrator" if by_admin else "You"
+    admin_note = (
+        " If you didn't lose access to your authenticator app and ask for this, someone may have "
+        "impersonated you to your administrator — contact them to confirm and consider changing your password."
+        if by_admin else
+        " If this wasn't you, your password may be compromised — change it immediately and contact "
+        "your administrator."
+    )
+    text = (
+        f"Hi {full_name or to_email},\n\n"
+        f"{who} just turned off two-factor authentication on your HMZC Certification Platform account. "
+        f"Signing in now only needs your password.\n\n"
+        f"{admin_note.strip()}"
+    )
+    html = (
+        f"<p>Hi {full_name or to_email},</p>"
+        f"<p>{who} just turned off two-factor authentication on your <strong>HMZC Certification Platform</strong> "
+        f"account. Signing in now only needs your password.</p>"
+        f"<p style=\"color:#B3382C;font-size:12px;\">{admin_note.strip()}</p>"
+    )
+    return send_email(to_email, subject, text, html)
+
+
 def send_password_reset_email(to_email: str, full_name: str, temporary_password: str, login_url: str) -> bool:
     subject = "Your HMZC Certification Platform password was reset"
     text = (

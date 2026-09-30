@@ -111,6 +111,11 @@ class TwoFactorConfirmResult(BaseModel):
     # response; the person needs to save them somewhere safe now.
     recovery_codes: List[str]
     user: UserResponse
+    # True if the confirmation email (core/email.py's
+    # send_2fa_enabled_email) actually sent — same pattern as
+    # PasswordResetResult.email_sent, though nothing here depends on it:
+    # the recovery codes above are still shown regardless.
+    email_sent: bool = False
 
 
 class TwoFactorDisableRequest(BaseModel):

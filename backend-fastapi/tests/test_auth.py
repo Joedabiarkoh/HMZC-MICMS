@@ -576,6 +576,66 @@ def test_inspector_never_requires_2fa_setup(client, admin_token):
     assert response.json()["user"]["requires_2fa_setup"] is False
 
 
+def test_2fa_confirm_sends_enabled_email(admin_token, client, monkeypatch):
+    """core/email.py's send_2fa_enabled_email — a security review's
+    additional-layers request: a 2FA state change should reach the
+    account holder somewhere they'd actually see it. Mocked rather than
+    exercised against a real SMTP server (see email.py's own comment on
+    why that's untestable from here) — this checks it's called with the
+    right recipient at the right point, and that its result flows into
+    the response's email_sent field."""
+    calls = []
+    monkeypatch.setattr("app.api.routes.auth.send_2fa_enabled_email", lambda *a, **kw: calls.append((a, kw)) or True)
+
+    setup = client.post("/api/auth/2fa/setup", headers={"Authorization": f"Bearer {admin_token}"})
+    code = pyotp.TOTP(setup.json()["secret"]).now()
+    confirm = client.post("/api/auth/2fa/confirm", json={"code": code}, headers={"Authorization": f"Bearer {admin_token}"})
+
+    assert confirm.status_code == 200, confirm.text
+    assert confirm.json()["email_sent"] is True
+    assert len(calls) == 1
+    assert calls[0][0][0] == "admin@hmzc-test.com"
+
+
+def test_2fa_self_disable_sends_disabled_email(admin_token, client, monkeypatch):
+    calls = []
+    monkeypatch.setattr("app.api.routes.auth.send_2fa_disabled_email", lambda *a, **kw: calls.append((a, kw)) or True)
+    _enable_2fa(client, admin_token)
+
+    response = client.post("/api/auth/2fa/disable", json={"current_password": "adminpassword123"}, headers={"Authorization": f"Bearer {admin_token}"})
+    assert response.status_code == 200, response.text
+    assert len(calls) == 1
+    assert calls[0][0][0] == "admin@hmzc-test.com"
+    assert calls[0][1].get("by_admin") is False
+
+
+def test_admin_disable_2fa_sends_disabled_email_with_by_admin_flag(admin_token, client, monkeypatch):
+    """Distinguishes itself from the self-service case above — the
+    recipient is the affected USER, not the admin doing the disabling,
+    and by_admin=True changes the email's own wording (see
+    send_2fa_disabled_email's own comment on why that distinction
+    matters for someone recovering a genuinely lost device)."""
+    calls = []
+    monkeypatch.setattr("app.api.routes.auth.send_2fa_disabled_email", lambda *a, **kw: calls.append((a, kw)) or True)
+
+    create_response = client.post(
+        "/api/auth/users",
+        json={"email": "emailtest2fa@hmzc-test.com", "full_name": "Email Test", "role": "finance"},
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    user_id = create_response.json()["user"]["id"]
+    temp_password = create_response.json()["temporary_password"]
+    login = client.post("/api/auth/login", data={"username": "emailtest2fa@hmzc-test.com", "password": temp_password})
+    user_token = login.json()["access_token"]
+    _enable_2fa(client, user_token)
+
+    response = client.post(f"/api/auth/users/{user_id}/disable-2fa", headers={"Authorization": f"Bearer {admin_token}"})
+    assert response.status_code == 200, response.text
+    assert len(calls) == 1
+    assert calls[0][0][0] == "emailtest2fa@hmzc-test.com"
+    assert calls[0][1].get("by_admin") is True
+
+
 def test_2fa_confirm_rejects_wrong_code(admin_token, client):
     client.post("/api/auth/2fa/setup", headers={"Authorization": f"Bearer {admin_token}"})
     response = client.post("/api/auth/2fa/confirm", json={"code": "000000"}, headers={"Authorization": f"Bearer {admin_token}"})
