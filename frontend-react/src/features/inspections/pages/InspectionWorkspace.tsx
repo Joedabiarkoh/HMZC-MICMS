@@ -24,6 +24,7 @@ import { dirtyKey } from "../data/dirtyKey";
 import { useAuth } from "../../../context/AuthContext";
 import { hasPermission, PERM } from "../../auth/types/auth.types";
 import JobPicker from "../components/JobPicker";
+import JobCertificatesNav from "../components/JobCertificatesNav";
 import { Job, reserveCertNo } from "../services/jobs.api";
 import { JobTab, loadJobTabs, persistJobTabs } from "../services/jobTabs.storage";
 
@@ -1037,6 +1038,9 @@ export default function InspectionWorkspace() {
           onActivateTab={activateJobTab}
           onCloseTab={closeJobTab}
           onNewJob={handleNewJob}
+          certificates={certificates}
+          currentCertNo={current.certNo}
+          onOpenCertificate={openCertificateWithSave}
         />
         <div className="insp-layout">
           <div className="insp-panel">
@@ -1079,6 +1083,9 @@ export default function InspectionWorkspace() {
           onActivateTab={activateJobTab}
           onCloseTab={closeJobTab}
           onNewJob={handleNewJob}
+          certificates={certificates}
+          currentCertNo={current.certNo}
+          onOpenCertificate={openCertificateWithSave}
         />
         {syncError && (
           <div style={{ margin: "10px 20px 0", background: "#FBF0E2", border: "1px solid #B4690E", color: "#7A4A08", borderRadius: 6, padding: "8px 12px", fontSize: 12, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
@@ -1154,6 +1161,9 @@ export default function InspectionWorkspace() {
           onActivateTab={activateJobTab}
           onCloseTab={closeJobTab}
           onNewJob={handleNewJob}
+          certificates={certificates}
+          currentCertNo={current.certNo}
+          onOpenCertificate={openCertificateWithSave}
         />
         {syncError && (
           <div style={{ margin: "10px 20px 0", background: "#FBF0E2", border: "1px solid #B4690E", color: "#7A4A08", borderRadius: 6, padding: "8px 12px", fontSize: 12, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
@@ -1253,6 +1263,9 @@ export default function InspectionWorkspace() {
           onActivateTab={activateJobTab}
           onCloseTab={closeJobTab}
           onNewJob={handleNewJob}
+          certificates={certificates}
+          currentCertNo={current.certNo}
+          onOpenCertificate={openCertificateWithSave}
         />
         {syncError && (
           <div style={{ margin: "10px 20px 0", background: "#FBF0E2", border: "1px solid #B4690E", color: "#7A4A08", borderRadius: 6, padding: "8px 12px", fontSize: 12, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
@@ -1330,6 +1343,9 @@ export default function InspectionWorkspace() {
           onActivateTab={activateJobTab}
           onCloseTab={closeJobTab}
           onNewJob={handleNewJob}
+          certificates={certificates}
+          currentCertNo={current.certNo}
+          onOpenCertificate={openCertificateWithSave}
         />
         {syncError && (
           <div style={{ margin: "10px 20px 0", background: "#FBF0E2", border: "1px solid #B4690E", color: "#7A4A08", borderRadius: 6, padding: "8px 12px", fontSize: 12, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
@@ -1410,6 +1426,9 @@ export default function InspectionWorkspace() {
           onActivateTab={activateJobTab}
           onCloseTab={closeJobTab}
           onNewJob={handleNewJob}
+          certificates={certificates}
+          currentCertNo={current.certNo}
+          onOpenCertificate={openCertificateWithSave}
         />
         {syncError && (
           <div style={{ margin: "10px 20px 0", background: "#FBF0E2", border: "1px solid #B4690E", color: "#7A4A08", borderRadius: 6, padding: "8px 12px", fontSize: 12, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
@@ -1486,6 +1505,9 @@ export default function InspectionWorkspace() {
           onActivateTab={activateJobTab}
           onCloseTab={closeJobTab}
           onNewJob={handleNewJob}
+          certificates={certificates}
+          currentCertNo={current.certNo}
+          onOpenCertificate={openCertificateWithSave}
         />
         {syncError && (
           <div style={{ margin: "10px 20px 0", background: "#FBF0E2", border: "1px solid #B4690E", color: "#7A4A08", borderRadius: 6, padding: "8px 12px", fontSize: 12, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
@@ -1588,6 +1610,9 @@ export default function InspectionWorkspace() {
         onActivateTab={activateJobTab}
         onCloseTab={closeJobTab}
         onNewJob={handleNewJob}
+        certificates={certificates}
+        currentCertNo={current.certNo}
+        onOpenCertificate={openCertificateWithSave}
       />
       {syncError && (
         <div style={{ margin: "10px 20px 0", background: "#FBF0E2", border: "1px solid #B4690E", color: "#7A4A08", borderRadius: 6, padding: "8px 12px", fontSize: 12, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
@@ -1787,6 +1812,7 @@ export default function InspectionWorkspace() {
 
 function TopBar({
   type, onTypeChange, viewOnly, jobTabs, activeJobNo, onActivateTab, onCloseTab, onNewJob,
+  certificates, currentCertNo, onOpenCertificate,
 }: {
   type: EquipmentTypeKey;
   onTypeChange: (t: EquipmentTypeKey) => void;
@@ -1796,6 +1822,13 @@ function TopBar({
   onActivateTab?: (tab: JobTab) => void;
   onCloseTab?: (jobNo: string) => void;
   onNewJob?: () => void;
+  // See JobCertificatesNav.tsx's own comment — lets someone step
+  // through every certificate under the currently active job without
+  // leaving this page, instead of closing the current one to go find
+  // the next one in a separate list.
+  certificates?: Record<string, InspectionCertificate>;
+  currentCertNo?: string;
+  onOpenCertificate?: (certNo: string) => void;
 }) {
   return (
     <>
@@ -1853,6 +1886,16 @@ function TopBar({
           ))}
           <button type="button" className="insp-job-tab insp-job-tab-new" onClick={onNewJob}>+ New Job</button>
         </div>
+      )}
+      {/* Requested directly: "when you open a vessel job and it has
+          many certificate for that job scope, you always have to open
+          one, close, get back to certificate, and open again... find
+          certificate from a lot under the same scope." Only meaningful
+          once a job is actually active and this device knows about
+          more than one certificate under it — see JobCertificatesNav's
+          own comment. */}
+      {!viewOnly && activeJobNo && certificates && currentCertNo && onOpenCertificate && (
+        <JobCertificatesNav jobNo={activeJobNo} certificates={certificates} currentCertNo={currentCertNo} onOpenCertificate={onOpenCertificate} />
       )}
     </>
   );
