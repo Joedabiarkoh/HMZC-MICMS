@@ -20,6 +20,14 @@ MIN_SECRET_KEY_LENGTH = 32
 class Settings(BaseSettings):
     APP_NAME: str
     DATABASE_URL: str
+    # Not read by the app itself (DATABASE_URL already carries the real
+    # connection password) — declared here only so this key can sit in
+    # the same .env file without pydantic-settings' strict extra-field
+    # validation rejecting it at startup. docker-compose.yml reads it
+    # directly (via its own dotenv interpolation, not through this
+    # Settings class) to set the postgres container's actual password —
+    # see that file's own comment.
+    POSTGRES_PASSWORD: Optional[str] = None
     SECRET_KEY: str
     ALGORITHM: str
     ACCESS_TOKEN_EXPIRE_MINUTES: int

@@ -10,10 +10,21 @@ services:
     container_name: hmzc_database
     environment:
       POSTGRES_USER: hmzc_user
-      POSTGRES_PASSWORD: password
+      # Was a hardcoded literal ("password") — flagged in a security
+      # review as a guessable default sitting on a published port.
+      # Read from a root .env (gitignored, see .env.example) instead;
+      # the ":?" form fails the whole `docker compose up` loudly if
+      # that .env is missing/empty, rather than silently starting
+      # Postgres with an empty password. Must match whatever password
+      # backend-fastapi/.env's own DATABASE_URL uses to connect.
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in a root .env file — see .env.example}
       POSTGRES_DB: hmzc_db
-    ports:
-      - "5432:5432"
+    # No ports: mapping — previously published 5432 to the host, making
+    # the database directly reachable from outside Docker's own
+    # network. The backend container reaches it over the internal
+    # Docker network at hostname "postgres" regardless; if you need
+    # host-side psql/pgAdmin access for local debugging, add
+    # `ports: ["5432:5432"]` back temporarily rather than by default.
     # postgres:18+ images store data using major-version-specific directory
     # names and expect the volume mounted one level up, at /var/lib/postgresql
     # (not .../data as prior versions did) - mounting at .../data makes the
