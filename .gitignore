@@ -2,6 +2,9 @@
 # uploaded to GitHub directly (see root README's GitHub-upload note)
 # rather than via a git client that some setups configure separately.
 
+# Root — holds POSTGRES_PASSWORD for docker-compose.yml (see .env.example)
+.env
+
 # Frontend
 frontend-react/node_modules/
 frontend-react/dist/
