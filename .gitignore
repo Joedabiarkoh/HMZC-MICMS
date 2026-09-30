@@ -22,6 +22,9 @@ backend-fastapi/.env
 # tests/conftest.py's comment on why DATABASE_URL points here for tests.
 backend-fastapi/test_import_time.db
 backend-fastapi/.pytest_cache/
+# Same reasoning, for PHOTOS_DIR/ATTACHMENTS_DIR/SUPPLIER_BOARDING_DIR
+# — real files land here whenever a test actually exercises an upload.
+backend-fastapi/test_uploads/
 
 # Editors / OS
 .DS_Store

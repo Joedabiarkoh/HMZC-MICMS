@@ -44,6 +44,25 @@ os.environ.setdefault("DATABASE_URL", "sqlite:///./test_import_time.db")
 os.environ.setdefault("SECRET_KEY", "test-secret-key-not-for-real-use-only-for-pytest-runs")
 os.environ.setdefault("ALGORITHM", "HS256")
 os.environ.setdefault("ACCESS_TOKEN_EXPIRE_MINUTES", "60")
+# Root-caused from a real CI failure (not hypothetical): PHOTOS_DIR/
+# ATTACHMENTS_DIR/SUPPLIER_BOARDING_DIR (core/config.py) default to
+# /app/uploads/... — meaningful inside the production Docker container
+# (see docker-compose.yml's photo_uploads volume), meaningless anywhere
+# else. Every test that actually exercises a real upload (signature
+# save, invoice attachment, supplier boarding submission) tried to
+# create /app itself, which silently "worked" on this project's own dev
+# machine (Windows resolves a leading "/" onto the current drive) and
+# happened to work under a Docker-based local reproduction (/app was
+# the container's own mounted working directory there) — but GitHub
+# Actions' bare ubuntu-latest runner has no /app at all, and the
+# unprivileged runner user can't create one at the filesystem root:
+# PermissionError: [Errno 13] Permission denied: '/app'. A relative
+# path, same convention as DATABASE_URL just above, is writable
+# identically on every platform since it's always under the actual
+# checkout, never a hardcoded absolute production path.
+os.environ.setdefault("PHOTOS_DIR", "./test_uploads/photos")
+os.environ.setdefault("ATTACHMENTS_DIR", "./test_uploads/attachments")
+os.environ.setdefault("SUPPLIER_BOARDING_DIR", "./test_uploads/supplier_boarding")
 
 import pytest
 from fastapi.testclient import TestClient
