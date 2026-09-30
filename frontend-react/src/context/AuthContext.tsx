@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useState } from "react";
 import { PasswordChangePayload, RegisterPayload, User } from "../features/auth/types/auth.types";
-import { changePassword as changePasswordApi, fetchCurrentUser, loginUser, registerUser } from "../features/auth/services/auth.api";
+import { changePassword as changePasswordApi, fetchCurrentUser, loginUser, registerUser, verifyTwoFactor as verifyTwoFactorApi } from "../features/auth/services/auth.api";
 
 // Token is stored under "hmzc_token" because src/api/axios.ts already
 // reads that exact key to attach the Authorization header — that
@@ -62,7 +62,12 @@ interface AuthContextValue {
   user: User | null;
   loading: boolean;
   error: string | null;
-  login: (email: string, password: string) => Promise<void>;
+  // Resolves without setting `user` when the account has 2FA enabled —
+  // the caller (SignIn.tsx) checks mfaRequired and, if true, shows a
+  // code-entry step instead of navigating into the app; verifyTwoFactor
+  // below is what actually completes the sign-in at that point.
+  login: (email: string, password: string) => Promise<{ mfaRequired: boolean; challengeToken: string | null }>;
+  verifyTwoFactor: (challengeToken: string, code: string) => Promise<void>;
   register: (payload: RegisterPayload) => Promise<User>;
   changePassword: (payload: PasswordChangePayload) => Promise<void>;
   logout: () => void;
@@ -112,17 +117,39 @@ export function AuthProvider({ children }: { children: any }) {
   async function login(email: string, password: string) {
     setError(null);
     try {
-      const { access_token } = await loginUser({ email, password });
-      localStorage.setItem(TOKEN_KEY, access_token);
+      const result = await loginUser({ email, password });
+      if (result.mfa_required) {
+        // Deliberately doesn't store a token or set `user` yet — the
+        // password alone isn't a completed sign-in on this account.
+        // SignIn.tsx shows a code-entry step and calls verifyTwoFactor
+        // with this challenge_token once the person has it.
+        return { mfaRequired: true, challengeToken: result.challenge_token };
+      }
+      localStorage.setItem(TOKEN_KEY, result.access_token!);
       const me = await fetchCurrentUser();
       setUser(me);
       cacheUser(me);
+      return { mfaRequired: false, challengeToken: null };
     } catch (e: any) {
       if (isUnreachable(e)) {
         setError("You appear to be offline — signing in for the first time needs a connection. Check your network and try again.");
       } else {
         setError(e?.response?.data?.detail || "Login failed. Check your email and password.");
       }
+      throw e;
+    }
+  }
+
+  async function verifyTwoFactor(challengeToken: string, code: string) {
+    setError(null);
+    try {
+      const { access_token } = await verifyTwoFactorApi(challengeToken, code);
+      localStorage.setItem(TOKEN_KEY, access_token);
+      const me = await fetchCurrentUser();
+      setUser(me);
+      cacheUser(me);
+    } catch (e: any) {
+      setError(e?.response?.data?.detail || "That code didn't work. Check your authenticator app and try again.");
       throw e;
     }
   }
@@ -176,7 +203,7 @@ export function AuthProvider({ children }: { children: any }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, loading, error, login, register, changePassword, logout, updateUser }}>
+    <AuthContext.Provider value={{ user, loading, error, login, verifyTwoFactor, register, changePassword, logout, updateUser }}>
       {children}
     </AuthContext.Provider>
   );

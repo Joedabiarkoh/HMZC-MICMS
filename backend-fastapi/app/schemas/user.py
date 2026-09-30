@@ -48,6 +48,11 @@ class UserResponse(UserBase):
     # a stale lock). Lets the admin Users page show an Unlock action only
     # for accounts that are actually locked right now.
     locked_until: Optional[datetime] = None
+    # See User.two_factor_enabled/requires_2fa_setup's own comments.
+    # requires_2fa_setup is what RequireAuth.tsx actually gates on — the
+    # frontend never re-derives "admin/finance without 2FA" itself.
+    two_factor_enabled: bool = False
+    requires_2fa_setup: bool = False
 
     class Config:
         from_attributes = True
@@ -61,6 +66,55 @@ class Token(BaseModel):
 
 class TokenData(BaseModel):
     user_id: Optional[int] = None
+
+
+# ---- Added for TOTP two-factor auth (see core/two_factor.py) ----
+
+# Replaces Token as /auth/login's response_model: mfa_required and
+# challenge_token are only set (and access_token/token_type left out)
+# when the account has two_factor_enabled — see login() in
+# api/routes/auth.py. Kept as one schema rather than a Union so the
+# frontend only has to check one boolean, not discriminate response
+# shapes.
+class LoginResponse(BaseModel):
+    access_token: Optional[str] = None
+    token_type: Optional[str] = None
+    mfa_required: bool = False
+    # Short-lived (5 min), single-purpose JWT proving "this device just
+    # supplied the right password for this account" — sent back to
+    # POST /auth/login/2fa along with the actual TOTP/recovery code to
+    # get the real access_token. Never valid for anything else (see
+    # verify_two_factor's own decode check).
+    challenge_token: Optional[str] = None
+
+
+class TwoFactorVerify(BaseModel):
+    challenge_token: str
+    code: str
+
+
+class TwoFactorSetupResult(BaseModel):
+    # Base32 secret, shown alongside the QR code so someone who can't
+    # scan (no camera access, a headless setup) can type it into their
+    # authenticator app manually instead.
+    secret: str
+    qr_code_data_uri: str
+
+
+class TwoFactorConfirmRequest(BaseModel):
+    code: str
+
+
+class TwoFactorConfirmResult(BaseModel):
+    # Shown exactly once, same reasoning as PasswordResetResult's
+    # temporary_password — these can't be retrieved again after this
+    # response; the person needs to save them somewhere safe now.
+    recovery_codes: List[str]
+    user: UserResponse
+
+
+class TwoFactorDisableRequest(BaseModel):
+    current_password: str
 
 
 # ---- Added for admin-assisted password recovery and self-service change ----

@@ -115,6 +115,18 @@ class User(BaseModel):
     # early (POST /auth/users/{id}/unlock).
     failed_login_attempts = Column(Integer, nullable=False, default=0)
     locked_until = Column(DateTime(timezone=True), nullable=True)
+    # Added for TOTP two-factor auth (see core/two_factor.py). totp_secret
+    # is written by /auth/2fa/setup but stays inert (two_factor_enabled
+    # stays False) until /auth/2fa/confirm proves the person actually
+    # scanned it — the same "generated but not yet trusted" pattern
+    # must_change_password already uses for a temporary password.
+    # totp_recovery_codes holds bcrypt hashes of one-time backup codes,
+    # generated once at confirm time and consumed (removed from the
+    # list) as each is used — never the plaintext, same reasoning as
+    # hashed_password itself.
+    totp_secret = Column(String, nullable=True)
+    two_factor_enabled = Column(Boolean, nullable=False, default=False)
+    totp_recovery_codes = Column(JSON, nullable=False, default=list)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
@@ -128,3 +140,15 @@ class User(BaseModel):
         # needed at each individual return statement.
         from app.core.permissions import get_user_permissions
         return sorted(get_user_permissions(self))
+
+    # "2FA for Admin and Finance roles specifically" — a security review's
+    # additional-layers recommendation. Soft enforcement, the same
+    # mechanism must_change_password already uses: the account can still
+    # log in, but the frontend's RequireAuth blocks every other route
+    # until this is False (see RequireAuth.tsx's own comment). A
+    # computed property (not stored) so promoting someone TO admin/
+    # finance without 2FA already set up starts requiring it on their
+    # very next request, with nothing to backfill.
+    @property
+    def requires_2fa_setup(self) -> bool:
+        return self.role in (UserRole.ADMIN, UserRole.FINANCE) and not self.two_factor_enabled

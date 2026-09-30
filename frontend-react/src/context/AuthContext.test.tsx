@@ -29,6 +29,8 @@ const sampleUser = {
   created_at: "2026-01-01T00:00:00Z",
   saved_signature_url: null,
   locked_until: null,
+  two_factor_enabled: false,
+  requires_2fa_setup: false,
 };
 
 function networkError() {
@@ -147,7 +149,7 @@ describe("AuthProvider — startup session restore", () => {
 
 describe("AuthProvider — login()", () => {
   it("stores the token and caches the user on success", async () => {
-    vi.mocked(authApi.loginUser).mockResolvedValue({ access_token: "newtoken", token_type: "bearer" });
+    vi.mocked(authApi.loginUser).mockResolvedValue({ access_token: "newtoken", token_type: "bearer", mfa_required: false, challenge_token: null });
     vi.mocked(authApi.fetchCurrentUser).mockResolvedValue(sampleUser);
 
     renderAuth();

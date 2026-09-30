@@ -18,6 +18,7 @@ import SignIn from "./features/auth/pages/SignIn";
 import SignUp from "./features/auth/pages/SignUp";
 import ForgotPassword from "./features/auth/pages/ForgotPassword";
 import ChangePassword from "./features/auth/pages/ChangePassword";
+import TwoFactorSetup from "./features/auth/pages/TwoFactorSetup";
 import MySignature from "./features/auth/pages/MySignature";
 import AdminUsers from "./features/auth/pages/AdminUsers";
 import AuditLog from "./features/auth/pages/AuditLog";
@@ -79,6 +80,7 @@ export default function App() {
           <Route element={<RequireAuth />}>
             <Route element={<AppShell />}>
               <Route path="/account/change-password" element={<ChangePassword />} />
+              <Route path="/account/two-factor" element={<TwoFactorSetup />} />
               <Route path="/account/signature" element={<MySignature />} />
               <Route path="/admin/users" element={<RequirePermission roles={["admin"]}><AdminUsers /></RequirePermission>} />
               <Route path="/admin/audit-log" element={<RequirePermission roles={["admin"]}><AuditLog /></RequirePermission>} />

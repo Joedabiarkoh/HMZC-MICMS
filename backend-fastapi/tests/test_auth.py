@@ -3,6 +3,7 @@ Not run — see conftest.py's module docstring. Written to actually
 exercise the real behavior described in the code's own comments, not
 just "does it return 200."
 """
+import pyotp
 
 
 def test_first_account_is_auto_activated_admin(client):
@@ -532,3 +533,162 @@ def test_deleting_saved_signature_clears_it(client, admin_token):
 
     me = client.get("/api/auth/me", headers={"Authorization": f"Bearer {admin_token}"})
     assert me.json()["saved_signature_url"] is None
+
+
+# ---- Two-factor authentication (core/two_factor.py) ----
+
+def _enable_2fa(client, token):
+    """Shared setup+confirm flow — returns (secret, recovery_codes)."""
+    setup = client.post("/api/auth/2fa/setup", headers={"Authorization": f"Bearer {token}"})
+    assert setup.status_code == 200, setup.text
+    secret = setup.json()["secret"]
+    assert setup.json()["qr_code_data_uri"].startswith("data:image/png;base64,")
+
+    code = pyotp.TOTP(secret).now()
+    confirm = client.post("/api/auth/2fa/confirm", json={"code": code}, headers={"Authorization": f"Bearer {token}"})
+    assert confirm.status_code == 200, confirm.text
+    body = confirm.json()
+    assert len(body["recovery_codes"]) == 8
+    assert body["user"]["two_factor_enabled"] is True
+    return secret, body["recovery_codes"]
+
+
+def test_admin_requires_2fa_setup_until_enabled(admin_token, client):
+    """User.requires_2fa_setup — the "soft enforcement" flag RequireAuth.tsx
+    gates on. True for an admin who hasn't set 2FA up yet, False once they have."""
+    me = client.get("/api/auth/me", headers={"Authorization": f"Bearer {admin_token}"})
+    assert me.json()["requires_2fa_setup"] is True
+
+    _enable_2fa(client, admin_token)
+
+    me_after = client.get("/api/auth/me", headers={"Authorization": f"Bearer {admin_token}"})
+    assert me_after.json()["requires_2fa_setup"] is False
+
+
+def test_inspector_never_requires_2fa_setup(client, admin_token):
+    """Only Admin/Finance are enforced — every other role's flag stays
+    False regardless of two_factor_enabled."""
+    response = client.post(
+        "/api/auth/users",
+        json={"email": "regularinspector@hmzc-test.com", "full_name": "Regular", "role": "inspector"},
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    assert response.json()["user"]["requires_2fa_setup"] is False
+
+
+def test_2fa_confirm_rejects_wrong_code(admin_token, client):
+    client.post("/api/auth/2fa/setup", headers={"Authorization": f"Bearer {admin_token}"})
+    response = client.post("/api/auth/2fa/confirm", json={"code": "000000"}, headers={"Authorization": f"Bearer {admin_token}"})
+    assert response.status_code == 400, response.text
+    me = client.get("/api/auth/me", headers={"Authorization": f"Bearer {admin_token}"})
+    assert me.json()["two_factor_enabled"] is False
+
+
+def test_login_with_2fa_enabled_requires_second_step(admin_token, client):
+    """The core flow: once enabled, POST /auth/login stops handing back
+    a real access_token and instead returns a challenge_token, which
+    only POST /auth/login/2fa (with the actual code) can exchange for
+    one — matching login()'s own comment on why."""
+    secret, _codes = _enable_2fa(client, admin_token)
+
+    first_step = client.post("/api/auth/login", data={"username": "admin@hmzc-test.com", "password": "adminpassword123"})
+    assert first_step.status_code == 200, first_step.text
+    body = first_step.json()
+    assert body["mfa_required"] is True
+    assert body["access_token"] is None
+    challenge_token = body["challenge_token"]
+    assert challenge_token
+
+    wrong_code = client.post("/api/auth/login/2fa", json={"challenge_token": challenge_token, "code": "000000"})
+    assert wrong_code.status_code == 401, wrong_code.text
+
+    second_step = client.post("/api/auth/login/2fa", json={"challenge_token": challenge_token, "code": pyotp.TOTP(secret).now()})
+    assert second_step.status_code == 200, second_step.text
+    assert second_step.json()["access_token"]
+
+    me = client.get("/api/auth/me", headers={"Authorization": f"Bearer {second_step.json()['access_token']}"})
+    assert me.status_code == 200, me.text
+    assert me.json()["email"] == "admin@hmzc-test.com"
+
+
+def test_login_without_2fa_still_returns_token_directly(admin_token, client):
+    """Backward-compat check: an account that never enabled 2FA gets the
+    exact same one-step login it always did — LoginResponse's extra
+    fields don't change that."""
+    response = client.post("/api/auth/login", data={"username": "admin@hmzc-test.com", "password": "adminpassword123"})
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["mfa_required"] is False
+    assert body["access_token"]
+
+
+def test_2fa_recovery_code_is_single_use(admin_token, client):
+    _secret, codes = _enable_2fa(client, admin_token)
+    first_login = client.post("/api/auth/login", data={"username": "admin@hmzc-test.com", "password": "adminpassword123"})
+    challenge_token = first_login.json()["challenge_token"]
+
+    first_use = client.post("/api/auth/login/2fa", json={"challenge_token": challenge_token, "code": codes[0]})
+    assert first_use.status_code == 200, first_use.text
+
+    second_login = client.post("/api/auth/login", data={"username": "admin@hmzc-test.com", "password": "adminpassword123"})
+    challenge_token_2 = second_login.json()["challenge_token"]
+    reuse_attempt = client.post("/api/auth/login/2fa", json={"challenge_token": challenge_token_2, "code": codes[0]})
+    assert reuse_attempt.status_code == 401, reuse_attempt.text
+
+
+def test_2fa_self_disable_requires_correct_password(admin_token, client):
+    _enable_2fa(client, admin_token)
+
+    wrong_password = client.post("/api/auth/2fa/disable", json={"current_password": "notitspassword"}, headers={"Authorization": f"Bearer {admin_token}"})
+    assert wrong_password.status_code == 400, wrong_password.text
+
+    correct_password = client.post("/api/auth/2fa/disable", json={"current_password": "adminpassword123"}, headers={"Authorization": f"Bearer {admin_token}"})
+    assert correct_password.status_code == 200, correct_password.text
+    assert correct_password.json()["two_factor_enabled"] is False
+
+    # Disabled — back to a normal one-step login.
+    login = client.post("/api/auth/login", data={"username": "admin@hmzc-test.com", "password": "adminpassword123"})
+    assert login.json()["mfa_required"] is False
+
+
+def test_admin_can_disable_2fa_for_another_locked_out_user(admin_token, client):
+    """The admin-assisted recovery path — someone who's lost both their
+    device and every recovery code has no self-service way back in."""
+    create_response = client.post(
+        "/api/auth/users",
+        json={"email": "lostphone@hmzc-test.com", "full_name": "Lost Phone", "role": "finance"},
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    user_id = create_response.json()["user"]["id"]
+    temp_password = create_response.json()["temporary_password"]
+    login = client.post("/api/auth/login", data={"username": "lostphone@hmzc-test.com", "password": temp_password})
+    user_token = login.json()["access_token"]
+    _enable_2fa(client, user_token)
+
+    response = client.post(f"/api/auth/users/{user_id}/disable-2fa", headers={"Authorization": f"Bearer {admin_token}"})
+    assert response.status_code == 200, response.text
+    assert response.json()["two_factor_enabled"] is False
+    assert response.json()["requires_2fa_setup"] is True  # still a finance role — will be asked to set it up again
+
+    login_again = client.post("/api/auth/login", data={"username": "lostphone@hmzc-test.com", "password": temp_password})
+    assert login_again.json()["mfa_required"] is False
+
+
+def test_non_admin_cannot_disable_2fa_for_others(admin_token, client):
+    create_response = client.post(
+        "/api/auth/users",
+        json={"email": "target2fa@hmzc-test.com", "full_name": "Target", "role": "inspector"},
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    user_id = create_response.json()["user"]["id"]
+
+    sales_create = client.post(
+        "/api/auth/users",
+        json={"email": "salesperson3@hmzc-test.com", "full_name": "Sales", "role": "sales"},
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    sales_login = client.post("/api/auth/login", data={"username": "salesperson3@hmzc-test.com", "password": sales_create.json()["temporary_password"]})
+    sales_token = sales_login.json()["access_token"]
+
+    response = client.post(f"/api/auth/users/{user_id}/disable-2fa", headers={"Authorization": f"Bearer {sales_token}"})
+    assert response.status_code == 403, response.text

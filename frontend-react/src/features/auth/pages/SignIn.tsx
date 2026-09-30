@@ -5,12 +5,20 @@ import { useAuth } from "../../../context/AuthContext";
 import { HMZC_LOGO_DATA_URI } from "../../inspections/assets/logo";
 
 export default function SignIn() {
-  const { login, error } = useAuth();
+  const { login, verifyTwoFactor, error } = useAuth();
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [sessionExpired, setSessionExpired] = useState(false);
+  // Set once login() reports mfa_required — switches the form into a
+  // second step (enter your authenticator/recovery code) instead of
+  // navigating straight into the app. Holding the challenge_token here
+  // (component state, never persisted) rather than in AuthContext keeps
+  // it out of localStorage entirely — it's single-purpose and dead the
+  // moment this page unmounts either way.
+  const [challengeToken, setChallengeToken] = useState<string | null>(null);
+  const [code, setCode] = useState("");
 
   // Set by api/axios.ts's 401 interceptor before it force-navigates
   // here — without this, a session timing out mid-task just dumps
@@ -28,13 +36,70 @@ export default function SignIn() {
     e.preventDefault();
     setSubmitting(true);
     try {
-      await login(email, password);
+      const result = await login(email, password);
+      if (result.mfaRequired) {
+        setChallengeToken(result.challengeToken);
+      } else {
+        navigate("/inspections");
+      }
+    } catch {
+      // error already captured in context
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  async function handleVerifyCode(e: any) {
+    e.preventDefault();
+    if (!challengeToken) return;
+    setSubmitting(true);
+    try {
+      await verifyTwoFactor(challengeToken, code);
       navigate("/inspections");
     } catch {
       // error already captured in context
     } finally {
       setSubmitting(false);
     }
+  }
+
+  if (challengeToken) {
+    return (
+      <div className="auth-page">
+        <form className="auth-card" onSubmit={handleVerifyCode}>
+          <img src={HMZC_LOGO_DATA_URI} alt="HMZC LTD" />
+          <div className="auth-title">Two-Factor Authentication</div>
+          <div className="auth-subtitle">Enter the 6-digit code from your authenticator app</div>
+          {error && <div className="auth-error">{error}</div>}
+          <div className="auth-field">
+            <label htmlFor="signin-2fa-code">Authentication Code</label>
+            <input
+              id="signin-2fa-code"
+              inputMode="numeric"
+              autoFocus
+              required
+              value={code}
+              onChange={(e) => setCode(e.target.value)}
+              placeholder="123456"
+            />
+          </div>
+          <p style={{ fontSize: 11, color: "#6B7480", marginTop: -6, marginBottom: 10 }}>
+            Lost your device? You can also enter one of your saved recovery codes instead.
+          </p>
+          <button className="auth-btn" type="submit" disabled={submitting}>{submitting ? "Verifying..." : "Verify"}</button>
+          <div className="auth-switch">
+            <button
+              type="button"
+              className="auth-btn"
+              style={{ background: "none", color: "#6B7480", border: "none", padding: 0, fontSize: 11, width: "auto" }}
+              onClick={() => { setChallengeToken(null); setCode(""); }}
+            >
+              Back to sign in
+            </button>
+          </div>
+        </form>
+      </div>
+    );
   }
 
   return (
