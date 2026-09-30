@@ -696,6 +696,160 @@ def test_2fa_recovery_code_is_single_use(admin_token, client):
     assert reuse_attempt.status_code == 401, reuse_attempt.text
 
 
+# ---- "Remember this device" (core/trusted_devices.py) ----
+# Requested directly: 2FA asking for a code on every single sign-in was
+# "very difficult for some users" on Admin/Finance — the same friction
+# every mainstream 2FA product solves by letting a recognized device
+# skip the challenge for a while, without weakening what 2FA actually
+# protects against (see trusted_devices.py's own comment).
+
+def test_remember_device_skips_2fa_on_next_login(admin_token, client):
+    secret, _codes = _enable_2fa(client, admin_token)
+
+    first_login = client.post("/api/auth/login", data={"username": "admin@hmzc-test.com", "password": "adminpassword123"})
+    challenge_token = first_login.json()["challenge_token"]
+    verify = client.post(
+        "/api/auth/login/2fa",
+        json={"challenge_token": challenge_token, "code": pyotp.TOTP(secret).now(), "remember_device": True},
+    )
+    assert verify.status_code == 200, verify.text
+    device_token = verify.json()["device_token"]
+    assert device_token
+
+    second_login = client.post(
+        "/api/auth/login",
+        data={"username": "admin@hmzc-test.com", "password": "adminpassword123"},
+        headers={"X-Device-Token": device_token},
+    )
+    assert second_login.status_code == 200, second_login.text
+    body = second_login.json()
+    assert body["mfa_required"] is False
+    assert body["access_token"]
+
+
+def test_device_token_not_issued_without_remember_device(admin_token, client):
+    secret, _codes = _enable_2fa(client, admin_token)
+    login = client.post("/api/auth/login", data={"username": "admin@hmzc-test.com", "password": "adminpassword123"})
+    challenge_token = login.json()["challenge_token"]
+
+    verify = client.post("/api/auth/login/2fa", json={"challenge_token": challenge_token, "code": pyotp.TOTP(secret).now()})
+    assert verify.status_code == 200, verify.text
+    assert verify.json()["device_token"] is None
+
+
+def test_device_token_from_a_different_account_does_not_skip_2fa(admin_token, client):
+    """A device token only ever substitutes for 2FA on the exact
+    account it was issued to — not a second password usable from
+    anywhere/anyone else."""
+    secret, _codes = _enable_2fa(client, admin_token)
+    login = client.post("/api/auth/login", data={"username": "admin@hmzc-test.com", "password": "adminpassword123"})
+    verify = client.post(
+        "/api/auth/login/2fa",
+        json={"challenge_token": login.json()["challenge_token"], "code": pyotp.TOTP(secret).now(), "remember_device": True},
+    )
+    admins_device_token = verify.json()["device_token"]
+
+    create_response = client.post(
+        "/api/auth/users",
+        json={"email": "otherfinance@hmzc-test.com", "full_name": "Other Finance", "role": "finance"},
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    temp_password = create_response.json()["temporary_password"]
+    other_login = client.post("/api/auth/login", data={"username": "otherfinance@hmzc-test.com", "password": temp_password})
+    other_token = other_login.json()["access_token"]
+    other_secret = client.post("/api/auth/2fa/setup", headers={"Authorization": f"Bearer {other_token}"}).json()["secret"]
+    client.post("/api/auth/2fa/confirm", json={"code": pyotp.TOTP(other_secret).now()}, headers={"Authorization": f"Bearer {other_token}"})
+
+    # otherfinance@ presents admin@'s device token — still gets challenged.
+    attempt = client.post(
+        "/api/auth/login",
+        data={"username": "otherfinance@hmzc-test.com", "password": temp_password},
+        headers={"X-Device-Token": admins_device_token},
+    )
+    assert attempt.json()["mfa_required"] is True
+
+
+def test_admin_password_reset_clears_trusted_devices(admin_token, client):
+    create_response = client.post(
+        "/api/auth/users",
+        json={"email": "resettarget@hmzc-test.com", "full_name": "Reset Target", "role": "finance"},
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    user_id = create_response.json()["user"]["id"]
+    original_password = create_response.json()["temporary_password"]
+
+    login = client.post("/api/auth/login", data={"username": "resettarget@hmzc-test.com", "password": original_password})
+    user_token = login.json()["access_token"]
+    secret = client.post("/api/auth/2fa/setup", headers={"Authorization": f"Bearer {user_token}"}).json()["secret"]
+    client.post("/api/auth/2fa/confirm", json={"code": pyotp.TOTP(secret).now()}, headers={"Authorization": f"Bearer {user_token}"})
+
+    second_login = client.post("/api/auth/login", data={"username": "resettarget@hmzc-test.com", "password": original_password})
+    verify = client.post(
+        "/api/auth/login/2fa",
+        json={"challenge_token": second_login.json()["challenge_token"], "code": pyotp.TOTP(secret).now(), "remember_device": True},
+    )
+    device_token = verify.json()["device_token"]
+
+    reset_response = client.post(f"/api/auth/users/{user_id}/reset-password", headers={"Authorization": f"Bearer {admin_token}"})
+    new_password = reset_response.json()["temporary_password"]
+
+    reattempt = client.post(
+        "/api/auth/login",
+        data={"username": "resettarget@hmzc-test.com", "password": new_password},
+        headers={"X-Device-Token": device_token},
+    )
+    assert reattempt.status_code == 200, reattempt.text
+    # 2FA is still enabled after a password reset — if the pre-reset
+    # device token had survived, this would be False (skipped). It
+    # isn't, which is exactly what clear_trusted_devices is for.
+    assert reattempt.json()["mfa_required"] is True
+
+
+def test_logout_everywhere_clears_trusted_devices(admin_token, client):
+    secret, _codes = _enable_2fa(client, admin_token)
+    login = client.post("/api/auth/login", data={"username": "admin@hmzc-test.com", "password": "adminpassword123"})
+    verify = client.post(
+        "/api/auth/login/2fa",
+        json={"challenge_token": login.json()["challenge_token"], "code": pyotp.TOTP(secret).now(), "remember_device": True},
+    )
+    access_token = verify.json()["access_token"]
+    device_token = verify.json()["device_token"]
+
+    client.post("/api/auth/logout-everywhere", headers={"Authorization": f"Bearer {access_token}"})
+
+    reattempt = client.post(
+        "/api/auth/login",
+        data={"username": "admin@hmzc-test.com", "password": "adminpassword123"},
+        headers={"X-Device-Token": device_token},
+    )
+    assert reattempt.status_code == 200, reattempt.text
+    # Password still works (logout-everywhere doesn't touch it) — what
+    # must be gone is the device token's ability to skip 2FA.
+    assert reattempt.json()["mfa_required"] is True
+
+
+def test_expired_trusted_device_falls_back_to_2fa(db_session):
+    """Direct unit-level check of find_trusted_device's own expiry
+    handling — the HTTP-level tests above can't practically fast-forward
+    30 real days, so this exercises the same function a real expired
+    device would hit."""
+    from datetime import datetime, timedelta, timezone
+
+    from app.core.trusted_devices import _hash, find_trusted_device
+    from app.models.trusted_device import TrustedDevice
+    from app.models.user import User
+
+    user = User(email="expiretest@hmzc-test.com", hashed_password="x", role="admin", is_active=True)
+    db_session.add(user)
+    db_session.commit()
+
+    device = TrustedDevice(user_id=user.id, token_hash=_hash("sometoken"), expires_at=datetime.now(timezone.utc) - timedelta(days=1))
+    db_session.add(device)
+    db_session.commit()
+
+    assert find_trusted_device(db_session, user.id, "sometoken") is None
+
+
 def test_2fa_self_disable_requires_correct_password(admin_token, client):
     _enable_2fa(client, admin_token)
 

@@ -137,6 +137,16 @@ export interface TwoFactorConfirmResult {
   email_sent: boolean;
 }
 
+// Matches backend-fastapi's Token schema as returned by POST
+// /auth/login/2fa specifically — device_token is only ever set when
+// the request asked to remember this device (see
+// services/deviceTokens.ts and core/trusted_devices.py on the backend).
+export interface TwoFactorVerifyResult {
+  access_token: string;
+  token_type: string;
+  device_token: string | null;
+}
+
 export interface AdminCreateUserPayload {
   email: string;
   full_name?: string;

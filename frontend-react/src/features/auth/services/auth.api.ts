@@ -1,5 +1,6 @@
 import api from "../../../api/axios";
-import { AdminCreateUserPayload, AuditLogEntry, CompanyInfo, ExpiryReminderSettings, LoginPayload, LoginResult, PasswordChangePayload, PasswordResetResult, PermissionUpdatePayload, RegisterPayload, TwoFactorConfirmResult, TwoFactorSetupResult, User } from "../types/auth.types";
+import { AdminCreateUserPayload, AuditLogEntry, CompanyInfo, ExpiryReminderSettings, LoginPayload, LoginResult, PasswordChangePayload, PasswordResetResult, PermissionUpdatePayload, RegisterPayload, TwoFactorConfirmResult, TwoFactorSetupResult, TwoFactorVerifyResult, User } from "../types/auth.types";
+import { getDeviceToken } from "./deviceTokens";
 
 // Calls the backend routes added alongside this frontend module:
 // backend-fastapi/app/api/routes/auth.py (register/login/me/users), the
@@ -20,8 +21,18 @@ export async function loginUser(payload: LoginPayload): Promise<LoginResult> {
   const form = new URLSearchParams();
   form.append("username", payload.email);
   form.append("password", payload.password);
+  // Sent as a header, not a form field — doesn't disturb the backend's
+  // standard OAuth2PasswordRequestForm shape. Harmless to send even
+  // when there's nothing stored yet (undefined header = simply not
+  // present), or when the account doesn't have 2FA enabled at all (the
+  // backend only ever looks at this when it does — see login()'s own
+  // comment on core/trusted_devices.py).
+  const deviceToken = getDeviceToken(payload.email);
   const response = await api.post("/auth/login", form, {
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded",
+      ...(deviceToken ? { "X-Device-Token": deviceToken } : {}),
+    },
   });
   return response.data;
 }
@@ -30,10 +41,13 @@ export async function loginUser(payload: LoginPayload): Promise<LoginResult> {
  * The second step of a 2FA login (see loginUser's own comment on why
  * this is separate) — exchanges a challenge_token plus the actual
  * 6-digit authenticator code (or an 8-character recovery code) for the
- * real access token.
+ * real access token. rememberDevice asks the backend to also issue a
+ * device_token (see core/trusted_devices.py) — the caller
+ * (AuthContext.verifyTwoFactor) is responsible for actually storing
+ * whatever comes back.
  */
-export async function verifyTwoFactor(challengeToken: string, code: string): Promise<{ access_token: string; token_type: string }> {
-  const response = await api.post("/auth/login/2fa", { challenge_token: challengeToken, code });
+export async function verifyTwoFactor(challengeToken: string, code: string, rememberDevice: boolean): Promise<TwoFactorVerifyResult> {
+  const response = await api.post("/auth/login/2fa", { challenge_token: challengeToken, code, remember_device: rememberDevice });
   return response.data;
 }
 
@@ -52,7 +66,11 @@ export async function confirmTwoFactor(code: string): Promise<TwoFactorConfirmRe
 }
 
 /** Self-service. Requires the current password (not just an active
- * session) so a stolen/left-open browser tab can't silently strip 2FA. */
+ * session) so a stolen/left-open browser tab can't silently strip 2FA.
+ * The backend already clears every trusted device for this account
+ * (core/trusted_devices.clear_trusted_devices) — the caller clears the
+ * locally-stored one too, purely so a stale value isn't still sitting
+ * in localStorage for no reason. */
 export async function disableTwoFactor(currentPassword: string): Promise<User> {
   const response = await api.post("/auth/2fa/disable", { current_password: currentPassword });
   return response.data;

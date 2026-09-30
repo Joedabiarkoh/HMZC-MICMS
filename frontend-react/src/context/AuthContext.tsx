@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState } from "react";
 import { PasswordChangePayload, RegisterPayload, User } from "../features/auth/types/auth.types";
 import { changePassword as changePasswordApi, fetchCurrentUser, loginUser, registerUser, verifyTwoFactor as verifyTwoFactorApi } from "../features/auth/services/auth.api";
+import { setDeviceToken } from "../features/auth/services/deviceTokens";
 
 // Token is stored under "hmzc_token" because src/api/axios.ts already
 // reads that exact key to attach the Authorization header — that
@@ -67,7 +68,11 @@ interface AuthContextValue {
   // code-entry step instead of navigating into the app; verifyTwoFactor
   // below is what actually completes the sign-in at that point.
   login: (email: string, password: string) => Promise<{ mfaRequired: boolean; challengeToken: string | null }>;
-  verifyTwoFactor: (challengeToken: string, code: string) => Promise<void>;
+  // rememberDevice asks the backend to also issue a device_token (see
+  // core/trusted_devices.py) — stored locally on success so a future
+  // login from this same browser skips straight back to mfaRequired:
+  // false instead of prompting for a code again.
+  verifyTwoFactor: (challengeToken: string, code: string, rememberDevice: boolean) => Promise<void>;
   register: (payload: RegisterPayload) => Promise<User>;
   changePassword: (payload: PasswordChangePayload) => Promise<void>;
   logout: () => void;
@@ -140,14 +145,17 @@ export function AuthProvider({ children }: { children: any }) {
     }
   }
 
-  async function verifyTwoFactor(challengeToken: string, code: string) {
+  async function verifyTwoFactor(challengeToken: string, code: string, rememberDevice: boolean) {
     setError(null);
     try {
-      const { access_token } = await verifyTwoFactorApi(challengeToken, code);
-      localStorage.setItem(TOKEN_KEY, access_token);
+      const result = await verifyTwoFactorApi(challengeToken, code, rememberDevice);
+      localStorage.setItem(TOKEN_KEY, result.access_token);
       const me = await fetchCurrentUser();
       setUser(me);
       cacheUser(me);
+      // device_token is only present when rememberDevice was true AND
+      // the backend actually issued one — see core/trusted_devices.py.
+      if (result.device_token) setDeviceToken(me.email, result.device_token);
     } catch (e: any) {
       setError(e?.response?.data?.detail || "That code didn't work. Check your authenticator app and try again.");
       throw e;
