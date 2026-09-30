@@ -15,6 +15,7 @@ from app.core.permissions import ALL_PERMISSIONS
 from app.core.photo_storage import delete_photo_files, externalize_signature, collect_photo_filenames, filter_deletable
 from app.core.rate_limit import check_rate_limit
 from app.core.security import create_access_token, generate_temporary_password, hash_password, verify_password
+from app.core.trusted_devices import clear_trusted_devices, create_trusted_device, find_trusted_device, touch_trusted_device
 from app.core.two_factor import consume_recovery_code, generate_recovery_codes, generate_secret, looks_like_totp_code, provisioning_qr_data_uri, verify_totp_code
 from app.models.audit_log import AuditLog
 from app.models.certificate import Certificate
@@ -176,11 +177,26 @@ def login(
     reset_failed_attempts(db, user)
 
     # The password alone was correct, but this account also needs a
-    # second factor — don't issue a real access_token yet. Instead hand
-    # back a short-lived challenge_token proving "this request already
-    # supplied the right password," which POST /auth/login/2fa exchanges
-    # for the real token once the actual TOTP/recovery code checks out.
+    # second factor — UNLESS this exact request is coming from a
+    # device that already proved itself with a real 2FA code recently
+    # (see core/trusted_devices.py for why this doesn't weaken what
+    # 2FA actually protects against). Checked via a header, not a form
+    # field, so this doesn't disturb OAuth2PasswordRequestForm's
+    # standard shape above.
     if user.two_factor_enabled:
+        device_token = request.headers.get("x-device-token", "")
+        trusted = find_trusted_device(db, user.id, device_token) if device_token else None
+        if trusted:
+            touch_trusted_device(db, trusted)
+            access_token = create_access_token({"sub": str(user.id), "tv": user.token_version})
+            record_audit(db, request, "login", user_id=user.id, resource_type="user", resource_id=str(user.id), detail="trusted device — 2FA skipped")
+            return LoginResponse(access_token=access_token, token_type="bearer")
+
+        # Don't issue a real access_token yet. Instead hand back a
+        # short-lived challenge_token proving "this request already
+        # supplied the right password," which POST /auth/login/2fa
+        # exchanges for the real token once the actual TOTP/recovery
+        # code checks out.
         challenge_token = create_access_token({"sub": str(user.id), "mfa_challenge": True}, expires_minutes=MFA_CHALLENGE_EXPIRE_MINUTES)
         return LoginResponse(mfa_required=True, challenge_token=challenge_token)
 
@@ -229,9 +245,11 @@ def verify_two_factor(
     if not verified:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Incorrect authentication code.")
 
+    device_token = create_trusted_device(db, user.id, request) if payload.remember_device else None
+
     access_token = create_access_token({"sub": str(user.id), "tv": user.token_version})
     record_audit(db, request, "login", user_id=user.id, resource_type="user", resource_id=str(user.id))
-    return {"access_token": access_token, "token_type": "bearer"}
+    return {"access_token": access_token, "token_type": "bearer", "device_token": device_token}
 
 
 # ---- TOTP two-factor enrollment (self-service) ----
@@ -293,6 +311,11 @@ def disable_two_factor(
     current_user.totp_recovery_codes = []
     db.commit()
     db.refresh(current_user)
+    # Any trusted device was only ever a stand-in for 2FA itself — with
+    # 2FA off there's nothing left for it to skip, and if 2FA gets
+    # re-enabled later a stale device shouldn't silently bypass the
+    # brand-new setup.
+    clear_trusted_devices(db, current_user.id)
     record_audit(db, request, "user.2fa_disabled", user_id=current_user.id, resource_type="user", resource_id=str(current_user.id))
     send_2fa_disabled_email(current_user.email, current_user.full_name or "", by_admin=False)
     return current_user
@@ -320,6 +343,7 @@ def admin_disable_two_factor(
     user.totp_recovery_codes = []
     db.commit()
     db.refresh(user)
+    clear_trusted_devices(db, user.id)
     record_audit(db, request, "user.2fa_disabled_by_admin", user_id=admin.id, resource_type="user", resource_id=str(user.id))
     send_2fa_disabled_email(user.email, user.full_name or "", by_admin=True)
     return user
@@ -529,6 +553,7 @@ def deactivate_user(
     user.token_version += 1
     db.commit()
     db.refresh(user)
+    clear_trusted_devices(db, user.id)
     record_audit(db, request, "user.deactivated", user_id=_admin.id, resource_type="user", resource_id=str(user.id))
     return user
 
@@ -630,6 +655,7 @@ def reset_user_password(
     user.token_version += 1
     db.commit()
     db.refresh(user)
+    clear_trusted_devices(db, user.id)
 
     email_sent = send_password_reset_email(
         to_email=user.email,
@@ -684,6 +710,7 @@ def forgot_password(
         user.token_version += 1
         db.commit()
         db.refresh(user)
+        clear_trusted_devices(db, user.id)
 
         email_sent = send_password_reset_email(
             to_email=user.email,
@@ -730,6 +757,7 @@ def change_password(
     current_user.token_version += 1
     db.commit()
     db.refresh(current_user)
+    clear_trusted_devices(db, current_user.id)
     record_audit(db, request, "user.password_changed", user_id=current_user.id, resource_type="user", resource_id=str(current_user.id))
     return current_user
 
@@ -751,6 +779,7 @@ def logout_everywhere(
 ):
     current_user.token_version += 1
     db.commit()
+    clear_trusted_devices(db, current_user.id)
     record_audit(db, request, "user.logout_everywhere", user_id=current_user.id, resource_type="user", resource_id=str(current_user.id))
     return {"detail": "Signed out of every device. Sign in again to continue."}
 

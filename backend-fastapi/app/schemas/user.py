@@ -62,6 +62,11 @@ class UserResponse(UserBase):
 class Token(BaseModel):
     access_token: str
     token_type: str = "bearer"
+    # Only set by POST /auth/login/2fa when the request asked to
+    # remember this device (see core/trusted_devices.py) — the raw
+    # token, shown exactly once, for the frontend to store and send
+    # back on future logins to skip the 2FA step on this same device.
+    device_token: Optional[str] = None
 
 
 class TokenData(BaseModel):
@@ -91,6 +96,10 @@ class LoginResponse(BaseModel):
 class TwoFactorVerify(BaseModel):
     challenge_token: str
     code: str
+    # "Trust this device for 30 days" — see core/trusted_devices.py.
+    # Defaults to False so an old frontend build (or a direct API call)
+    # that doesn't send this field gets today's behavior unchanged.
+    remember_device: bool = False
 
 
 class TwoFactorSetupResult(BaseModel):

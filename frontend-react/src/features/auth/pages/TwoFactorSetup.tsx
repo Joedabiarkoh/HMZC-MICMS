@@ -4,6 +4,7 @@ import "../auth.css";
 import { useAuth } from "../../../context/AuthContext";
 import { HMZC_LOGO_DATA_URI } from "../../inspections/assets/logo";
 import { confirmTwoFactor, disableTwoFactor, setupTwoFactor } from "../services/auth.api";
+import { clearDeviceToken } from "../services/deviceTokens";
 
 /**
  * Self-service TOTP enrollment/management — reached voluntarily from
@@ -65,6 +66,11 @@ export default function TwoFactorSetup() {
       const updated = await disableTwoFactor(disablePassword);
       updateUser(updated);
       setDisablePassword("");
+      // The backend already cleared every trusted device for this
+      // account server-side — this just tidies up the one this browser
+      // happened to be holding, same reasoning as disableTwoFactor's
+      // own comment in auth.api.ts.
+      if (updated.email) clearDeviceToken(updated.email);
     } catch (e: any) {
       setErr(e?.response?.data?.detail || "Could not disable two-factor authentication.");
     } finally {

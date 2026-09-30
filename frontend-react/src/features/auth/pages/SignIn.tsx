@@ -23,6 +23,15 @@ export default function SignIn() {
   // moment this page unmounts either way.
   const [challengeToken, setChallengeToken] = useState<string | null>(null);
   const [code, setCode] = useState("");
+  // Requested directly: 2FA asking for a code on every single sign-in
+  // was "very difficult for some users" on Admin/Finance — defaults to
+  // checked so the common case (a technician's own laptop) gets the
+  // friction-reducing behavior without an extra click, while still
+  // leaving an obvious, one-click way to opt out on a shared/public
+  // machine. See services/deviceTokens.ts and the backend's
+  // core/trusted_devices.py for why this doesn't weaken what 2FA
+  // actually protects against.
+  const [rememberDevice, setRememberDevice] = useState(true);
 
   // Set by api/axios.ts's 401 interceptor before it force-navigates
   // here — without this, a session timing out mid-task just dumps
@@ -59,7 +68,7 @@ export default function SignIn() {
     if (!challengeToken) return;
     setSubmitting(true);
     try {
-      await verifyTwoFactor(challengeToken, code);
+      await verifyTwoFactor(challengeToken, code, rememberDevice);
       navigate("/inspections");
     } catch {
       // error already captured in context
@@ -91,6 +100,10 @@ export default function SignIn() {
           <p style={{ fontSize: 11, color: "#6B7480", marginTop: -6, marginBottom: 10 }}>
             Lost your device? You can also enter one of your saved recovery codes instead.
           </p>
+          <label style={{ display: "flex", alignItems: "center", gap: 7, fontSize: 12, color: "#243040", marginBottom: 14, cursor: "pointer" }}>
+            <input type="checkbox" checked={rememberDevice} onChange={(e) => setRememberDevice(e.target.checked)} />
+            Remember this device for 30 days — skip this step next time I sign in here. Leave unchecked on a shared or public computer.
+          </label>
           <button className="auth-btn" type="submit" disabled={submitting}>{submitting ? "Verifying..." : "Verify"}</button>
           <div className="auth-switch">
             <button
