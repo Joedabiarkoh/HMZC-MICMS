@@ -5,6 +5,7 @@ import { useAuth } from "../context/AuthContext";
 import { HMZC_LOGO_DATA_URI } from "../features/inspections/assets/logo";
 import { hasPermission, PERM, ROLE_LABELS } from "../features/auth/types/auth.types";
 import OfflineBanner from "../offline/OfflineBanner";
+import IdleTimeoutGuard from "../context/IdleTimeoutGuard";
 import SyncStatusBadge from "../offline/SyncStatusBadge";
 import BackendStatusDot from "../offline/BackendStatusDot";
 import ConfirmDialogHost from "../components/ConfirmDialog";
@@ -165,6 +166,7 @@ export default function AppShell() {
       </header>
       <OfflineBanner />
       <ConfirmDialogHost />
+      <IdleTimeoutGuard />
       <div className="shell-body"><Outlet /></div>
     </div>
   );
