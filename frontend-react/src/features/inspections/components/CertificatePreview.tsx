@@ -7,7 +7,7 @@ import { DEFECT_REPORT_COLUMNS, FRC_SPARE_PARTS_COLUMNS, LOOSE_GEAR_STATUS_CODES
 import { FRC_COMPONENT_ROWS, FRC_FUNCTION_CHECKS, FRC_SCOPE_OF_WORK, FRC_SERVICE_TYPE_LABELS, FRC_CERTIFICATION_STATEMENT } from "../data/frcServiceReport";
 import { GANGWAY_INSPECTION_STATEMENT, GANGWAY_RESULT_LABELS } from "../data/gangwayLoadTest";
 import { RegisterPreviewTable } from "./RegisterTable";
-import { ABS_LOGO_DATA_URI, BUREAU_VERITAS_LOGO_DATA_URI, CRALOG_LOGO_DATA_URI, DNV_LOGO_DATA_URI } from "../assets/approvalLogos";
+import { ABS_LOGO_DATA_URI, BUREAU_VERITAS_LOGO_DATA_URI, CRALOG_LOGO_DATA_URI, DNV_LOGO_DATA_URI, INEFOP_LOGO_DATA_URI, ISO_LOGO_DATA_URI, ANPG_LOGO_DATA_URI } from "../assets/approvalLogos";
 import { APP_BUILD_VERSION } from "../data/appVersion";
 import CertificateQR, { buildCertQrPayload } from "./CertificateQR";
 import { useFillToPageMultiple, PAGE_HEIGHT_PX } from "../../../hooks/useFillToPageMultiple";
@@ -2232,6 +2232,11 @@ function ApprovalLogosRow() {
     { src: DNV_LOGO_DATA_URI, alt: "DNV" },
     { src: BUREAU_VERITAS_LOGO_DATA_URI, alt: "Bureau Veritas" },
     { src: CRALOG_LOGO_DATA_URI, alt: "CRALOG" },
+    // Requested directly: add INEFOP, ISO and ANPG to the footer
+    // approvals row alongside the existing classification societies.
+    { src: INEFOP_LOGO_DATA_URI, alt: "INEFOP" },
+    { src: ISO_LOGO_DATA_URI, alt: "ISO" },
+    { src: ANPG_LOGO_DATA_URI, alt: "ANPG" },
   ];
   // Requested directly, reviewing a real CRALOG-issued certificate for
   // comparison: their printed pages carry a software build + issue-time
