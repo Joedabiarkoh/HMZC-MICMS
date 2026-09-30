@@ -105,6 +105,16 @@ class User(BaseModel):
     # each of those in api/routes/auth.py — plus self-service via
     # POST /auth/logout-everywhere.
     token_version = Column(Integer, nullable=False, default=1)
+    # Added for account lockout (see core/account_lockout.py) — a
+    # security review's follow-up: the existing per-IP rate limiter
+    # (core/rate_limit.py) caps how fast someone can guess a password,
+    # not how many guesses one specific account gets across many IPs.
+    # failed_login_attempts resets to 0 on any successful login;
+    # locked_until is set once it hits MAX_FAILED_ATTEMPTS and cleared
+    # either once it naturally expires or an admin unlocks the account
+    # early (POST /auth/users/{id}/unlock).
+    failed_login_attempts = Column(Integer, nullable=False, default=0)
+    locked_until = Column(DateTime(timezone=True), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 

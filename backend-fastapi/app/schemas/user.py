@@ -42,6 +42,12 @@ class UserResponse(UserBase):
     # User.saved_signature_url) — None for accounts that never sign a
     # certificate, or that just haven't saved one yet.
     saved_signature_url: Optional[str] = None
+    # None for an unlocked account, or a past timestamp for one whose
+    # lockout has already expired (see core/account_lockout.is_locked —
+    # the frontend should treat "in the past" the same as None, not show
+    # a stale lock). Lets the admin Users page show an Unlock action only
+    # for accounts that are actually locked right now.
+    locked_until: Optional[datetime] = None
 
     class Config:
         from_attributes = True

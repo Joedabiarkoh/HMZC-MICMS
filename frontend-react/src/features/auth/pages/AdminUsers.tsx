@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import "../auth.css";
 import { useAuth } from "../../../context/AuthContext";
-import { listUsers, updateUserRole, approveUser, deactivateUser, deleteUser, resetUserPassword, updateUserPermissions, updateUserProfile, createUser } from "../services/auth.api";
+import { listUsers, updateUserRole, approveUser, deactivateUser, unlockUser, deleteUser, resetUserPassword, updateUserPermissions, updateUserProfile, createUser } from "../services/auth.api";
 import { User, UserRole, ROLE_LABELS, ALL_PERMISSIONS, PERM } from "../types/auth.types";
 import { confirmAction } from "../../../components/ConfirmDialog";
 
@@ -21,6 +21,14 @@ const PERM_LABELS: Record<string, string> = {
   [PERM.FIN_CATALOG_MANAGE]: "Manage the item/price catalog",
   [PERM.USERS_MANAGE]: "Manage users (reserved for Administrators)",
 };
+
+// See User.locked_until's own comment — the backend clears it on
+// unlock, but a lockout that simply expired on its own is left as a
+// past timestamp rather than cleared eagerly, so this treats "in the
+// past" the same as "not locked" instead of showing a stale badge.
+function isLocked(u: User): boolean {
+  return !!u.locked_until && new Date(u.locked_until).getTime() > Date.now();
+}
 
 /**
  * Answers the "admin must know how many people have signed up, and who's
@@ -126,6 +134,11 @@ export default function AdminUsers() {
     });
     if (!ok) return;
     const updated = await deactivateUser(u.id);
+    setUsers((prev) => prev.map((x) => (x.id === updated.id ? updated : x)));
+  }
+
+  async function unlock(u: User) {
+    const updated = await unlockUser(u.id);
     setUsers((prev) => prev.map((x) => (x.id === updated.id ? updated : x)));
   }
 
@@ -246,9 +259,28 @@ export default function AdminUsers() {
               u.email
             )}
           </td>
-          <td><span className={`role-pill ${u.role}`}>{ROLE_LABELS[u.role] || u.role}</span></td>
+          <td>
+            <span className={`role-pill ${u.role}`}>{ROLE_LABELS[u.role] || u.role}</span>
+            {isLocked(u) && (
+              <span
+                title="Too many failed sign-in attempts — locks out on its own after a while, or use Unlock below."
+                style={{ marginLeft: 6, fontSize: 10, fontWeight: 700, color: "#B3382C", background: "#FBEEEC", border: "1px solid #B3382C", borderRadius: 10, padding: "1px 7px" }}
+              >
+                Locked
+              </span>
+            )}
+          </td>
           <td>{new Date(u.created_at).toLocaleDateString()}</td>
           <td style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+            {isLocked(u) && (
+              <button
+                className="auth-btn"
+                style={{ width: "auto", padding: "5px 10px", fontSize: 11, background: "#fff", color: "#B4690E", border: "1px solid #B4690E" }}
+                onClick={() => unlock(u)}
+              >
+                Unlock
+              </button>
+            )}
             {u.role !== "admin" && (
               <button className="auth-btn" style={{ width: "auto", padding: "5px 10px", fontSize: 11 }} onClick={() => promote(u, "admin")}>
                 Promote to Admin
