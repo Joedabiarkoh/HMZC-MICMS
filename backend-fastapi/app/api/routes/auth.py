@@ -9,7 +9,7 @@ from app.api.deps import get_current_admin_user, get_current_user
 from app.core.account_lockout import is_locked, lock_remaining_seconds, register_failed_attempt, reset_failed_attempts, unlock_account
 from app.core.audit import record_audit
 from app.core.database import get_database
-from app.core.email import send_account_created_email, send_password_reset_email
+from app.core.email import send_2fa_disabled_email, send_2fa_enabled_email, send_account_created_email, send_password_reset_email
 from app.core.config import settings
 from app.core.permissions import ALL_PERMISSIONS
 from app.core.photo_storage import delete_photo_files, externalize_signature, collect_photo_filenames, filter_deletable
@@ -269,7 +269,8 @@ def confirm_two_factor(
     db.commit()
     db.refresh(current_user)
     record_audit(db, request, "user.2fa_enabled", user_id=current_user.id, resource_type="user", resource_id=str(current_user.id))
-    return TwoFactorConfirmResult(recovery_codes=plaintext_codes, user=current_user)
+    email_sent = send_2fa_enabled_email(current_user.email, current_user.full_name or "")
+    return TwoFactorConfirmResult(recovery_codes=plaintext_codes, user=current_user, email_sent=email_sent)
 
 
 # Requested directly, alongside enforcing 2FA for Admin/Finance: a
@@ -293,6 +294,7 @@ def disable_two_factor(
     db.commit()
     db.refresh(current_user)
     record_audit(db, request, "user.2fa_disabled", user_id=current_user.id, resource_type="user", resource_id=str(current_user.id))
+    send_2fa_disabled_email(current_user.email, current_user.full_name or "", by_admin=False)
     return current_user
 
 
@@ -319,6 +321,7 @@ def admin_disable_two_factor(
     db.commit()
     db.refresh(user)
     record_audit(db, request, "user.2fa_disabled_by_admin", user_id=admin.id, resource_type="user", resource_id=str(user.id))
+    send_2fa_disabled_email(user.email, user.full_name or "", by_admin=True)
     return user
 
 

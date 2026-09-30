@@ -130,6 +130,11 @@ export interface TwoFactorConfirmResult {
   // Shown exactly once — see the backend schema's own comment.
   recovery_codes: string[];
   user: User;
+  // Whether the confirmation email (a security review's additional-
+  // layers request — see backend's send_2fa_enabled_email) actually
+  // sent. Purely informational here: the recovery codes above are the
+  // one thing that matters and they're already shown regardless.
+  email_sent: boolean;
 }
 
 export interface AdminCreateUserPayload {
