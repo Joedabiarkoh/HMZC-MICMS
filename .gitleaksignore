@@ -1,0 +1,20 @@
+# Fingerprints of confirmed false positives from a full-history gitleaks
+# scan (183 commits, 0 real secrets found) — each was checked against the
+# actual commit content before being added here, not blanket-ignored.
+# Format: <commit>:<file>:<rule>:<line> — see gitleaks' own docs on
+# baseline/ignore files. Re-verify any NEW entry the same way before
+# adding it; don't just paste a fingerprint to make a scan pass.
+
+# Hardcoded plaintext passwords for the test suite's own in-memory
+# SQLite fixtures (test_change_password_revokes_previous_token) — never
+# real credentials, just literal strings the tests log in with against
+# accounts the test itself creates and tears down.
+43b87bb055477abb84a586448ca7d3c6ba37d82c:backend-fastapi/tests/test_auth.py:generic-api-key:297
+43b87bb055477abb84a586448ca7d3c6ba37d82c:backend-fastapi/tests/test_auth.py:generic-api-key:308
+
+# Config-object key identifiers (e.g. "co2WeightVerified") in
+# certificate field definitions — camelCase strings that trip gitleaks'
+# generic high-entropy heuristic, not credentials of any kind.
+3d2a617b0737a9dd448bb5ca7c5f668ab569a1c7:frontend-react/src/features/inspections/data/frcServiceReport.ts:generic-api-key:33
+475238fdab243fc74e75276157f15f8056f0a6e0:frontend-react/src/features/inspections/data/ffeCertTypes.ts:generic-api-key:717
+475238fdab243fc74e75276157f15f8056f0a6e0:frontend-react/src/features/inspections/data/ffeCertTypes.ts:generic-api-key:718

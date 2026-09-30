@@ -24,6 +24,22 @@ jobs:
       - name: Run backend tests
         working-directory: backend-fastapi
         run: python -m pytest tests/ -v
+      # A security review flagged that nothing caught a newly-disclosed
+      # CVE in a pinned dependency until someone happened to run this by
+      # hand — every finding fixed or triaged so far in this project was
+      # found that way. PYSEC-2026-1325 (ecdsa, pulled in transitively
+      # by python-jose) is the one open finding today: a side-channel
+      # timing attack on ECDSA signing that the ecdsa project has no
+      # planned fix for. Not reachable here — this app signs JWTs with
+      # ALGORITHM=HS256 (HMAC, see core/config.py), never an EC
+      # algorithm, so the vulnerable code path is never exercised.
+      # Ignored by ID (not the whole scan) so a genuinely new
+      # vulnerability in any other dependency still fails the build.
+      - name: Dependency vulnerability scan (pip-audit)
+        working-directory: backend-fastapi
+        run: |
+          pip install pip-audit==2.10.1
+          pip-audit -r constraints.txt --ignore-vuln PYSEC-2026-1325
 
   frontend:
     runs-on: ubuntu-latest
@@ -41,3 +57,46 @@ jobs:
       - name: Type-check and build
         working-directory: frontend-react
         run: npm run build
+      # Same reasoning as the backend's pip-audit step above. No
+      # critical-severity finding exists today, so this genuinely fails
+      # the build on a new one rather than starting pre-broken.
+      - name: Dependency vulnerability scan — fails on critical
+        working-directory: frontend-react
+        run: npm audit --audit-level=critical
+      # vite/esbuild (dev-server-only issue, never reachable in a
+      # deployed build) and react-router-dom (open-redirect/deserialize
+      # CVEs needing an attacker-controlled navigation target, which no
+      # code in this app ever builds from raw input) were reviewed
+      # directly and are moderate/high findings with no reachable
+      # exploit path here — both need a major-version bump to clear
+      # (`npm audit fix --force`), deliberately not taken automatically.
+      # Kept visible in CI output rather than silenced, so this doesn't
+      # quietly rot into "nobody's looked at this in a year" — just not
+      # a hard gate on an already-triaged, accepted risk.
+      - name: Dependency vulnerability scan — informational (moderate/high)
+        working-directory: frontend-react
+        continue-on-error: true
+        run: npm audit --audit-level=high
+
+  secrets-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Full history, not just the current tree — a secret committed
+          # once and later removed is still exposed in git history.
+          fetch-depth: 0
+      - name: Install gitleaks
+        run: |
+          curl -sSL -o gitleaks.tar.gz https://github.com/gitleaks/gitleaks/releases/download/v8.30.1/gitleaks_8.30.1_linux_x64.tar.gz
+          tar -xzf gitleaks.tar.gz gitleaks
+          chmod +x gitleaks
+      # .gitleaksignore (repo root, auto-discovered) lists confirmed
+      # false positives from the initial scan this was added with — a
+      # full 183-commit history scan found zero real secrets, only
+      # config-object key names and test-fixture passwords tripping the
+      # generic high-entropy heuristic. Each entry there was checked
+      # against the actual historical content before being ignored, not
+      # blanket-added to make this pass.
+      - name: Scan for committed secrets (gitleaks)
+        run: ./gitleaks detect --source . --redact -v
