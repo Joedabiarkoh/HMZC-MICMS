@@ -10,7 +10,11 @@ export default function SignIn() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const [sessionExpired, setSessionExpired] = useState(false);
+  // Holds the reason string sessionStorage carried, not just a boolean —
+  // "idle" (IdleTimeoutGuard.tsx) gets a different message from the
+  // generic 401-interceptor case (any other value, including the
+  // original plain "1").
+  const [sessionEndReason, setSessionEndReason] = useState<string | null>(null);
   // Set once login() reports mfa_required — switches the form into a
   // second step (enter your authenticator/recovery code) instead of
   // navigating straight into the app. Holding the challenge_token here
@@ -26,8 +30,9 @@ export default function SignIn() {
   // suddenly here, which reads as the app having lost their work for
   // no reason rather than a normal, expected security behavior.
   useEffect(() => {
-    if (sessionStorage.getItem("hmzc_session_expired")) {
-      setSessionExpired(true);
+    const reason = sessionStorage.getItem("hmzc_session_expired");
+    if (reason) {
+      setSessionEndReason(reason);
       sessionStorage.removeItem("hmzc_session_expired");
     }
   }, []);
@@ -108,7 +113,12 @@ export default function SignIn() {
         <img src={HMZC_LOGO_DATA_URI} alt="HMZC LTD" />
         <div className="auth-title">HMZC Certification Platform</div>
         <div className="auth-subtitle">Sign in to continue</div>
-        {sessionExpired && (
+        {sessionEndReason === "idle" && (
+          <div className="auth-error" style={{ background: "#FBF0E2", border: "1px solid #B4690E", color: "#7A4A08" }}>
+            You were signed out after a period of inactivity. Anything you'd saved is still there — sign in again to continue.
+          </div>
+        )}
+        {sessionEndReason && sessionEndReason !== "idle" && (
           <div className="auth-error" style={{ background: "#FBF0E2", border: "1px solid #B4690E", color: "#7A4A08" }}>
             Your session expired. Anything you'd saved is still there — sign in again to continue.
           </div>
