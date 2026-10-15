@@ -1,5 +1,5 @@
-import { useLayoutEffect, useRef, useState } from "react";
-import type { ReactNode, RefObject } from "react";
+import { useRef } from "react";
+import type { ReactNode } from "react";
 import { EquipmentTypeConfig, InspectionCertificate, ChecklistStatus, EquipResult, CalibrationData, FFEData, FRCCheckAnswer, FRCServiceReportData, GangwayLoadTestData, LooseGearData, LooseGearDefectReportData, LooseGearMultipleItemsData, LooseGearStandardReportData, LooseGearStatutoryAnswers, LooseGearVisualCertData, LooseGearYesNo, NDTCommonData, NDTFooterData, MPIData, PTData, RTData, UTData, VTData, ETData, LoadTestData, PhotoEvidence } from "../types/inspection.types";
 import { getFFEConfig, getEffectiveFFELabel, getEffectiveFFENote } from "../data/ffeCertTypes";
 import { getCalibrationConfig } from "../data/calibrationCertTypes";
@@ -10,7 +10,7 @@ import { RegisterPreviewTable } from "./RegisterTable";
 import { ABS_LOGO_DATA_URI, BUREAU_VERITAS_LOGO_DATA_URI, CRALOG_LOGO_DATA_URI, DNV_LOGO_DATA_URI, INEFOP_LOGO_DATA_URI, ISO_LOGO_DATA_URI, ANPG_LOGO_DATA_URI } from "../assets/approvalLogos";
 import { APP_BUILD_VERSION } from "../data/appVersion";
 import CertificateQR, { buildCertQrPayload } from "./CertificateQR";
-import { useFillToPageMultiple, PAGE_HEIGHT_PX } from "../../../hooks/useFillToPageMultiple";
+import { useFillToPageMultiple } from "../../../hooks/useFillToPageMultiple";
 // Side-effect only — sets --insp-watermark-url/--insp-stamp-url once
 // on the root element. See cssVars.ts's own comment for why the logo/
 // stamp are referenced via these CSS variables (a single background-
@@ -620,83 +620,28 @@ function CertNoTheadRow({ certNo, colSpan }: { certNo: string; colSpan: number }
   );
 }
 
-// Requested directly: "inset a break for pages when it goes beyond
-// certain number of added rows like 20 added rows per page or 25 for
-// easy orientation and arrangement" — for the FFE item table
-// specifically ("FFE certificate can also go beyond 1 page depending
-// on number of equipment on board"). Previously it relied purely on
-// wherever content happened to run out of room on the page —
-// break-inside: avoid on each row (inspections.css) only stops a row
-// being split in half, it doesn't control WHERE the break falls, so
-// one certificate's item table might break after 18 rows and another
-// after 31 depending on how much other content sat above it. This
-// forces a hard break every fixed number of rows instead, so a table
-// reliably prints the same number of rows per page rather than some
-// other split. Deliberately scoped to just this table — the boat/crane
-// checklists, Equipment List, and Loose Gear's Multiple Items register
-// were tried with the same forced break but reverted back to natural
-// pagination on request.
+// Item registers (FFE/Calibration) flow as ONE native table that simply
+// continues across physical pages: <thead> (CertNoTheadRow + column
+// headers) repeats on every page the table spans, and break-inside:
+// avoid on each row (inspections.css) only stops a single row being cut
+// in half.
 //
-// Root-caused from a real printed PDF ("dragon portable" — a 57-row
-// extinguisher register): a flat 25 was tuned once, a while back,
-// against whatever row content was on hand at the time. This table's
-// actual rows are short single-line entries, so 25 of them only fill
-// roughly a third of a physical page — the forced break was firing
-// three times too often, leaving most of pages 2 and 3 blank. Rather
-// than re-guess a new flat number that'll just be wrong for the next
-// certificate with longer (wrapping) remarks, DEFAULT_ROWS_PER_PAGE is
-// now only the first-paint guess; useRowsPerPage below measures the
-// real rendered height of a row and the thead against PAGE_HEIGHT_PX
-// (the same physical page height useFillToPageMultiple already targets)
-// and corrects it to however many rows actually fit — self-adjusting
-// per certificate sub-type instead of a single magic number everyone
-// has to share.
-const DEFAULT_ROWS_PER_PAGE = 25;
-const PAGINATED_TABLE_SAFETY_MARGIN_PX = 24;
-
-function chunkRows<T>(rows: T[], perPage: number): T[][] {
-  if (rows.length === 0) return [[]];
-  const size = Math.max(1, perPage);
-  const chunks: T[][] = [];
-  for (let i = 0; i < rows.length; i += size) {
-    chunks.push(rows.slice(i, i + size));
-  }
-  return chunks;
-}
-
-// Measures the first chunk's actual rendered thead height and average
-// row height, then computes how many rows of THIS table's real content
-// fit in one physical page. Runs after every render (no dependency
-// array) but only calls setRowsPerPage when the measured value actually
-// changes, so it settles after one correction: default (25) renders →
-// measures the real row height from that render → corrects to the real
-// capacity → re-renders with the new chunk size → measures again, same
-// answer → stops. A table with only one chunk (nothing to correct,
-// since there's no forced break to place) skips measuring entirely.
-function useRowsPerPage(theadRef: RefObject<HTMLElement>, tbodyRef: RefObject<HTMLElement>, chunkCount: number) {
-  const [rowsPerPage, setRowsPerPage] = useState(DEFAULT_ROWS_PER_PAGE);
-  useLayoutEffect(() => {
-    if (chunkCount <= 1) return;
-    const thead = theadRef.current;
-    const tbody = tbodyRef.current;
-    if (!thead || !tbody) return;
-    const rowCount = tbody.children.length;
-    if (rowCount === 0) return;
-    const avgRowHeight = tbody.scrollHeight / rowCount;
-    if (avgRowHeight <= 0) return;
-    const available = PAGE_HEIGHT_PX - thead.offsetHeight - PAGINATED_TABLE_SAFETY_MARGIN_PX;
-    if (available <= 0) return;
-    const measured = Math.max(1, Math.floor(available / avgRowHeight));
-    if (measured !== rowsPerPage) setRowsPerPage(measured);
-  });
-  return rowsPerPage;
-}
-
-// Used by FFEItemsTable (FFE + Calibration item tables) — each chunk of
-// rowsPerPage rows renders as its own <table> with its own repeating
-// <CertNoTheadRow>/column headers (same native-thead-repeats-per-page
-// mechanism CertNoTheadRow already relies on), and break-before: page
-// forces every chunk after the first onto a fresh physical page.
+// Root-caused from a real printed PDF (a long extinguisher register):
+// this used to be split into forced "page-sized" chunks, each starting
+// with break-before: page. Two things made that leave big blank gaps:
+//   1. The FIRST chunk was forced onto a fresh page too, so everything
+//      above the register (header, technical description, checklist)
+//      sat alone on page 1 with the rest of it empty, and the rows only
+//      began on page 2.
+//   2. Each chunk's row count was sized against a whole physical page,
+//      but every printed page also carries the repeating letterhead and
+//      approvals footer (CertPageFrame's own thead/tfoot) — so a chunk
+//      never actually fit, its last rows spilled onto an extra page, and
+//      the next chunk's forced break then stranded that page's blank
+//      space again, on every page after the first.
+// Letting the browser paginate the table itself fills each page to the
+// bottom and starts the next one immediately, regardless of what sits
+// above the register or how tall the letterhead/footer are.
 function PaginatedTable<T>({
   title, certNo, colSpan, columnHeaders, rows, renderRow, emptyMessage,
 }: {
@@ -708,55 +653,27 @@ function PaginatedTable<T>({
   renderRow: (row: T, indexInChunk: number, globalIndex: number) => ReactNode;
   emptyMessage?: string;
 }) {
-  // Chunked against the default first, then re-chunked once the real
-  // row height is known — see useRowsPerPage above.
-  const provisionalChunkCount = chunkRows(rows, DEFAULT_ROWS_PER_PAGE).length;
-  const theadRef = useRef<HTMLTableSectionElement | null>(null);
-  const tbodyRef = useRef<HTMLTableSectionElement | null>(null);
-  const rowsPerPage = useRowsPerPage(theadRef, tbodyRef, provisionalChunkCount);
-  const chunks = chunkRows(rows, rowsPerPage);
-  // Root-caused from a real report: "the pages are not continues as it
-  // left a chunk of space to start next on page 3 to 4." Only chunk 1+
-  // forced a fresh page — chunk 0 didn't, so whenever something else
-  // (a checklist rendered above this table via itemsAfterChecklist, a
-  // technical-description block, another item table) already used up
-  // part of the current page, chunk 0's own rowsPerPage rows no longer
-  // reliably fit in what was left of that page — its last few rows
-  // spilled onto a mostly-empty continuation page, and chunk 1's own
-  // forced break then stranded that emptiness permanently, since it
-  // jumps to a fresh page regardless of how little of the current one
-  // is used. Forcing chunk 0 onto a fresh page too, whenever the table
-  // is big enough to need more than one chunk in the first place,
-  // means every chunk always gets a full page to grow into — the same
-  // reliable, predictable per-page guarantee chunk 1+ already had, now
-  // applied uniformly instead of only to the chunks after the first. A
-  // table that fits in one chunk is completely unaffected — it still
-  // flows inline exactly as before.
   return (
-    <>
-      {chunks.map((chunk, ci) => (
-        <div key={ci} style={(ci > 0 || chunks.length > 1) ? ({ breakBefore: "page" } as any) : undefined}>
-          {title && (
-            <div style={{ fontWeight: 700, fontSize: 11.5, color: "var(--insp-navy)", margin: "10px 0 4px" }}>
-              {title}{chunks.length > 1 ? ` (continued — page ${ci + 1} of ${chunks.length})` : ""}
-            </div>
-          )}
-          <table className="insp-print-chk">
-            <thead ref={ci === 0 ? theadRef : undefined}>
-              <CertNoTheadRow certNo={certNo} colSpan={colSpan} />
-              {columnHeaders}
-            </thead>
-            <tbody ref={ci === 0 ? tbodyRef : undefined}>
-              {chunk.length === 0 ? (
-                <tr><td colSpan={colSpan} style={{ color: "var(--insp-muted)" }}>{emptyMessage || "No rows recorded."}</td></tr>
-              ) : (
-                chunk.map((row, i) => renderRow(row, i, ci * rowsPerPage + i))
-              )}
-            </tbody>
-          </table>
+    <div>
+      {title && (
+        <div style={{ fontWeight: 700, fontSize: 11.5, color: "var(--insp-navy)", margin: "10px 0 4px", breakAfter: "avoid" } as any}>
+          {title}
         </div>
-      ))}
-    </>
+      )}
+      <table className="insp-print-chk">
+        <thead>
+          <CertNoTheadRow certNo={certNo} colSpan={colSpan} />
+          {columnHeaders}
+        </thead>
+        <tbody>
+          {rows.length === 0 ? (
+            <tr><td colSpan={colSpan} style={{ color: "var(--insp-muted)" }}>{emptyMessage || "No rows recorded."}</td></tr>
+          ) : (
+            rows.map((row, i) => renderRow(row, i, i))
+          )}
+        </tbody>
+      </table>
+    </div>
   );
 }
 
