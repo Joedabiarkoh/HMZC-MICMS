@@ -33,13 +33,25 @@ jobs:
       # planned fix for. Not reachable here — this app signs JWTs with
       # ALGORITHM=HS256 (HMAC, see core/config.py), never an EC
       # algorithm, so the vulnerable code path is never exercised.
+      # PYSEC-2026-4298 / GHSA-3qf3-8w2g-rqmx (python-jose through 3.5.0,
+      # rated Critical, disclosed 2026-10-15, no fixed release exists —
+      # 3.5.0 is the latest): an algorithm-confusion bypass that lets an
+      # attacker who holds a service's asymmetric PUBLIC key forge HS256
+      # tokens, but only "when algorithms are not explicitly restricted."
+      # Not exploitable here on both counts: every jwt.decode call
+      # (api/deps.py, api/routes/auth.py) passes
+      # algorithms=[settings.ALGORITHM] explicitly, and tokens are signed
+      # with a single random symmetric SECRET_KEY (length-checked at
+      # startup, see core/config.py) — there is no public key to abuse.
+      # Revisit if ALGORITHM is ever switched to an RS*/ES* algorithm,
+      # or when python-jose ships a fix (or this moves to PyJWT/authlib).
       # Ignored by ID (not the whole scan) so a genuinely new
       # vulnerability in any other dependency still fails the build.
       - name: Dependency vulnerability scan (pip-audit)
         working-directory: backend-fastapi
         run: |
           pip install pip-audit==2.10.1
-          pip-audit -r constraints.txt --ignore-vuln PYSEC-2026-1325
+          pip-audit -r constraints.txt --ignore-vuln PYSEC-2026-1325 --ignore-vuln PYSEC-2026-4298 --ignore-vuln GHSA-3qf3-8w2g-rqmx
 
   frontend:
     runs-on: ubuntu-latest
