@@ -8,8 +8,14 @@ WORKDIR /app
 # .env.production, and is git-ignored, so local builds are unaffected
 # when this arg isn't passed. Same technique render.yaml already used.
 ARG VITE_API_BASE_URL
-COPY package.json .
-RUN npm install
+# Lockfile is copied and installed with `npm ci` so every build gets the
+# exact dependency tree that was tested, instead of re-resolving it from
+# scratch — a bare `npm install` from package.json alone crashed npm
+# 10.x's resolver ("Cannot read properties of null (reading 'edgesOut')")
+# and failed the Railway build. If package.json changes, regenerate
+# package-lock.json (`npm install`) and commit both.
+COPY package.json package-lock.json ./
+RUN npm ci
 COPY . .
 RUN if [ -n "$VITE_API_BASE_URL" ]; then echo "VITE_API_BASE_URL=$VITE_API_BASE_URL" > .env.production.local; fi
 RUN npm run build
