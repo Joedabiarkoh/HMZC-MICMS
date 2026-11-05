@@ -720,3 +720,22 @@ table.insp-print-chk tbody tr:nth-last-child(-n+3):not(:last-child) { break-afte
    stays on the page with the table's last rows instead of landing alone
    at the top of the next page. */
 table.insp-print-chk + .insp-remarks-box { break-before: avoid; page-break-before: avoid; }
+
+/* ---- Each main section starts its own page(s) ----
+   Requested directly, reviewing real FRC prints where one section ran into
+   the next (the Davit checklist started halfway down the page after the
+   Rescue Boat checklist; the Equipment List sat above Explanatory Notes):
+   "each top or main heading should have their pages, either 1, 2 or 3
+   depending on the page count or row numbers, with their header and foot for
+   each page printed." A section that needs more than one page still
+   paginates normally (its table header repeats); the NEXT section always
+   begins on a fresh page. */
+@media print {
+  .insp-flow-section + .insp-flow-section {
+    break-before: page; page-break-before: always; margin-top: 0;
+  }
+}
+/* A section's closing block (outstanding-issues line + sign-off) never splits. */
+.insp-keep-together { break-inside: avoid; page-break-inside: avoid; }
+/* …and the last row of a table stays with whatever closes the section. */
+table.insp-print-chk tbody tr:last-child { break-after: avoid; page-break-after: avoid; }

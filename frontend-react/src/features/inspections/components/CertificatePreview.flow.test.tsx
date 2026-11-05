@@ -41,14 +41,32 @@ describe("a certificate prints as one continuous flow", () => {
     root.querySelectorAll(".insp-flow-section").forEach((s) => expect(frame.contains(s)).toBe(true));
   });
 
-  // Reviewing a real print of the flowing layout: a full signature + stamp
-  // block after every one of four sections printed the same declaration
-  // four times mid-page. The Statement is signed, then ONE sign-off closes
-  // the checklist run — never one per section.
-  it.each<EquipmentTypeKey>(["rescueboat", "lifeboat", "crane"])("%s: signed Statement plus a single closing sign-off, not one per section", (type) => {
-    const root = renderCert(type);
-    const signOffs = (root.textContent || "").match(/Service Engineer/g) || [];
-    expect(signOffs).toHaveLength(2);
+  // Each main section is its own page group and closes with its own sign-off
+  // (Statement, each checklist, the equipment list) — the arrangement the
+  // printed certificates are meant to have: "each top or main heading should
+  // have their pages... with their header and foot for each page".
+  it.each<[EquipmentTypeKey, number]>([["rescueboat", 4], ["lifeboat", 4], ["crane", 2]])(
+    "%s: every section closes with its own sign-off (%i)",
+    (type, expected) => {
+      const root = renderCert(type);
+      const signOffs = (root.textContent || "").match(/Service Engineer/g) || [];
+      expect(signOffs).toHaveLength(expected);
+    }
+  );
+
+  // Reproduced from a real print: a Rescue Boat certificate reached while the
+  // page's type setting was still "Release Hook" printed with the Release
+  // Hook template (wrong badge, crane fields, no checklists). The preview
+  // must always use the certificate's OWN type, whatever config it is handed.
+  it("renders a certificate with its own type's template even when handed another type's config", () => {
+    const cert = freshCertificate("rescueboat", new Set());
+    cert.vesselName = "MV TEST";
+    const root = render(<CertificatePreview cert={cert} config={INSPECTION_TYPES.hook_reinstall} />).container;
+    const text = root.textContent || "";
+    expect(text).toContain("RESCUE BOAT");
+    expect(text).toContain("Release Mechanism"); // the boat Statement's own rows
+    expect(text).not.toContain("RELEASE HOOK RE-INSTALLATION CERTIFICATE"); // the wrong badge
+    expect(text).not.toContain("Crane"); // the wrong (non-boat) fields
   });
 
   it("the hook certificate's two template pages are sections of one flow, not two pages", () => {

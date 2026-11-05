@@ -60,6 +60,7 @@ import {
   NDTCommonData,
   NDTFooterData,
 } from "../types/inspection.types";
+import { INSPECTION_TYPES } from "../data/inspectionChecklists";
 import { getFFEConfig, getEffectiveFFELabel, getEffectiveFFENote } from "../data/ffeCertTypes";
 import { getCalibrationConfig, groupTechnicalFields } from "../data/calibrationCertTypes";
 import { DEFECT_REPORT_COLUMNS, FRC_SPARE_PARTS_COLUMNS, LOOSE_GEAR_STATUS_CODES, MULTIPLE_ITEMS_REGISTER_COLUMNS, RegisterColumn, normalizedSerialNos } from "../data/inspectionHelpers";
@@ -1545,7 +1546,10 @@ function downloadBlob(blob: Blob, filename: string) {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
-export async function exportCertificateDocx(cert: InspectionCertificate, config: EquipmentTypeConfig): Promise<void> {
+export async function exportCertificateDocx(cert: InspectionCertificate, requestedConfig: EquipmentTypeConfig): Promise<void> {
+  // The certificate's own type's template, whatever the caller passed (see
+  // CertificatePreview's default export for why).
+  const config = INSPECTION_TYPES[cert.type] || requestedConfig;
   const children: Block[] = [];
 
   if (config.kind === "frcservice" && cert.frcServiceReport) {

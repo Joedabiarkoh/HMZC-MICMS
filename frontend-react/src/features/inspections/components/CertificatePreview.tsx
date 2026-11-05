@@ -1,6 +1,7 @@
 import { Fragment } from "react";
 import type { ReactNode } from "react";
 import { EquipmentTypeConfig, InspectionCertificate, ChecklistStatus, EquipResult, CalibrationData, FFEData, FRCCheckAnswer, FRCServiceReportData, GangwayLoadTestData, HookCheckAnswer, HookReinstallData, LooseGearData, LooseGearDefectReportData, LooseGearMultipleItemsData, LooseGearStandardReportData, LooseGearStatutoryAnswers, LooseGearVisualCertData, LooseGearYesNo, NDTCommonData, NDTFooterData, MPIData, PTData, RTData, UTData, VTData, ETData, LoadTestData, PhotoEvidence } from "../types/inspection.types";
+import { INSPECTION_TYPES } from "../data/inspectionChecklists";
 import { getFFEConfig, getEffectiveFFELabel, getEffectiveFFENote } from "../data/ffeCertTypes";
 import { getCalibrationConfig, groupTechnicalFields } from "../data/calibrationCertTypes";
 import { DEFECT_REPORT_COLUMNS, FRC_SPARE_PARTS_COLUMNS, LOOSE_GEAR_STATUS_CODES, MULTIPLE_ITEMS_REGISTER_COLUMNS, normalizedSerialNos } from "../data/inspectionHelpers";
@@ -41,11 +42,14 @@ function equipLabel(s: EquipResult) {
 }
 
 export default function CertificatePreview({ cert, config }: Props) {
-  // Every certificate type renders inside ONE continuous page flow — see
-  // CertPageFrame/CertFlow's own comment for why.
+  // Always the certificate's OWN type's template, whatever `config` the
+  // caller passed — see InspectionWorkspace's openCertificate for the real
+  // print where a Rescue Boat certificate came out with another type's
+  // layout because the page-level type had not followed it.
+  const ownConfig = INSPECTION_TYPES[cert.type] || config;
   return (
     <CertFlow cert={cert}>
-      <CertificateSections cert={cert} config={config} />
+      <CertificateSections cert={cert} config={ownConfig} />
     </CertFlow>
   );
 }
@@ -80,11 +84,6 @@ function CertificateSections({ cert, config }: Props) {
   }
 
   const isBoat = config.kind === "boat";
-  // Which section closes the checklist run (and so carries the sign-off).
-  const lastMainSection: "equip" | "davit" | "boat" | "checklist" = isBoat
-    ? cert.equip ? "equip" : cert.davitChecklist ? "davit" : "boat"
-    : "checklist";
-
   return (
     <>
       <CertPageFrame cert={cert}>
@@ -206,21 +205,11 @@ function CertificateSections({ cert, config }: Props) {
         <SignatureGrid cert={cert} masterLabel="Captain Signature" techLabel="Service Engineer" />
       </CertPageFrame>
 
-      {/* One sign-off for the whole run of checklists/equipment list, after
-          the LAST of them — not one after each. Requested directly after
-          reviewing a real print of this layout ("the whole thing seems
-          messed up"): with every section flowing on from the previous
-          one, a full signature + stamp block after each of four sections
-          printed the same declaration four times mid-page. The Statement
-          above keeps its own signed declaration; every table header
-          carries the certificate number (CertNoTheadRow) and the
-          letterhead repeats on each page, so a loose page is still
-          traceable to this certificate. */}
       {isBoat && cert.boatChecklist && (
-        <ChecklistPage title={config.boatTitle || "Checklist"} config={config} cert={cert} sections={cert.boatChecklist} outstandingKey="boatChecklist" signOff={lastMainSection === "boat"} />
+        <ChecklistPage title={config.boatTitle || "Checklist"} config={config} cert={cert} sections={cert.boatChecklist} outstandingKey="boatChecklist" />
       )}
       {isBoat && cert.davitChecklist && (
-        <ChecklistPage title={config.davitTitle || "Davit Checklist"} config={config} cert={cert} sections={cert.davitChecklist} outstandingKey="davitChecklist" signOff={lastMainSection === "davit"} />
+        <ChecklistPage title={config.davitTitle || "Davit Checklist"} config={config} cert={cert} sections={cert.davitChecklist} outstandingKey="davitChecklist" />
       )}
       {isBoat && cert.equip && (
         <CertPageFrame cert={cert}>
@@ -240,11 +229,13 @@ function CertificateSections({ cert, config }: Props) {
               ))}
             </tbody>
           </table>
-          {lastMainSection === "equip" && <SignatureGrid cert={cert} masterLabel="Captain Signature" techLabel="Service Engineer" />}
+          <div className="insp-keep-together">
+            <SignatureGrid cert={cert} masterLabel="Captain Signature" techLabel="Service Engineer" />
+          </div>
         </CertPageFrame>
       )}
       {!isBoat && cert.checklist && (
-        <ChecklistPage title={config.checklistTitle || "Inspection Checklist"} config={config} cert={cert} sections={cert.checklist} outstandingKey="checklist" signOff={lastMainSection === "checklist"} />
+        <ChecklistPage title={config.checklistTitle || "Inspection Checklist"} config={config} cert={cert} sections={cert.checklist} outstandingKey="checklist" />
       )}
       <ExplanatoryNotesPage cert={cert} config={config} />
       <PhotoReportPage cert={cert} />
@@ -2680,7 +2671,7 @@ function SignBox({ label, name, sig, stamp }: { label: string; name: string; sig
   );
 }
 
-function ChecklistPage({ title, config, cert, sections, outstandingKey, signOff }: any) {
+function ChecklistPage({ title, config, cert, sections, outstandingKey }: any) {
   return (
     <CertPageFrame cert={cert}>
       <div className="insp-cert-title-row"><h2>{title}</h2><span className="insp-badge">{config.typeName.toUpperCase()}</span></div>
@@ -2721,10 +2712,15 @@ function ChecklistPage({ title, config, cert, sections, outstandingKey, signOff 
           once, consolidated with its caption, on PhotoReportPage at
           the very end of the certificate (see the default export's
           own use of it). */}
-      <div className="insp-remarks-box" style={{ borderColor: "var(--insp-red)", background: "#FBEEEC", color: "#7A241B" }}>
-        Outstanding Issues / Defects Raised: {(cert.outstanding && cert.outstanding[outstandingKey]) || "None"}
+      {/* Outstanding-issues line + sign-off stay together, and with the last
+          rows of the table above (see inspections.css) — a sign-off is never
+          left alone on a page. */}
+      <div className="insp-keep-together">
+        <div className="insp-remarks-box" style={{ borderColor: "var(--insp-red)", background: "#FBEEEC", color: "#7A241B" }}>
+          Outstanding Issues / Defects Raised: {(cert.outstanding && cert.outstanding[outstandingKey]) || "None"}
+        </div>
+        <SignatureGrid cert={cert} masterLabel="Captain Signature" techLabel="Service Engineer" />
       </div>
-      {signOff && <SignatureGrid cert={cert} masterLabel="Captain Signature" techLabel="Service Engineer" />}
     </CertPageFrame>
   );
 }

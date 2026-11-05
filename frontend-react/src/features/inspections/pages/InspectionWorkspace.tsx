@@ -71,7 +71,19 @@ export default function InspectionWorkspace() {
   // this tab at least once" is the honest, achievable version of a
   // progress indicator without that larger change.
   const [visitedTabs, setVisitedTabs] = useState<Set<SubTab>>(new Set(["statement"]));
-  const { current, setCurrent, saveCurrent, saveOther, startNew, openCertificate, certificates, syncError, pendingSyncCount, retrySync, allCertNos } = useInspections(type);
+  const { current, setCurrent, saveCurrent, saveOther, startNew, openCertificate: openCertificateRaw, certificates, syncError, pendingSyncCount, retrySync, allCertNos } = useInspections(type);
+  // Opening a certificate replaces `current` but, on its own, leaves this
+  // page's `type` (which picks the template: cfg = INSPECTION_TYPES[type])
+  // on whatever the previous certificate was. Reproduced from a real print:
+  // a Rescue Boat certificate reached through the job's Previous/Next
+  // navigator while the page was still on "Release Hook" printed with the
+  // Release Hook template — wrong badge, crane fields, no checklists. A
+  // certificate must always be shown with its OWN type's template.
+  function openCertificate(certNo: string) {
+    const found = certificates[certNo];
+    if (found?.type && INSPECTION_TYPES[found.type]) setType(found.type);
+    openCertificateRaw(certNo);
+  }
   const { user } = useAuth();
 
   // Job Tabs — requested directly: "it is difficult to switch between
