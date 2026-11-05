@@ -999,7 +999,9 @@ export default function InspectionWorkspace() {
     return (
       <div className="inspections-page" data-type={type}>
         <TopBar type={type} onTypeChange={handleTypeChange} viewOnly />
-        <div style={{ padding: "10px 20px 0" }}>
+        {/* no-print: this notice is for the screen only — it used to print
+            above the certificate and push it onto an extra page. */}
+        <div className="no-print" style={{ padding: "10px 20px 0" }}>
           <div style={{ background: "#E7ECF1", border: "1px solid #455A73", borderRadius: 6, padding: "8px 12px", fontSize: 12, color: "#243040" }}>
             {isLockedToCreator
               ? `View-only — this certificate was finalized by ${current.issuedBy || "another user"}. Only they or an administrator can edit it further; you can still view and print it here.`

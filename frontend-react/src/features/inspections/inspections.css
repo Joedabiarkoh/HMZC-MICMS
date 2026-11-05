@@ -735,7 +735,21 @@ table.insp-print-chk + .insp-remarks-box { break-before: avoid; page-break-befor
     break-before: page; page-break-before: always; margin-top: 0;
   }
 }
-/* A section's closing block (outstanding-issues line + sign-off) never splits. */
-.insp-keep-together { break-inside: avoid; page-break-inside: avoid; }
-/* …and the last row of a table stays with whatever closes the section. */
-table.insp-print-chk tbody tr:last-child { break-after: avoid; page-break-after: avoid; }
+/* A section's closing block (comments / outstanding-issues line / validity /
+   sign-off) never splits: it is a one-row table (see KeepTogether), because a
+   table row is the one block browsers reliably refuse to break. */
+table.insp-keep { width: 100%; border-collapse: collapse; }
+table.insp-keep > tbody > tr { break-inside: avoid; page-break-inside: avoid; }
+table.insp-keep > tbody > tr > td { padding: 0; border: none; }
+/* NOT "keep the last row with whatever follows": that chained into the
+   closing block and, on a long table, made the browser give up on keeping
+   the block together (reproduced with a 448-row register: the comments stayed
+   on one page and the sign-off landed alone on the next). */
+
+/* ---- Approvals footer pinned to the bottom of every printed page ---- */
+.insp-footer-spacer { display: none; }
+@media print {
+  .insp-footer-spacer { display: block; height: 80px; }
+  .insp-cert-page > .insp-footer-pin { position: fixed; left: 0; right: 0; bottom: 0; margin: 0; padding: 0; }
+  .insp-panel { overflow: visible !important; }
+}

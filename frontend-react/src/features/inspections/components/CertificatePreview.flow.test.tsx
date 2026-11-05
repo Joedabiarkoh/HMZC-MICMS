@@ -19,16 +19,18 @@ function renderCert(type: EquipmentTypeKey) {
 
 describe("a certificate prints as one continuous flow", () => {
   it.each<EquipmentTypeKey>(["rescueboat", "lifeboat", "crane", "hook_reinstall", "frc_service", "calibration", "firefighting", "gangway_load_test"])(
-    "%s: one page frame, one letterhead, one repeating footer",
+    "%s: one page frame, one letterhead, one pinned footer",
     (type) => {
       const root = renderCert(type);
       expect(root.querySelectorAll(".insp-cert-page")).toHaveLength(1);
       expect(root.querySelectorAll("table.insp-page-frame")).toHaveLength(1);
       expect(root.querySelectorAll(".insp-letterhead")).toHaveLength(1);
-      // The footer is the table's <tfoot> (repeats natively on every printed
-      // page) — not position: fixed, which real prints showed is unreliable.
-      expect(root.querySelectorAll("table.insp-page-frame > tfoot")).toHaveLength(1);
-      expect(root.querySelectorAll("table.insp-page-frame > tfoot img").length).toBeGreaterThanOrEqual(7);
+      // The approvals footer is pinned to the bottom of every printed page
+      // (position: fixed in print), with a spacer in the repeating <tfoot>
+      // reserving its room so content never runs underneath it.
+      expect(root.querySelectorAll(".insp-footer-pin")).toHaveLength(1);
+      expect(root.querySelectorAll(".insp-footer-pin img").length).toBeGreaterThanOrEqual(7);
+      expect(root.querySelectorAll("table.insp-page-frame > tfoot .insp-footer-spacer")).toHaveLength(1);
       expect(root.querySelectorAll(".insp-flow-section").length).toBeGreaterThanOrEqual(1);
     }
   );
@@ -74,11 +76,5 @@ describe("a certificate prints as one continuous flow", () => {
     expect(root.querySelectorAll(".insp-flow-section")).toHaveLength(2);
     expect(root.textContent).toContain("Hook Re-installation Certificate");
     expect(root.textContent).toContain("Inspection & Test Check Sheet");
-  });
-
-  it("no position: fixed footer is used", () => {
-    const root = renderCert("hook_reinstall");
-    expect(root.querySelector(".insp-footer-pin")).toBeNull();
-    expect(root.querySelector(".insp-footer-spacer")).toBeNull();
   });
 });

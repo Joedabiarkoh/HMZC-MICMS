@@ -229,9 +229,9 @@ function CertificateSections({ cert, config }: Props) {
               ))}
             </tbody>
           </table>
-          <div className="insp-keep-together">
+          <KeepTogether>
             <SignatureGrid cert={cert} masterLabel="Captain Signature" techLabel="Service Engineer" />
-          </div>
+          </KeepTogether>
         </CertPageFrame>
       )}
       {!isBoat && cert.checklist && (
@@ -759,7 +759,7 @@ function HookReinstallPages({ cert, data }: { cert: InspectionCertificate; data:
         {/* Statement + issue line + sign-off stay together: if they don't
             fit under the check sheet they move to the next page as one
             block rather than leaving the signatures alone on a page. */}
-        <div style={{ breakInside: "avoid", pageBreakInside: "avoid" } as any}>
+        <KeepTogether>
           <div style={{ fontSize: 10, color: "var(--insp-muted)", marginTop: 8 }}>{HOOK_CERTIFICATION_STATEMENT}</div>
           {cert.issuedBy && (
             <div style={{ fontSize: 10, color: "var(--insp-muted)", marginTop: 4 }}>
@@ -767,7 +767,7 @@ function HookReinstallPages({ cert, data }: { cert: InspectionCertificate; data:
             </div>
           )}
           <HookSignatureGrid cert={cert} data={data} />
-        </div>
+        </KeepTogether>
        </div>
       </CertPageFrame>
     </>
@@ -1137,7 +1137,7 @@ function FFECertificatePage({ cert, ffe }: { cert: InspectionCertificate; ffe: F
           fit under the tables on a shorter page (US Letter is ~66px shorter
           than A4) they go to the next page as one block, never leaving the
           signatures alone on a page. */}
-      <div style={{ breakInside: "avoid", pageBreakInside: "avoid" } as any}>
+      <KeepTogether>
       <div className="insp-remarks-box">Comments: {ffe.comments || "None"}</div>
       <div style={{ fontSize: 10, color: "var(--insp-muted)", marginTop: 8 }}>
         This Certificate is valid for {cfg.validityYears === 2 ? "Two Years" : "One Year"} from the date of issue.
@@ -1149,7 +1149,7 @@ function FFECertificatePage({ cert, ffe }: { cert: InspectionCertificate; ffe: F
       </div>
 
       <SignatureGrid cert={cert} masterLabel="Master" techLabel="Technician" hideFitForPurpose />
-      </div>
+      </KeepTogether>
      </div>
     </CertPageFrame>
   );
@@ -1289,7 +1289,7 @@ function CalibrationCertificatePage({ cert, calibration }: { cert: InspectionCer
       {/* Comments, validity line and sign-off stay together: if they
           don't fit under the tables they move to the next page as one
           block, never leaving the signatures alone on a page. */}
-      <div style={{ breakInside: "avoid", pageBreakInside: "avoid" } as any}>
+      <KeepTogether>
       <div className="insp-remarks-box">Comments: {calibration.comments || "None"}</div>
       <div style={{ fontSize: 10, color: "var(--insp-muted)", marginTop: 8 }}>
         This Certificate is valid for {cfg.validityYears === 2 ? "Two Years" : "One Year"} from the date of issue.
@@ -1301,7 +1301,7 @@ function CalibrationCertificatePage({ cert, calibration }: { cert: InspectionCer
       </div>
 
       <SignatureGrid cert={cert} masterLabel="Master" techLabel="Checked/Approved By" hideFitForPurpose />
-      </div>
+      </KeepTogether>
      </div>
     </CertPageFrame>
   );
@@ -2379,6 +2379,24 @@ function LoadTestPage({ cert, data }: { cert: InspectionCertificate; data: LoadT
 // Nothing is padded to a page multiple any more, so there is nothing
 // to mis-measure — the content simply runs on, and the letterhead
 // (<thead>) and approvals footer (<tfoot>) repeat on each page.
+// Keeps a section's closing block (comments / outstanding issues / validity
+// line / sign-off) on ONE page, together. A plain `break-inside: avoid` <div>
+// is not honored when the content before it is a long table that has already
+// split across pages (reproduced from a real 448-row extinguisher print: the
+// comments stayed on page 7 and the sign-off landed alone on page 8), whereas
+// a table ROW is never split by the browser — so the block is a one-row table.
+function KeepTogether({ children }: { children: ReactNode }) {
+  return (
+    <table className="insp-keep">
+      <tbody>
+        <tr>
+          <td>{children}</td>
+        </tr>
+      </tbody>
+    </table>
+  );
+}
+
 function CertPageFrame({ children }: { cert: InspectionCertificate; children: ReactNode }) {
   // Always rendered inside CertFlow (CertificatePreview wraps every
   // certificate type in one) — a section, not a page.
@@ -2391,14 +2409,13 @@ function CertFlow({ cert, children }: { cert: InspectionCertificate; children: R
       <table className="insp-page-frame">
         <thead><tr><td><Letterhead cert={cert} /></td></tr></thead>
         <tbody><tr><td>{children}</td></tr></tbody>
-        {/* The approvals footer lives in the <tfoot>: a table footer repeats
-            at the bottom of every printed page natively. An earlier version
-            pinned it with position: fixed instead, but real prints showed
-            that is unreliable — two fire-equipment certificates came out of
-            the same build with no footer on any page, while a boat
-            certificate printed fine. */}
-        <tfoot><tr><td><ApprovalLogosRow /></td></tr></tfoot>
+        {/* Print-only spacer: repeats at the bottom of every page (a <tfoot>
+            does) and reserves the room the pinned footer below occupies. */}
+        <tfoot><tr><td><div className="insp-footer-spacer" aria-hidden="true" /></td></tr></tfoot>
       </table>
+      {/* The approvals footer: on screen it follows the content; in print it
+          is pinned to the bottom edge of every page (inspections.css). */}
+      <div className="insp-footer-pin"><ApprovalLogosRow /></div>
     </div>
   );
 }
@@ -2715,12 +2732,12 @@ function ChecklistPage({ title, config, cert, sections, outstandingKey }: any) {
       {/* Outstanding-issues line + sign-off stay together, and with the last
           rows of the table above (see inspections.css) — a sign-off is never
           left alone on a page. */}
-      <div className="insp-keep-together">
+      <KeepTogether>
         <div className="insp-remarks-box" style={{ borderColor: "var(--insp-red)", background: "#FBEEEC", color: "#7A241B" }}>
           Outstanding Issues / Defects Raised: {(cert.outstanding && cert.outstanding[outstandingKey]) || "None"}
         </div>
         <SignatureGrid cert={cert} masterLabel="Captain Signature" techLabel="Service Engineer" />
-      </div>
+      </KeepTogether>
     </CertPageFrame>
   );
 }
