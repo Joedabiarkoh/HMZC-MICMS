@@ -684,3 +684,33 @@ table.insp-print-chk tr.insp-section-row td { background: #EEF1F3; font-weight: 
      inline style, which wins over any stylesheet rule for the same
      element regardless of specificity. */
 }
+
+
+/* ---- One continuous flow per certificate (CertFlow/CertPageFrame in
+   CertificatePreview.tsx) ----
+   Requested directly, reviewing real printed certificates: "there are
+   empty spaces in the certificate issued... all information should
+   follow without space." Every section used to be its own forced,
+   padded page (see CertPageFrame's own comment for the root cause: blank
+   trailing pages, a sign-off alone on a page, a short section alone on
+   a mostly empty one). Now sections are plain blocks in a single frame:
+   each starts right where the previous one ended. */
+.insp-flow-section + .insp-flow-section { margin-top: 14px; }
+/* A section's title must never be stranded at the bottom of a page with
+   its table starting on the next. */
+.insp-cert-title-row { break-after: avoid; page-break-after: avoid; }
+
+/* On screen the approvals footer just follows the content; the spacer
+   only exists for print. */
+.insp-footer-spacer { display: none; }
+@media print {
+  /* A <tfoot> repeats at the bottom of every physical page the table
+     spans — here it only reserves room (the spacer) for the pinned
+     footer, so flowing content stops above it on every page. */
+  .insp-footer-spacer { display: block; height: 92px; }
+  /* Pinned to the bottom edge of every printed page. Higher specificity
+     than ".insp-cert-page > *" (position: relative) above. */
+  .insp-cert-page > .insp-footer-pin {
+    position: fixed; left: 0; right: 0; bottom: 0; margin: 0; padding: 0;
+  }
+}

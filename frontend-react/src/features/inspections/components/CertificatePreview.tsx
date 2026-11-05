@@ -1,4 +1,4 @@
-import { Fragment, useRef } from "react";
+import { Fragment } from "react";
 import type { ReactNode } from "react";
 import { EquipmentTypeConfig, InspectionCertificate, ChecklistStatus, EquipResult, CalibrationData, FFEData, FRCCheckAnswer, FRCServiceReportData, GangwayLoadTestData, HookCheckAnswer, HookReinstallData, LooseGearData, LooseGearDefectReportData, LooseGearMultipleItemsData, LooseGearStandardReportData, LooseGearStatutoryAnswers, LooseGearVisualCertData, LooseGearYesNo, NDTCommonData, NDTFooterData, MPIData, PTData, RTData, UTData, VTData, ETData, LoadTestData, PhotoEvidence } from "../types/inspection.types";
 import { getFFEConfig, getEffectiveFFELabel, getEffectiveFFENote } from "../data/ffeCertTypes";
@@ -14,7 +14,6 @@ import { RegisterPreviewTable } from "./RegisterTable";
 import { ABS_LOGO_DATA_URI, BUREAU_VERITAS_LOGO_DATA_URI, CRALOG_LOGO_DATA_URI, DNV_LOGO_DATA_URI, INEFOP_LOGO_DATA_URI, ISO_LOGO_DATA_URI, ANPG_LOGO_DATA_URI } from "../assets/approvalLogos";
 import { APP_BUILD_VERSION } from "../data/appVersion";
 import CertificateQR, { buildCertQrPayload } from "./CertificateQR";
-import { useFillToPageMultiple } from "../../../hooks/useFillToPageMultiple";
 // Side-effect only — sets --insp-watermark-url/--insp-stamp-url once
 // on the root element. See cssVars.ts's own comment for why the logo/
 // stamp are referenced via these CSS variables (a single background-
@@ -42,6 +41,16 @@ function equipLabel(s: EquipResult) {
 }
 
 export default function CertificatePreview({ cert, config }: Props) {
+  // Every certificate type renders inside ONE continuous page flow — see
+  // CertPageFrame/CertFlow's own comment for why.
+  return (
+    <CertFlow cert={cert}>
+      <CertificateSections cert={cert} config={config} />
+    </CertFlow>
+  );
+}
+
+function CertificateSections({ cert, config }: Props) {
   if (config.kind === "frcservice" && cert.frcServiceReport) {
     return <FRCServiceReportPage cert={cert} data={cert.frcServiceReport} />;
   }
@@ -1154,6 +1163,11 @@ function CalibrationCertificatePage({ cert, calibration }: { cert: InspectionCer
 
   return (
     <CertPageFrame cert={cert}>
+     {/* lg-compact: tighter row padding (see inspections.css) — a
+         certificate with grouped technical fields (Flow Meter) is long
+         enough that, at the default spacing, its sign-off fell alone onto
+         a second page. */}
+     <div className="lg-compact">
       <div className="insp-cert-title-row">
         <h2>Calibration Certificate</h2>
         <span className="insp-badge">{cfg.label.toUpperCase()}</span>
@@ -1183,7 +1197,7 @@ function CalibrationCertificatePage({ cert, calibration }: { cert: InspectionCer
           the generic "Calibration Reference" heading, as before. */}
       {groupTechnicalFields(cfg.technicalFields).map((block) => (
         <div key={block.title || "calibration-reference"}>
-          <div style={{ fontWeight: 700, fontSize: 11.5, color: "var(--insp-navy)", margin: "10px 0 4px" }}>{block.title || "Calibration Reference"}</div>
+          <div style={{ fontWeight: 700, fontSize: 11.5, color: "var(--insp-navy)", margin: block.title ? "7px 0 3px" : "10px 0 4px", breakAfter: "avoid", pageBreakAfter: "avoid" } as any}>{block.title || "Calibration Reference"}</div>
           {/* Requested directly, reviewing the UTI certificate's Calibration
               Reference table (long field labels like "Calibration Reference
               Equipment Manufacturer" and "Probe Sensor Test — Deviation"
@@ -1191,13 +1205,39 @@ function CalibrationCertificatePage({ cert, calibration }: { cert: InspectionCer
               label/value split instead. Same technique as FFE's Technical
               Description 50/50 split above: this table is shared by every
               Calibration sub-type's own technicalFields, not just UTI's. */}
-          <table className="insp-id-table">
-            <tbody>
-              {block.fields.map((f) => (
-                <tr key={f.key}><td className="insp-label-cell" style={{ width: "60%" }}>{f.label}</td><td colSpan={3}>{calibration.technicalValues[f.key] || "—"}</td></tr>
-              ))}
-            </tbody>
-          </table>
+          {/* A titled group (Flow Meter: Item Description / Environmental
+              Conditions / Standard Equipment / Acceptance Criteria) prints
+              two fields per row — one full-width row per short value is the
+              kind of wasted vertical space that pushed this certificate's
+              sign-off onto a second page. An odd last field takes the whole
+              row. Untitled (every other sub-type) keeps one field per row. */}
+          {block.title ? (
+            <table className="insp-id-table">
+              <colgroup><col style={{ width: "28%" }} /><col style={{ width: "22%" }} /><col style={{ width: "28%" }} /><col style={{ width: "22%" }} /></colgroup>
+              <tbody>
+                {Array.from({ length: Math.ceil(block.fields.length / 2) }, (_, r) => block.fields.slice(r * 2, r * 2 + 2)).map((pair) => (
+                  <tr key={pair[0].key}>
+                    <td className="insp-label-cell">{pair[0].label}</td>
+                    <td colSpan={pair.length === 1 ? 3 : 1}>{calibration.technicalValues[pair[0].key] || "—"}</td>
+                    {pair[1] && (
+                      <>
+                        <td className="insp-label-cell">{pair[1].label}</td>
+                        <td>{calibration.technicalValues[pair[1].key] || "—"}</td>
+                      </>
+                    )}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          ) : (
+            <table className="insp-id-table">
+              <tbody>
+                {block.fields.map((f) => (
+                  <tr key={f.key}><td className="insp-label-cell" style={{ width: "60%" }}>{f.label}</td><td colSpan={3}>{calibration.technicalValues[f.key] || "—"}</td></tr>
+                ))}
+              </tbody>
+            </table>
+          )}
         </div>
       ))}
 
@@ -1228,6 +1268,10 @@ function CalibrationCertificatePage({ cert, calibration }: { cert: InspectionCer
         </tbody>
       </table>
 
+      {/* Comments, validity line and sign-off stay together: if they
+          don't fit under the tables they move to the next page as one
+          block, never leaving the signatures alone on a page. */}
+      <div style={{ breakInside: "avoid", pageBreakInside: "avoid" } as any}>
       <div className="insp-remarks-box">Comments: {calibration.comments || "None"}</div>
       <div style={{ fontSize: 10, color: "var(--insp-muted)", marginTop: 8 }}>
         This Certificate is valid for {cfg.validityYears === 2 ? "Two Years" : "One Year"} from the date of issue.
@@ -1239,6 +1283,8 @@ function CalibrationCertificatePage({ cert, calibration }: { cert: InspectionCer
       </div>
 
       <SignatureGrid cert={cert} masterLabel="Master" techLabel="Checked/Approved By" hideFitForPurpose />
+      </div>
+     </div>
     </CertPageFrame>
   );
 }
@@ -2294,35 +2340,50 @@ function LoadTestPage({ cert, data }: { cert: InspectionCertificate; data: LoadT
 // NOT inside the <tfoot> — it's ordinary <tbody> content, so it still
 // prints exactly once, wherever it naturally falls ("do not make the
 // signature section part of the header and footer").
-function CertPageFrame({ cert, children }: { cert: InspectionCertificate; children: ReactNode }) {
-  const theadRef = useRef<HTMLTableSectionElement>(null);
-  const fillRef = useRef<HTMLDivElement>(null);
-  const tfootRef = useRef<HTMLTableSectionElement>(null);
-  // Requested directly: "the FFE page when you create a page and it
-  // breaks and it half filled page should have the header and footer
-  // in the same position as the one which is full." See
-  // useFillToPageMultiple's own comment for the full reasoning — a
-  // fixed min-height only padded a section up to ONE page; this pads
-  // to whatever whole multiple of a page the section's real content
-  // actually needs, so FFE's own item-table pagination (or any other
-  // section long enough to span multiple physical pages on its own)
-  // gets its trailing, partially-filled page pushed down to match
-  // every other page's footer position, not just the very last one.
-  useFillToPageMultiple(fillRef, theadRef, tfootRef);
+// Requested directly, reviewing real printed certificates (a hook
+// re-installation and two Rescue Boat certificates): "there are empty
+// spaces in the certificate issued... all information should follow
+// without space." Root-caused from those PDFs — every section of a
+// certificate (statement, each checklist, equipment list, explanatory
+// notes, photos) used to be its OWN frame, each forced onto a fresh
+// page, and each padded up to a whole page by useFillToPageMultiple,
+// which measures the letterhead/footer heights on SCREEN. In print the
+// letterhead's address text wraps onto more lines than on screen, so
+// the padded frame came out a few pixels taller than a page and the
+// footer spilled onto an extra, completely blank page (hook pages 2
+// and 4); a section a couple of lines too long left its sign-off alone
+// on an otherwise empty page; and a short section (Explanatory Notes, a
+// single trailing photo) sat alone on a mostly empty page.
+//
+// Now one certificate is ONE continuous flow: CertFlow (below) renders
+// the single letterhead/footer frame and every section is just a block
+// inside it, so a section starts right where the previous one ended.
+// Nothing is padded to a page multiple any more, so there is nothing
+// to mis-measure — the content simply runs on, the letterhead repeats
+// on each page (<thead>), and the approvals footer is pinned to the
+// bottom of each page (see CertFlow).
+function CertPageFrame({ children }: { cert: InspectionCertificate; children: ReactNode }) {
+  // Always rendered inside CertFlow (CertificatePreview wraps every
+  // certificate type in one) — a section, not a page.
+  return <section className="insp-flow-section">{children}</section>;
+}
+
+function CertFlow({ cert, children }: { cert: InspectionCertificate; children: ReactNode }) {
   return (
-    <div className="insp-cert-page">
-      <table className="insp-page-frame">
-        <thead ref={theadRef}><tr><td><Letterhead cert={cert} /></td></tr></thead>
-        {/* min-height on a <td> itself is unreliable — measured on a
-            real page, the browser didn't stretch it — but the exact
-            same min-height on a plain <div> inside that <td> does. See
-            inspections.css's own comment on .insp-page-tbody-fill for
-            the full reasoning (short content now pads out to a full
-            page instead of leaving the footer stranded partway down). */}
-        <tbody><tr><td><div ref={fillRef} className="insp-page-tbody-fill">{children}</div></td></tr></tbody>
-        <tfoot ref={tfootRef}><tr><td><ApprovalLogosRow /></td></tr></tfoot>
-      </table>
-    </div>
+      <div className="insp-cert-page">
+        <table className="insp-page-frame">
+          <thead><tr><td><Letterhead cert={cert} /></td></tr></thead>
+          <tbody><tr><td>{children}</td></tr></tbody>
+          {/* Print-only spacer: repeats at the bottom of every page (a
+              <tfoot> does) and reserves the room the pinned footer
+              below occupies, so content never runs underneath it. */}
+          <tfoot><tr><td><div className="insp-footer-spacer" aria-hidden="true" /></td></tr></tfoot>
+        </table>
+        {/* The approvals footer: on screen it simply follows the content;
+            in print it is pinned to the bottom edge of every page
+            (inspections.css, .insp-footer-pin). */}
+        <div className="insp-footer-pin"><ApprovalLogosRow /></div>
+      </div>
   );
 }
 
