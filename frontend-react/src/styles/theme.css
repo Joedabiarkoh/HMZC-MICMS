@@ -75,4 +75,14 @@
   .shell-body {
     min-height: 0 !important;
   }
+  /* The app shell is min-height: 100vh (layout/appshell.css) so the page
+     background always fills the screen. In print that forced every printout
+     to be at least a viewport tall — more than the printable area of the
+     paper — so a certificate that fit on its pages was followed by an extra
+     completely blank page with no letterhead or footer. Reproduced by
+     opening a saved certificate in the real app and printing it. */
+  .shell,
+  .inspections-page {
+    min-height: 0 !important;
+  }
 }
