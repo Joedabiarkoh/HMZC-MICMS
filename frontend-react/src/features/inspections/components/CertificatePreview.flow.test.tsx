@@ -19,13 +19,16 @@ function renderCert(type: EquipmentTypeKey) {
 
 describe("a certificate prints as one continuous flow", () => {
   it.each<EquipmentTypeKey>(["rescueboat", "lifeboat", "crane", "hook_reinstall", "frc_service", "calibration", "firefighting", "gangway_load_test"])(
-    "%s: one page frame, one letterhead, one pinned footer",
+    "%s: one page frame, one letterhead, one repeating footer",
     (type) => {
       const root = renderCert(type);
       expect(root.querySelectorAll(".insp-cert-page")).toHaveLength(1);
       expect(root.querySelectorAll("table.insp-page-frame")).toHaveLength(1);
       expect(root.querySelectorAll(".insp-letterhead")).toHaveLength(1);
-      expect(root.querySelectorAll(".insp-footer-pin")).toHaveLength(1);
+      // The footer is the table's <tfoot> (repeats natively on every printed
+      // page) — not position: fixed, which real prints showed is unreliable.
+      expect(root.querySelectorAll("table.insp-page-frame > tfoot")).toHaveLength(1);
+      expect(root.querySelectorAll("table.insp-page-frame > tfoot img").length).toBeGreaterThanOrEqual(7);
       expect(root.querySelectorAll(".insp-flow-section").length).toBeGreaterThanOrEqual(1);
     }
   );
@@ -38,6 +41,16 @@ describe("a certificate prints as one continuous flow", () => {
     root.querySelectorAll(".insp-flow-section").forEach((s) => expect(frame.contains(s)).toBe(true));
   });
 
+  // Reviewing a real print of the flowing layout: a full signature + stamp
+  // block after every one of four sections printed the same declaration
+  // four times mid-page. The Statement is signed, then ONE sign-off closes
+  // the checklist run — never one per section.
+  it.each<EquipmentTypeKey>(["rescueboat", "lifeboat", "crane"])("%s: signed Statement plus a single closing sign-off, not one per section", (type) => {
+    const root = renderCert(type);
+    const signOffs = (root.textContent || "").match(/Service Engineer/g) || [];
+    expect(signOffs).toHaveLength(2);
+  });
+
   it("the hook certificate's two template pages are sections of one flow, not two pages", () => {
     const root = renderCert("hook_reinstall");
     expect(root.querySelectorAll(".insp-flow-section")).toHaveLength(2);
@@ -45,8 +58,9 @@ describe("a certificate prints as one continuous flow", () => {
     expect(root.textContent).toContain("Inspection & Test Check Sheet");
   });
 
-  it("the footer reserves space (print spacer) in the repeating <tfoot>", () => {
+  it("no position: fixed footer is used", () => {
     const root = renderCert("hook_reinstall");
-    expect(root.querySelector("table.insp-page-frame > tfoot .insp-footer-spacer")).not.toBeNull();
+    expect(root.querySelector(".insp-footer-pin")).toBeNull();
+    expect(root.querySelector(".insp-footer-spacer")).toBeNull();
   });
 });

@@ -454,7 +454,7 @@ export const CALIBRATION_CERT_TYPES: CalibrationSubTypeConfig[] = [
       { group: "Standard Equipment Used", key: "standardName", label: "Standard Equipment Name" },
       { group: "Standard Equipment Used", key: "standardSerialNo", label: "Serial No." },
       { group: "Standard Equipment Used", key: "standardRange", label: "Range" },
-      { group: "Standard Equipment Used", key: "standardCertNo", label: "Calibration Certificate No. (Traceability)" },
+      { group: "Standard Equipment Used", key: "standardCertNo", label: "Calibration Cert. No. (Traceability)" },
       { group: "Standard Equipment Used", key: "standardCertDue", label: "Standard Calibration Due Date" },
       { group: "Acceptance Criteria", key: "acceptanceTolerance", label: "Acceptance Tolerance (± % of reading)" },
       { group: "Acceptance Criteria", key: "expandedUncertainty", label: "Expanded Uncertainty (k = 2)" },

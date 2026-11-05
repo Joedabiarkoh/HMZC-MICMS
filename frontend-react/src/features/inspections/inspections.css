@@ -700,17 +700,23 @@ table.insp-print-chk tr.insp-section-row td { background: #EEF1F3; font-weight: 
    its table starting on the next. */
 .insp-cert-title-row { break-after: avoid; page-break-after: avoid; }
 
-/* On screen the approvals footer just follows the content; the spacer
-   only exists for print. */
-.insp-footer-spacer { display: none; }
-@media print {
-  /* A <tfoot> repeats at the bottom of every physical page the table
-     spans — here it only reserves room (the spacer) for the pinned
-     footer, so flowing content stops above it on every page. */
-  .insp-footer-spacer { display: block; height: 92px; }
-  /* Pinned to the bottom edge of every printed page. Higher specificity
-     than ".insp-cert-page > *" (position: relative) above. */
-  .insp-cert-page > .insp-footer-pin {
-    position: fixed; left: 0; right: 0; bottom: 0; margin: 0; padding: 0;
-  }
-}
+/* ---- Page-break control inside flowing tables ----
+   Reviewing a real print of the continuous layout: a section heading was
+   stranded at the bottom of a page with only two rows under it, and a
+   table left two lone rows on the next page. Keep a heading with its
+   first rows, and keep a table's last rows together, so a break never
+   leaves a fragment. Applies to every checklist/register/equipment table
+   (table.insp-print-chk); a long table still breaks wherever it needs to
+   in the middle, with its header repeating. */
+table.insp-print-chk tr.insp-section-row { break-after: avoid; page-break-after: avoid; }
+table.insp-print-chk tbody tr:nth-child(-n+3):not(:last-child) { break-after: avoid; page-break-after: avoid; }
+table.insp-print-chk tbody tr:nth-last-child(-n+3):not(:last-child) { break-after: avoid; page-break-after: avoid; }
+
+/* Flowing certificates are designed to fit US Letter (about 66px shorter
+   than A4) as well as A4: a certificate that only just fit an A4 page
+   pushed its sign-off onto an extra page when printed on Letter. */
+.lg-compact table.insp-print-chk td { padding-top: .5px; padding-bottom: .5px; }
+/* A box that closes a table (a checklist's "Outstanding Issues" line)
+   stays on the page with the table's last rows instead of landing alone
+   at the top of the next page. */
+table.insp-print-chk + .insp-remarks-box { break-before: avoid; page-break-before: avoid; }

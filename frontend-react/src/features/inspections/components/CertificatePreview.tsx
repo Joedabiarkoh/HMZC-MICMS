@@ -80,6 +80,10 @@ function CertificateSections({ cert, config }: Props) {
   }
 
   const isBoat = config.kind === "boat";
+  // Which section closes the checklist run (and so carries the sign-off).
+  const lastMainSection: "equip" | "davit" | "boat" | "checklist" = isBoat
+    ? cert.equip ? "equip" : cert.davitChecklist ? "davit" : "boat"
+    : "checklist";
 
   return (
     <>
@@ -202,11 +206,21 @@ function CertificateSections({ cert, config }: Props) {
         <SignatureGrid cert={cert} masterLabel="Captain Signature" techLabel="Service Engineer" />
       </CertPageFrame>
 
+      {/* One sign-off for the whole run of checklists/equipment list, after
+          the LAST of them — not one after each. Requested directly after
+          reviewing a real print of this layout ("the whole thing seems
+          messed up"): with every section flowing on from the previous
+          one, a full signature + stamp block after each of four sections
+          printed the same declaration four times mid-page. The Statement
+          above keeps its own signed declaration; every table header
+          carries the certificate number (CertNoTheadRow) and the
+          letterhead repeats on each page, so a loose page is still
+          traceable to this certificate. */}
       {isBoat && cert.boatChecklist && (
-        <ChecklistPage title={config.boatTitle || "Checklist"} config={config} cert={cert} sections={cert.boatChecklist} outstandingKey="boatChecklist" />
+        <ChecklistPage title={config.boatTitle || "Checklist"} config={config} cert={cert} sections={cert.boatChecklist} outstandingKey="boatChecklist" signOff={lastMainSection === "boat"} />
       )}
       {isBoat && cert.davitChecklist && (
-        <ChecklistPage title={config.davitTitle || "Davit Checklist"} config={config} cert={cert} sections={cert.davitChecklist} outstandingKey="davitChecklist" />
+        <ChecklistPage title={config.davitTitle || "Davit Checklist"} config={config} cert={cert} sections={cert.davitChecklist} outstandingKey="davitChecklist" signOff={lastMainSection === "davit"} />
       )}
       {isBoat && cert.equip && (
         <CertPageFrame cert={cert}>
@@ -226,11 +240,11 @@ function CertificateSections({ cert, config }: Props) {
               ))}
             </tbody>
           </table>
-          <SignatureGrid cert={cert} masterLabel="Captain Signature" techLabel="Service Engineer" />
+          {lastMainSection === "equip" && <SignatureGrid cert={cert} masterLabel="Captain Signature" techLabel="Service Engineer" />}
         </CertPageFrame>
       )}
       {!isBoat && cert.checklist && (
-        <ChecklistPage title={config.checklistTitle || "Inspection Checklist"} config={config} cert={cert} sections={cert.checklist} outstandingKey="checklist" />
+        <ChecklistPage title={config.checklistTitle || "Inspection Checklist"} config={config} cert={cert} sections={cert.checklist} outstandingKey="checklist" signOff={lastMainSection === "checklist"} />
       )}
       <ExplanatoryNotesPage cert={cert} config={config} />
       <PhotoReportPage cert={cert} />
@@ -496,7 +510,7 @@ function FRCServiceReportPage({ cert, data }: { cert: InspectionCertificate; dat
 // clientRepSig) and gets no stamp.
 function FRCSignatureGrid({ cert, data }: { cert: InspectionCertificate; data: FRCServiceReportData }) {
   return (
-    <table style={{ width: "100%", borderCollapse: "collapse", marginTop: 12, breakInside: "avoid", pageBreakInside: "avoid" } as any}>
+    <table style={{ width: "100%", borderCollapse: "collapse", marginTop: 4, breakInside: "avoid", pageBreakInside: "avoid" } as any}>
       <tbody>
         <tr style={{ breakInside: "avoid", pageBreakInside: "avoid" } as any}>
           <td style={{ width: "50%", verticalAlign: "top", paddingRight: 7 }}>
@@ -743,8 +757,13 @@ function HookReinstallPages({ cert, data }: { cert: InspectionCertificate; data:
           <tbody>{HOOK_LOAD_CHECKS.map((c, i) => checkRow(c, `L${i + 1}`))}</tbody>
         </table>
 
-        <div className="insp-remarks-box">Findings / Remarks: {data.findingsRemarks || "None"}</div>
-        <div className="insp-remarks-box">Recommendations: {data.recommendations || "None"}</div>
+        <table className="insp-id-table">
+          <colgroup><col style={{ width: "21%" }} /><col style={{ width: "79%" }} /></colgroup>
+          <tbody>
+            <tr><td className="insp-label-cell">Findings / Remarks</td><td>{data.findingsRemarks || "None"}</td></tr>
+            <tr><td className="insp-label-cell">Recommendations</td><td>{data.recommendations || "None"}</td></tr>
+          </tbody>
+        </table>
 
         {/* Statement + issue line + sign-off stay together: if they don't
             fit under the check sheet they move to the next page as one
@@ -999,6 +1018,7 @@ function FFECertificatePage({ cert, ffe }: { cert: InspectionCertificate; ffe: F
 
   return (
     <CertPageFrame cert={cert}>
+     <div className="lg-compact">
       <div className="insp-cert-title-row">
         <h2>Certificate &amp; Checklist</h2>
         <span className="insp-badge">{getEffectiveFFELabel(cfg, ffe).toUpperCase()}</span>
@@ -1122,6 +1142,11 @@ function FFECertificatePage({ cert, ffe }: { cert: InspectionCertificate; ffe: F
         </>
       )}
 
+      {/* Comments, validity line and sign-off move together: if they don't
+          fit under the tables on a shorter page (US Letter is ~66px shorter
+          than A4) they go to the next page as one block, never leaving the
+          signatures alone on a page. */}
+      <div style={{ breakInside: "avoid", pageBreakInside: "avoid" } as any}>
       <div className="insp-remarks-box">Comments: {ffe.comments || "None"}</div>
       <div style={{ fontSize: 10, color: "var(--insp-muted)", marginTop: 8 }}>
         This Certificate is valid for {cfg.validityYears === 2 ? "Two Years" : "One Year"} from the date of issue.
@@ -1133,6 +1158,8 @@ function FFECertificatePage({ cert, ffe }: { cert: InspectionCertificate; ffe: F
       </div>
 
       <SignatureGrid cert={cert} masterLabel="Master" techLabel="Technician" hideFitForPurpose />
+      </div>
+     </div>
     </CertPageFrame>
   );
 }
@@ -1213,7 +1240,7 @@ function CalibrationCertificatePage({ cert, calibration }: { cert: InspectionCer
               row. Untitled (every other sub-type) keeps one field per row. */}
           {block.title ? (
             <table className="insp-id-table">
-              <colgroup><col style={{ width: "28%" }} /><col style={{ width: "22%" }} /><col style={{ width: "28%" }} /><col style={{ width: "22%" }} /></colgroup>
+              <colgroup><col style={{ width: "34%" }} /><col style={{ width: "16%" }} /><col style={{ width: "34%" }} /><col style={{ width: "16%" }} /></colgroup>
               <tbody>
                 {Array.from({ length: Math.ceil(block.fields.length / 2) }, (_, r) => block.fields.slice(r * 2, r * 2 + 2)).map((pair) => (
                   <tr key={pair[0].key}>
@@ -2359,9 +2386,8 @@ function LoadTestPage({ cert, data }: { cert: InspectionCertificate; data: LoadT
 // the single letterhead/footer frame and every section is just a block
 // inside it, so a section starts right where the previous one ended.
 // Nothing is padded to a page multiple any more, so there is nothing
-// to mis-measure — the content simply runs on, the letterhead repeats
-// on each page (<thead>), and the approvals footer is pinned to the
-// bottom of each page (see CertFlow).
+// to mis-measure — the content simply runs on, and the letterhead
+// (<thead>) and approvals footer (<tfoot>) repeat on each page.
 function CertPageFrame({ children }: { cert: InspectionCertificate; children: ReactNode }) {
   // Always rendered inside CertFlow (CertificatePreview wraps every
   // certificate type in one) — a section, not a page.
@@ -2370,20 +2396,19 @@ function CertPageFrame({ children }: { cert: InspectionCertificate; children: Re
 
 function CertFlow({ cert, children }: { cert: InspectionCertificate; children: ReactNode }) {
   return (
-      <div className="insp-cert-page">
-        <table className="insp-page-frame">
-          <thead><tr><td><Letterhead cert={cert} /></td></tr></thead>
-          <tbody><tr><td>{children}</td></tr></tbody>
-          {/* Print-only spacer: repeats at the bottom of every page (a
-              <tfoot> does) and reserves the room the pinned footer
-              below occupies, so content never runs underneath it. */}
-          <tfoot><tr><td><div className="insp-footer-spacer" aria-hidden="true" /></td></tr></tfoot>
-        </table>
-        {/* The approvals footer: on screen it simply follows the content;
-            in print it is pinned to the bottom edge of every page
-            (inspections.css, .insp-footer-pin). */}
-        <div className="insp-footer-pin"><ApprovalLogosRow /></div>
-      </div>
+    <div className="insp-cert-page">
+      <table className="insp-page-frame">
+        <thead><tr><td><Letterhead cert={cert} /></td></tr></thead>
+        <tbody><tr><td>{children}</td></tr></tbody>
+        {/* The approvals footer lives in the <tfoot>: a table footer repeats
+            at the bottom of every printed page natively. An earlier version
+            pinned it with position: fixed instead, but real prints showed
+            that is unreliable — two fire-equipment certificates came out of
+            the same build with no footer on any page, while a boat
+            certificate printed fine. */}
+        <tfoot><tr><td><ApprovalLogosRow /></td></tr></tfoot>
+      </table>
+    </div>
   );
 }
 
@@ -2408,7 +2433,7 @@ function Letterhead({ cert }: { cert: InspectionCertificate }) {
         </div>
         <CertificateQR
           payload={buildCertQrPayload(cert.certNo)}
-          size={54}
+          size={46}
         />
       </div>
     </div>
@@ -2508,7 +2533,7 @@ function ApprovalLogosRow() {
   // when THAT print happened, not when the certificate was last saved.
   const printedAt = new Date().toLocaleString(undefined, { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
   return (
-    <div style={{ borderTop: "1px solid #E4E7E9", marginTop: 16, paddingTop: 8 }}>
+    <div style={{ borderTop: "1px solid #E4E7E9", marginTop: 8, paddingTop: 6 }}>
       <div style={{ fontSize: 8.5, color: "var(--insp-muted)", textTransform: "uppercase", letterSpacing: ".04em", marginBottom: 5 }}>Approvals</div>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
@@ -2655,7 +2680,7 @@ function SignBox({ label, name, sig, stamp }: { label: string; name: string; sig
   );
 }
 
-function ChecklistPage({ title, config, cert, sections, outstandingKey }: any) {
+function ChecklistPage({ title, config, cert, sections, outstandingKey, signOff }: any) {
   return (
     <CertPageFrame cert={cert}>
       <div className="insp-cert-title-row"><h2>{title}</h2><span className="insp-badge">{config.typeName.toUpperCase()}</span></div>
@@ -2699,7 +2724,7 @@ function ChecklistPage({ title, config, cert, sections, outstandingKey }: any) {
       <div className="insp-remarks-box" style={{ borderColor: "var(--insp-red)", background: "#FBEEEC", color: "#7A241B" }}>
         Outstanding Issues / Defects Raised: {(cert.outstanding && cert.outstanding[outstandingKey]) || "None"}
       </div>
-      <SignatureGrid cert={cert} masterLabel="Captain Signature" techLabel="Service Engineer" />
+      {signOff && <SignatureGrid cert={cert} masterLabel="Captain Signature" techLabel="Service Engineer" />}
     </CertPageFrame>
   );
 }
