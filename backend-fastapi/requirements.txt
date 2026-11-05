@@ -21,7 +21,7 @@ python-multipart==0.0.32
 reportlab==5.0.1
 qrcode==8.2
 pyotp==2.10.0
-pillow==12.3.0
-pypdf==6.19.0
+pillow==13.0.0
+pypdf==6.21.4
 boto3==1.43.96
 sentry-sdk[fastapi]==2.69.2
