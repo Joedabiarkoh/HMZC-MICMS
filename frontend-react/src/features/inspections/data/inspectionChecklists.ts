@@ -405,6 +405,13 @@ export const INSPECTION_TYPES: Record<EquipmentTypeKey, EquipmentTypeConfig> = {
   frc_service: {
     kind: "frcservice", typeName: "Fast Rescue Craft (FRC) Service Report", label: "FRC Service Report",
   },
+  // Built from HMZC's own HMZC_Hook_Reinstallation_Certificate.docx
+  // (release hook re-installation + Inspection & Test Check Sheet +
+  // proof-load test) — its own listed subsection under Lifesaving
+  // Appliances, same as frc_service above. See data/hookReinstall.ts.
+  hook_reinstall: {
+    kind: "hookreinstall", typeName: "Release Hook Re-installation Certificate", label: "Hook Re-installation",
+  },
   // Built from HMZC's own LOLER 1998 "Report of Thorough Examination"
   // templates (single-item and "multiple items" register variants) —
   // see LooseGearItem's own comment in inspection.types.ts for the

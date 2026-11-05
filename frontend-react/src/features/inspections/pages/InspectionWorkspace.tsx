@@ -15,6 +15,8 @@ import LooseGearForm from "../components/LooseGearForm";
 import CalibrationForm from "../components/CalibrationForm";
 import PhotoReportForm from "../components/PhotoReportForm";
 import FRCServiceReportForm from "../components/FRCServiceReportForm";
+import HookReinstallForm from "../components/HookReinstallForm";
+import { getHookBlockers } from "../data/hookReinstall";
 import GangwayLoadTestForm from "../components/GangwayLoadTestForm";
 import { getFFEConfig } from "../data/ffeCertTypes";
 import { getCalibrationConfig } from "../data/calibrationCertTypes";
@@ -29,7 +31,7 @@ import { Job, reserveCertNo } from "../services/jobs.api";
 import { JobTab, loadJobTabs, persistJobTabs } from "../services/jobTabs.storage";
 
 const TYPE_GROUPS: { label: string; keys: EquipmentTypeKey[] }[] = [
-  { label: "Lifesaving Appliances", keys: ["lifeboat", "rescueboat", "freefall_dry", "freefall_tanker", "frc_service"] },
+  { label: "Lifesaving Appliances", keys: ["lifeboat", "rescueboat", "freefall_dry", "freefall_tanker", "frc_service", "hook_reinstall"] },
   { label: "Lifting Appliances", keys: ["crane", "loosegear", "gangway_load_test"] },
   { label: "Fire Safety", keys: ["firefighting"] },
   { label: "Calibration", keys: ["calibration"] },
@@ -624,6 +626,17 @@ export default function InspectionWorkspace() {
       return problems;
     }
 
+    if (cfg.kind === "hookreinstall") {
+      problems.push(...getHookBlockers(current.hookReinstall));
+      if (!current.engineerName.trim()) {
+        problems.push("Attending Engineer name is required");
+      }
+      if (!current.engineerSig) {
+        problems.push("Attending Engineer signature is required");
+      }
+      return problems;
+    }
+
     if (cfg.kind === "gangwayloadtest") {
       if (!current.gangwayLoadTest?.result) {
         problems.push("Result (Satisfactory/Not Satisfactory) must be selected");
@@ -708,6 +721,15 @@ export default function InspectionWorkspace() {
       }
       if (calCfg.items2Columns.length && (current.calibration?.items2.length || 0) === 0) {
         problems.push(`At least one row is required in ${calCfg.items2Label}`);
+      }
+      // Sub-types that name required Test Data cells (Flow Meter's
+      // Reference/Reading) can't be finalized with a half-filled row.
+      if (calCfg.requiredItems2Keys?.length) {
+        const bad = (current.calibration?.items2 || []).findIndex((row) => calCfg.requiredItems2Keys!.some((k) => !(row[k] || "").trim()));
+        if (bad >= 0) {
+          const labels = calCfg.requiredItems2Keys.map((k) => calCfg.items2Columns.find((c) => c.key === k)?.label || k).join(" and ");
+          problems.push(`${calCfg.items2Label} row ${bad + 1}: ${labels} required (remove the row if unused)`);
+        }
       }
       if (!current.engineerName.trim()) {
         problems.push("Checked/Approved By name is required");
@@ -1415,7 +1437,7 @@ export default function InspectionWorkspace() {
   // nested inside a Rescue Boat certificate (data-presence-gated, kind
   // stayed "boat"); moved to its own kind ("frcservice") once that
   // turned out not to be discoverable in the subsection list itself.
-  if (cfg.kind === "frcservice") {
+  if (cfg.kind === "frcservice" || cfg.kind === "hookreinstall") {
     return (
       <div className="inspections-page" data-type={type}>
         <TopBar
@@ -1440,9 +1462,13 @@ export default function InspectionWorkspace() {
         )}
         <div className="insp-layout">
           <div className="insp-panel">
-            <div className="insp-panel-header">FRC Service Report</div>
+            <div className="insp-panel-header">{cfg.kind === "hookreinstall" ? "Release Hook Re-installation Certificate" : "FRC Service Report"}</div>
             <div className="insp-panel-body">
-              <FRCServiceReportForm current={current} updateField={updateField} openCertificate={openCertificateWithSave} />
+              {cfg.kind === "hookreinstall" ? (
+                <HookReinstallForm current={current} updateField={updateField} openCertificate={openCertificateWithSave} />
+              ) : (
+                <FRCServiceReportForm current={current} updateField={updateField} openCertificate={openCertificateWithSave} />
+              )}
             </div>
           </div>
           <div className="insp-panel">

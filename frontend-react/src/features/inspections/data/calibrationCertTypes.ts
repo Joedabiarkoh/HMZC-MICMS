@@ -27,15 +27,30 @@
 // technicalFields instead (the same treatment Pressure Calibrator
 // Gauge's own template already gave its "Ambient Conditions" line).
 
+import { parseNumber } from "./parseNumber";
+
 export interface CalibrationColumn {
   key: string;
   label: string;
 }
 
+export interface CalibrationTechnicalField {
+  key: string;
+  label: string;
+  // Optional sub-heading this field prints/edits under. Consecutive
+  // fields sharing the same `group` render as one titled block (see
+  // groupTechnicalFields below) — added for the Flow Meter certificate,
+  // whose source template has three distinct blocks (Item Description &
+  // Identification / Environmental Conditions / Standard Equipment
+  // Used) rather than one flat "Calibration Reference" list. Every
+  // existing sub-type leaves it unset and keeps its single flat block.
+  group?: string;
+}
+
 export interface CalibrationSubTypeConfig {
   id: string;
   label: string;
-  technicalFields: { key: string; label: string }[];
+  technicalFields: CalibrationTechnicalField[];
   // "Unit(s) Under Test" — consistent columns across every sub-type
   // (Manufacturer/Model/Serial No/Range), since every source template
   // used the same shape for this table, sometimes with more than one
@@ -66,7 +81,53 @@ export interface CalibrationSubTypeConfig {
   // CertificatePreview.tsx renders instead; falls back to `note` for
   // every sub-type that doesn't need the two to differ.
   certNote?: string;
+  // Fills in computed columns of a Test Data row as the technician
+  // types (e.g. Flow Meter's Error = Reading − Reference), so a
+  // metrology certificate never carries a hand-subtracted number.
+  // `changedKey` is the cell that was just edited — a derived column is
+  // only recalculated when one of its own inputs changes, so a
+  // technician who deliberately overrides it isn't overwritten by an
+  // unrelated edit elsewhere in the row.
+  deriveItems2?: (row: Record<string, string>, changedKey: string) => Record<string, string>;
+  // Cells that must be filled in every Test Data row before the
+  // certificate can be finalized — a row with a blank reading on an
+  // issued calibration certificate is a defect, not an empty row to
+  // ignore (the technician removes unused rows instead).
+  requiredItems2Keys?: string[];
   validityYears: 1 | 2;
+}
+
+/** Splits technicalFields into consecutive blocks by `group`; fields with
+ * no group form one untitled block (printed under the generic
+ * "Calibration Reference" heading). */
+export function groupTechnicalFields(
+  fields: CalibrationTechnicalField[]
+): { title?: string; fields: CalibrationTechnicalField[] }[] {
+  const blocks: { title?: string; fields: CalibrationTechnicalField[] }[] = [];
+  for (const f of fields) {
+    const last = blocks[blocks.length - 1];
+    if (last && last.title === f.group) last.fields.push(f);
+    else blocks.push({ title: f.group, fields: [f] });
+  }
+  return blocks;
+}
+
+// Flow Meter: Error (GPM) = Reading − Reference; Error (%) is quoted
+// against the reference (true) value, the usual way a flow meter's
+// deviation is expressed. Only recalculated when the Reference or
+// Reading cell is the one just edited (see deriveItems2).
+export function deriveFlowMeterRow(row: Record<string, string>, changedKey: string): Record<string, string> {
+  if (changedKey !== "reference" && changedKey !== "reading") return row;
+  const ref = parseNumber(row.reference);
+  const reading = parseNumber(row.reading);
+  if (ref === null || reading === null) return { ...row, errorGpm: "", errorPct: "" };
+  const err = reading - ref;
+  const sign = err > 0 ? "+" : "";
+  return {
+    ...row,
+    errorGpm: `${sign}${err.toFixed(2)}`,
+    errorPct: ref === 0 ? "" : `${sign}${((err / ref) * 100).toFixed(2)}%`,
+  };
 }
 
 const UNIT_UNDER_TEST_COLS: CalibrationColumn[] = [
@@ -366,6 +427,59 @@ export const CALIBRATION_CERT_TYPES: CalibrationSubTypeConfig[] = [
       { no: "4", test: "Zero Calibration", result: "-" },
       { no: "5", test: "Simulation Test", result: "-" },
     ],
+    validityYears: 1,
+  },
+  {
+    // Requested directly, from "CALIBRATION CERTIFICATE Flow meter_105858.pdf"
+    // — in-situ verification of an installed flow meter against a
+    // portable ultrasonic flow meter. The source's three blocks (Item
+    // Description & Identification / Environment Condition / Standard
+    // Equipment Used) are kept as three titled technicalFields groups;
+    // its Make/Model/Serial/Range row is the standard Unit Under Test
+    // register. Extended beyond the source with what an ISO/IEC
+    // 17025-style calibration certificate carries and the source
+    // lacked: traceability of the reference instrument (certificate
+    // no./due date), the acceptance tolerance and expanded uncertainty
+    // the readings are judged against, a per-point Pass/Fail and a
+    // statement of conformity — otherwise a bare error figure can't be
+    // read as in- or out-of-tolerance by whoever receives the certificate.
+    id: "flow_meter",
+    label: "Flow Meter (In-Situ Verification)",
+    technicalFields: [
+      { group: "Item Description & Identification", key: "instrumentName", label: "Instrument Name" },
+      { group: "Item Description & Identification", key: "visualInspection", label: "Visual Inspection" },
+      { group: "Item Description & Identification", key: "location", label: "Location (On Board)" },
+      { group: "Environmental Conditions", key: "ambientTemperature", label: "Temperature (°C)" },
+      { group: "Environmental Conditions", key: "relativeHumidity", label: "Relative Humidity (%RH)" },
+      { group: "Standard Equipment Used", key: "standardName", label: "Standard Equipment Name" },
+      { group: "Standard Equipment Used", key: "standardSerialNo", label: "Serial No." },
+      { group: "Standard Equipment Used", key: "standardRange", label: "Range" },
+      { group: "Standard Equipment Used", key: "standardCertNo", label: "Calibration Certificate No. (Traceability)" },
+      { group: "Standard Equipment Used", key: "standardCertDue", label: "Standard Calibration Due Date" },
+      { group: "Acceptance Criteria", key: "acceptanceTolerance", label: "Acceptance Tolerance (± % of reading)" },
+      { group: "Acceptance Criteria", key: "expandedUncertainty", label: "Expanded Uncertainty (k = 2)" },
+      { group: "Acceptance Criteria", key: "conformity", label: "Statement of Conformity" },
+    ],
+    itemColumns: [
+      { key: "manufacturer", label: "Make" },
+      { key: "model", label: "Model No." },
+      { key: "serialNo", label: "Serial No." },
+      { key: "range", label: "Range" },
+    ],
+    itemTableLabel: "Unit Under Test",
+    items2Columns: [
+      { key: "reference", label: "Reference (GPM)" },
+      { key: "reading", label: "Reading (GPM)" },
+      { key: "errorGpm", label: "± Error (GPM)" },
+      { key: "errorPct", label: "Error (% of Reference)" },
+      { key: "result", label: "Result (Pass/Fail)" },
+    ],
+    items2Label: "Calibration Result",
+    defaultItems2: [{}, {}, {}],
+    deriveItems2: deriveFlowMeterRow,
+    requiredItems2Keys: ["reference", "reading"],
+    note: "Enter the reference and the meter reading for each flow point — the error is calculated automatically. Remove any unused rows before finalizing. Judge each point against the Acceptance Tolerance entered above and record Pass/Fail.",
+    certNote: "The instrument was verified in situ by comparative flow measurement against a portable ultrasonic flow meter, in accordance with the applicable guidance of ISO 20456:2017 and the relevant measurement principles of ISO 12242:2012. Readings were compared under operating conditions to assess the agreement between the two instruments. The reference instrument is traceable to national or international standards through the calibration certificate stated above. The results relate only to the instrument as found and tested at the time of calibration.",
     validityYears: 1,
   },
 ];

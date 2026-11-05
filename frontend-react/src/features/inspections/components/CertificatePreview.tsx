@@ -1,10 +1,14 @@
-import { useRef } from "react";
+import { Fragment, useRef } from "react";
 import type { ReactNode } from "react";
-import { EquipmentTypeConfig, InspectionCertificate, ChecklistStatus, EquipResult, CalibrationData, FFEData, FRCCheckAnswer, FRCServiceReportData, GangwayLoadTestData, LooseGearData, LooseGearDefectReportData, LooseGearMultipleItemsData, LooseGearStandardReportData, LooseGearStatutoryAnswers, LooseGearVisualCertData, LooseGearYesNo, NDTCommonData, NDTFooterData, MPIData, PTData, RTData, UTData, VTData, ETData, LoadTestData, PhotoEvidence } from "../types/inspection.types";
+import { EquipmentTypeConfig, InspectionCertificate, ChecklistStatus, EquipResult, CalibrationData, FFEData, FRCCheckAnswer, FRCServiceReportData, GangwayLoadTestData, HookCheckAnswer, HookReinstallData, LooseGearData, LooseGearDefectReportData, LooseGearMultipleItemsData, LooseGearStandardReportData, LooseGearStatutoryAnswers, LooseGearVisualCertData, LooseGearYesNo, NDTCommonData, NDTFooterData, MPIData, PTData, RTData, UTData, VTData, ETData, LoadTestData, PhotoEvidence } from "../types/inspection.types";
 import { getFFEConfig, getEffectiveFFELabel, getEffectiveFFENote } from "../data/ffeCertTypes";
-import { getCalibrationConfig } from "../data/calibrationCertTypes";
+import { getCalibrationConfig, groupTechnicalFields } from "../data/calibrationCertTypes";
 import { DEFECT_REPORT_COLUMNS, FRC_SPARE_PARTS_COLUMNS, LOOSE_GEAR_STATUS_CODES, MULTIPLE_ITEMS_REGISTER_COLUMNS, normalizedSerialNos } from "../data/inspectionHelpers";
 import { FRC_COMPONENT_ROWS, FRC_FUNCTION_CHECKS, FRC_SCOPE_OF_WORK, FRC_SERVICE_TYPE_LABELS, FRC_CERTIFICATION_STATEMENT } from "../data/frcServiceReport";
+import {
+  HOOK_CERTIFICATION_STATEMENT, HOOK_CHECK_GROUPS, HOOK_COMPONENT_ROWS, HOOK_CRAFT_TYPES, HOOK_LOAD_CHECKS, HOOK_LOAD_METHODS,
+  HOOK_LOAD_TEST_NOTE, HOOK_OUTCOME_LABELS, HOOK_REMOVAL_REASONS, HOOK_SCOPE_OF_WORK, HookCheckDef, computeHookLoad,
+} from "../data/hookReinstall";
 import { GANGWAY_INSPECTION_STATEMENT, GANGWAY_RESULT_LABELS } from "../data/gangwayLoadTest";
 import { RegisterPreviewTable } from "./RegisterTable";
 import { ABS_LOGO_DATA_URI, BUREAU_VERITAS_LOGO_DATA_URI, CRALOG_LOGO_DATA_URI, DNV_LOGO_DATA_URI, INEFOP_LOGO_DATA_URI, ISO_LOGO_DATA_URI, ANPG_LOGO_DATA_URI } from "../assets/approvalLogos";
@@ -40,6 +44,10 @@ function equipLabel(s: EquipResult) {
 export default function CertificatePreview({ cert, config }: Props) {
   if (config.kind === "frcservice" && cert.frcServiceReport) {
     return <FRCServiceReportPage cert={cert} data={cert.frcServiceReport} />;
+  }
+
+  if (config.kind === "hookreinstall" && cert.hookReinstall) {
+    return <HookReinstallPages cert={cert} data={cert.hookReinstall} />;
   }
 
   if (config.kind === "gangwayloadtest" && cert.gangwayLoadTest) {
@@ -494,6 +502,276 @@ function FRCSignatureGrid({ cert, data }: { cert: InspectionCertificate; data: F
   );
 }
 
+// breakAfter: avoid — a sub-heading must never be stranded at the bottom
+// of a page with its table starting on the next one.
+const HOOK_SUBHEAD_STYLE = { fontWeight: 700, fontSize: 11.5, color: "var(--insp-navy)", margin: "8px 0 3px", breakAfter: "avoid", pageBreakAfter: "avoid" } as const;
+
+// Wider label column than .insp-label-cell's shared 16% (and explicit,
+// since table-layout: fixed reads widths from the first row only):
+// this certificate's labels are long ("Davit / Launching Appliance",
+// "Test load = 1.1 × total mass (kg)") and wrapped to 2-3 lines each,
+// which is what pushed the template's two-page layout onto four pages.
+const HOOK_ID_COLS = (
+  <colgroup><col style={{ width: "21%" }} /><col style={{ width: "29%" }} /><col style={{ width: "21%" }} /><col style={{ width: "29%" }} /></colgroup>
+);
+
+function hookBox(on: boolean) {
+  return <span aria-hidden="true">{on ? "☒" : "☐"}</span>;
+}
+
+// Requested directly: incorporate HMZC's own Release Hook
+// Re-installation Certificate (HMZC_Hook_Reinstallation_Certificate.docx)
+// — its own listed subsection under Lifesaving Appliances
+// (type === "hook_reinstall", kind: "hookreinstall"), dispatched at the
+// top of the default export above. Laid out as the template's own two
+// pages: the re-installation certificate itself, then the Inspection &
+// Test Check Sheet (with the proof-load block, result, findings and
+// sign-off) on its own page — each a CertPageFrame, so each carries the
+// letterhead/approvals footer like every other certificate. See
+// HookReinstallForm.tsx for the matching edit-side form.
+function HookReinstallPages({ cert, data }: { cert: InspectionCertificate; data: HookReinstallData }) {
+  const load = computeHookLoad(data.loadTest);
+
+  function checkRow(c: HookCheckDef, n: string) {
+    const v: HookCheckAnswer = data.checks[c.key] || "";
+    return (
+      <tr key={c.key}>
+        <td>{n}</td>
+        <td>{c.label}</td>
+        <td>{c.ref}</td>
+        <td style={{ textAlign: "center" }}>{hookBox(v === "yes")}</td>
+        <td style={{ textAlign: "center" }}>{hookBox(v === "no")}</td>
+        <td style={{ textAlign: "center" }}>{hookBox(v === "na")}</td>
+        <td>{data.checkRemarks[c.key] || ""}</td>
+      </tr>
+    );
+  }
+
+  let n = 0;
+  return (
+    <>
+      <CertPageFrame cert={cert}>
+       <div className="lg-compact">
+        <div className="insp-cert-title-row">
+          <h2>Hook Re-installation Certificate</h2>
+          <span className="insp-badge">RELEASE HOOK SYSTEM</span>
+        </div>
+
+        <table className="insp-id-table">
+          {HOOK_ID_COLS}
+          <tbody>
+            <tr>
+              <td className="insp-label-cell">Certificate No.</td><td>{cert.certNo}</td>
+              <td className="insp-label-cell">Date of Service</td><td>{fmtDate(cert.dateOfServicing)}</td>
+            </tr>
+            <tr>
+              <td className="insp-label-cell">Job Ref.</td><td>{cert.jobRef || "—"}</td>
+              <td className="insp-label-cell">Service Type</td><td>Re-installation</td>
+            </tr>
+            <tr>
+              <td className="insp-label-cell">Attending Engineer</td><td>{data.attendingEngineer || cert.engineerName || "—"}</td>
+              <td className="insp-label-cell">Next Service Due</td><td>{fmtDate(data.nextServiceDue)}</td>
+            </tr>
+            <tr>
+              <td className="insp-label-cell">Service Provider Approval Ref.</td><td colSpan={3}>{data.serviceProviderApprovalRef || "—"}</td>
+            </tr>
+            <tr>
+              <td className="insp-label-cell">Overall Result</td><td colSpan={3}><strong>{HOOK_OUTCOME_LABELS[data.outcome]}</strong></td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div style={HOOK_SUBHEAD_STYLE}>Client &amp; Vessel Details</div>
+        <table className="insp-id-table">
+          {HOOK_ID_COLS}
+          <tbody>
+            <tr>
+              <td className="insp-label-cell">Client / Owner</td><td>{data.clientOwner || "—"}</td>
+              <td className="insp-label-cell">Vessel / Installation Name</td><td>{cert.vesselName || "—"}</td>
+            </tr>
+            <tr>
+              <td className="insp-label-cell">IMO No. / Reg. No.</td><td>{cert.imoNo || "—"}</td>
+              <td className="insp-label-cell">Location / Port</td><td>{cert.location || "—"}</td>
+            </tr>
+            <tr>
+              <td className="insp-label-cell">Vessel Type</td><td>{data.vesselType || "—"}</td>
+              <td className="insp-label-cell">Contact Person</td><td>{data.contactPerson || "—"}</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div style={HOOK_SUBHEAD_STYLE}>Survival Craft &amp; Release Hook Details</div>
+        <table className="insp-id-table">
+          {HOOK_ID_COLS}
+          <tbody>
+            <tr>
+              <td className="insp-label-cell">Craft Type</td>
+              <td colSpan={3}>
+                {HOOK_CRAFT_TYPES.map((t) => (
+                  <span key={t.key} style={{ marginRight: 14, whiteSpace: "nowrap" }}>{hookBox(data.craftType === t.key)} {t.label}</span>
+                ))}
+              </td>
+            </tr>
+            <tr>
+              <td className="insp-label-cell">Craft Make &amp; Model</td><td>{data.craftMakeModel || "—"}</td>
+              <td className="insp-label-cell">Hull / Serial No.</td><td>{data.hullSerialNo || "—"}</td>
+            </tr>
+            <tr>
+              <td className="insp-label-cell">Manufacturer</td><td>{data.manufacturer || "—"}</td>
+              <td className="insp-label-cell">Year of Manufacture</td><td>{data.yearOfManufacture || "—"}</td>
+            </tr>
+            <tr>
+              <td className="insp-label-cell">Seating Capacity</td><td>{data.seatingCapacity || "—"}</td>
+              <td className="insp-label-cell">Davit / Launching Appliance</td><td>{data.davitLaunchingAppliance || "—"}</td>
+            </tr>
+            <tr>
+              <td className="insp-label-cell">Hook Make &amp; Model</td><td>{data.hookMakeModel || "—"}</td>
+              <td className="insp-label-cell">Hook Type</td><td>{data.hookType || "—"}</td>
+            </tr>
+            <tr>
+              <td className="insp-label-cell">Hook Type-Approval Cert. No.</td><td>{data.hookApprovalCertNo || "—"}</td>
+              <td className="insp-label-cell">Class / Flag</td><td>{data.classFlag || "—"}</td>
+            </tr>
+            <tr>
+              <td className="insp-label-cell">Date of Last Service</td><td colSpan={3}>{fmtDate(data.dateOfLastService)}</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div style={HOOK_SUBHEAD_STYLE}>Scope of Work</div>
+        <p style={{ fontSize: 11.5, lineHeight: 1.6 }}>{HOOK_SCOPE_OF_WORK}</p>
+        <p style={{ fontSize: 11.5, lineHeight: 1.6 }}>
+          <strong>Hooks removed for: </strong>
+          {HOOK_REMOVAL_REASONS.map((r) => (
+            <span key={r.key} style={{ marginRight: 14, whiteSpace: "nowrap" }}>
+              {hookBox(data.removedFor.includes(r.key))} {r.label}{r.key === "other" && data.removedFor.includes("other") && data.removedForOther ? ` (${data.removedForOther})` : ""}
+            </span>
+          ))}
+        </p>
+
+        <div style={HOOK_SUBHEAD_STYLE}>Components Removed / Installed</div>
+        <table className="insp-print-chk">
+          <thead>
+            <CertNoTheadRow certNo={cert.certNo} colSpan={6} />
+            <tr><th>#</th><th>Description</th><th>Old S/N (Removed)</th><th>New S/N (Installed)</th><th>Qty</th><th>Next Due</th></tr>
+          </thead>
+          <tbody>
+            {data.components.map((row, i) => (
+              <tr key={row.key}>
+                <td>{i + 1}</td>
+                <td>{HOOK_COMPONENT_ROWS.find((c) => c.key === row.key)?.description || "—"}</td>
+                <td>{row.oldSerial || "—"}</td>
+                <td>{row.newSerial || "—"}</td>
+                <td>{row.qty || "—"}</td>
+                <td>{fmtDate(row.nextDue)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+       </div>
+      </CertPageFrame>
+
+      <CertPageFrame cert={cert}>
+       <div className="lg-compact">
+        <div className="insp-cert-title-row">
+          <h2>Inspection &amp; Test Check Sheet</h2>
+          <span className="insp-badge">MSC.402(96) · SOLAS III/20</span>
+        </div>
+
+        <table className="insp-print-chk">
+          <thead>
+            <CertNoTheadRow certNo={cert.certNo} colSpan={7} />
+            <tr><th>#</th><th>Check Performed</th><th>Ref.</th><th>Yes</th><th>No</th><th>N/A</th><th>Remarks</th></tr>
+          </thead>
+          <tbody>
+            {HOOK_CHECK_GROUPS.map((g) => (
+              <Fragment key={g.title}>
+                <tr className="insp-section-row"><td colSpan={7}>{g.title}</td></tr>
+                {g.checks.map((c) => checkRow(c, String(++n)))}
+              </Fragment>
+            ))}
+          </tbody>
+        </table>
+
+        <div style={HOOK_SUBHEAD_STYLE}>Load Test (Proof Load / Jib Test)</div>
+        <div style={{ fontSize: 10, color: "var(--insp-muted)", marginBottom: 4 }}>{HOOK_LOAD_TEST_NOTE}</div>
+        <table className="insp-id-table">
+          <colgroup><col style={{ width: "28%" }} /><col style={{ width: "22%" }} /><col style={{ width: "28%" }} /><col style={{ width: "22%" }} /></colgroup>
+          <tbody>
+            <tr>
+              <td className="insp-label-cell">Craft mass (kg)</td><td>{data.loadTest.craftMass || "—"}</td>
+              <td className="insp-label-cell">Persons (no. × mass kg)</td><td>{data.loadTest.personsCount || data.loadTest.personMass ? `${data.loadTest.personsCount || "—"} × ${data.loadTest.personMass || "—"}` : "—"}</td>
+            </tr>
+            <tr>
+              <td className="insp-label-cell">Equipment (kg)</td><td>{data.loadTest.equipmentMass || "—"}</td>
+              <td className="insp-label-cell">Total mass (kg)</td><td>{load?.totalMass ?? "—"}</td>
+            </tr>
+            <tr>
+              <td className="insp-label-cell">Test load = 1.1 × total (kg)</td><td>{load?.testLoad ?? "—"}</td>
+              <td className="insp-label-cell">Jib / crane SWL</td><td>{data.loadTest.jibSwl || "—"}</td>
+            </tr>
+            <tr>
+              <td className="insp-label-cell">Load cell / scale ID</td><td>{data.loadTest.loadCellId || "—"}</td>
+              <td className="insp-label-cell">Calibration cert. no. / expiry</td>
+              <td>{data.loadTest.loadCellCertNo || data.loadTest.loadCellCertExpiry ? `${data.loadTest.loadCellCertNo || "—"} · ${fmtDate(data.loadTest.loadCellCertExpiry)}` : "—"}</td>
+            </tr>
+            <tr>
+              <td className="insp-label-cell">Load applied by</td>
+              <td colSpan={3}>
+                {HOOK_LOAD_METHODS.map((m) => (
+                  <span key={m.key} style={{ marginRight: 14, whiteSpace: "nowrap" }}>{hookBox(data.loadTest.loadMethods.includes(m.key))} {m.label}</span>
+                ))}
+              </td>
+            </tr>
+          </tbody>
+        </table>
+
+        <table className="insp-print-chk">
+          <thead>
+            <CertNoTheadRow certNo={cert.certNo} colSpan={7} />
+            <tr><th>#</th><th>Result at Test Load</th><th>Ref.</th><th>Yes</th><th>No</th><th>N/A</th><th>Remarks</th></tr>
+          </thead>
+          <tbody>{HOOK_LOAD_CHECKS.map((c, i) => checkRow(c, `L${i + 1}`))}</tbody>
+        </table>
+
+        <div className="insp-remarks-box">Findings / Remarks: {data.findingsRemarks || "None"}</div>
+        <div className="insp-remarks-box">Recommendations: {data.recommendations || "None"}</div>
+
+        {/* Statement + issue line + sign-off stay together: if they don't
+            fit under the check sheet they move to the next page as one
+            block rather than leaving the signatures alone on a page. */}
+        <div style={{ breakInside: "avoid", pageBreakInside: "avoid" } as any}>
+          <div style={{ fontSize: 10, color: "var(--insp-muted)", marginTop: 8 }}>{HOOK_CERTIFICATION_STATEMENT}</div>
+          {cert.issuedBy && (
+            <div style={{ fontSize: 10, color: "var(--insp-muted)", marginTop: 4 }}>
+              Issued by {cert.issuedBy}{cert.issuedAt ? ` — ${new Date(cert.issuedAt).toLocaleString()}` : ""}
+            </div>
+          )}
+          <HookSignatureGrid cert={cert} data={data} />
+        </div>
+       </div>
+      </CertPageFrame>
+    </>
+  );
+}
+
+function HookSignatureGrid({ cert, data }: { cert: InspectionCertificate; data: HookReinstallData }) {
+  return (
+    <table style={{ width: "100%", borderCollapse: "collapse", marginTop: 12, breakInside: "avoid", pageBreakInside: "avoid" } as any}>
+      <tbody>
+        <tr style={{ breakInside: "avoid", pageBreakInside: "avoid" } as any}>
+          <td style={{ width: "50%", verticalAlign: "top", paddingRight: 7 }}>
+            <SignBox label="Attending Engineer" name={cert.engineerName} sig={cert.engineerSig} stamp />
+          </td>
+          <td style={{ width: "50%", verticalAlign: "top", paddingLeft: 7 }}>
+            <SignBox label="Client Representative" name={data.clientRepName} sig={data.clientRepSig} />
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  );
+}
+
 function gangwayResultLabel(v: GangwayLoadTestData["result"]) {
   return GANGWAY_RESULT_LABELS[v] || "—";
 }
@@ -898,9 +1176,14 @@ function CalibrationCertificatePage({ cert, calibration }: { cert: InspectionCer
         </tbody>
       </table>
 
-      {!!cfg.technicalFields.length && (
-        <>
-          <div style={{ fontWeight: 700, fontSize: 11.5, color: "var(--insp-navy)", margin: "10px 0 4px" }}>Calibration Reference</div>
+      {/* Grouped technicalFields (Flow Meter: Item Description &
+          Identification / Environmental Conditions / Standard Equipment
+          Used / Acceptance Criteria) print as separate titled blocks;
+          every other sub-type has no groups and prints one block under
+          the generic "Calibration Reference" heading, as before. */}
+      {groupTechnicalFields(cfg.technicalFields).map((block) => (
+        <div key={block.title || "calibration-reference"}>
+          <div style={{ fontWeight: 700, fontSize: 11.5, color: "var(--insp-navy)", margin: "10px 0 4px" }}>{block.title || "Calibration Reference"}</div>
           {/* Requested directly, reviewing the UTI certificate's Calibration
               Reference table (long field labels like "Calibration Reference
               Equipment Manufacturer" and "Probe Sensor Test — Deviation"
@@ -910,13 +1193,13 @@ function CalibrationCertificatePage({ cert, calibration }: { cert: InspectionCer
               Calibration sub-type's own technicalFields, not just UTI's. */}
           <table className="insp-id-table">
             <tbody>
-              {cfg.technicalFields.map((f) => (
+              {block.fields.map((f) => (
                 <tr key={f.key}><td className="insp-label-cell" style={{ width: "60%" }}>{f.label}</td><td colSpan={3}>{calibration.technicalValues[f.key] || "—"}</td></tr>
               ))}
             </tbody>
           </table>
-        </>
-      )}
+        </div>
+      ))}
 
       <FFEItemsTable title={cfg.itemTableLabel} columns={cfg.itemColumns} rows={calibration.items} certNo={cert.certNo} />
       <FFEItemsTable title={cfg.items2Label} columns={cfg.items2Columns} rows={calibration.items2} certNo={cert.certNo} />

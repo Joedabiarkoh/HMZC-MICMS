@@ -1,4 +1,4 @@
-import { CALIBRATION_CERT_TYPES, getCalibrationConfig } from "../data/calibrationCertTypes";
+import { CALIBRATION_CERT_TYPES, getCalibrationConfig, groupTechnicalFields } from "../data/calibrationCertTypes";
 import { freshCalibrationState } from "../data/inspectionHelpers";
 import { InspectionCertificate } from "../types/inspection.types";
 import VesselLookupPanel from "./VesselLookupPanel";
@@ -63,7 +63,11 @@ export default function CalibrationForm({ current, updateField, openCertificate 
 
   function updateItemCell(table: "items" | "items2", index: number, key: string, value: string) {
     const next = [...cal[table]];
-    next[index] = { ...next[index], [key]: value };
+    let row = { ...next[index], [key]: value };
+    // Computed columns (e.g. Flow Meter's Error) — see
+    // CalibrationSubTypeConfig.deriveItems2.
+    if (table === "items2" && cfg.deriveItems2) row = cfg.deriveItems2(row, key);
+    next[index] = row;
     updateCalibration({ [table]: next } as any);
   }
 
@@ -115,17 +119,17 @@ export default function CalibrationForm({ current, updateField, openCertificate 
         }}
       />
 
-      {!!cfg.technicalFields.length && (
-        <fieldset className="insp-fieldset">
-          <legend className="insp-legend">Calibration Reference</legend>
-          {cfg.technicalFields.map((f) => (
+      {groupTechnicalFields(cfg.technicalFields).map((block) => (
+        <fieldset className="insp-fieldset" key={block.title || "calibration-reference"}>
+          <legend className="insp-legend">{block.title || "Calibration Reference"}</legend>
+          {block.fields.map((f) => (
             <div className="insp-field" key={f.key}>
               <label>{f.label}</label>
               <input value={cal.technicalValues[f.key] || ""} onChange={(e) => updateTechnicalValue(f.key, e.target.value)} />
             </div>
           ))}
         </fieldset>
-      )}
+      ))}
 
       <ItemTable
         title={cfg.itemTableLabel}

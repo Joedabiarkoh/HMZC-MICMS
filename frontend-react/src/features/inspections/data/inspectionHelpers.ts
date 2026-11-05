@@ -2,6 +2,7 @@ import { INSPECTION_TYPES } from "./inspectionChecklists";
 import { FFE_CERT_TYPES } from "./ffeCertTypes";
 import { CALIBRATION_CERT_TYPES } from "./calibrationCertTypes";
 import { FRC_COMPONENT_ROWS, FRC_FUNCTION_CHECKS } from "./frcServiceReport";
+import { HOOK_ALL_CHECKS, HOOK_COMPONENT_ROWS } from "./hookReinstall";
 import {
   CalibrationData,
   ChecklistSection,
@@ -12,6 +13,8 @@ import {
   FRCServiceReportData,
   FRCSparePartRow,
   GangwayLoadTestData,
+  HookCheckAnswer,
+  HookReinstallData,
   InspectionCertificate,
   LooseGearData,
   LooseGearDefectReportData,
@@ -129,7 +132,7 @@ export function generateCertNo(
     // exhaustive over EquipmentTypeKey — it just never gets hit by a
     // brand-new certificate anymore.
     photo_report: "PR", ffe_photo_report: "FPR", calibration_photo_report: "CPR",
-    frc_service: "FRC", gangway_load_test: "GLT",
+    frc_service: "FRC", hook_reinstall: "HOOK", gangway_load_test: "GLT",
   };
   const tag = (type === "loosegear" && looseGearSubType && LOOSE_GEAR_SUBTYPE_TAGS[looseGearSubType]) || tags[type];
   const count = Array.from(existingNumbers).filter((k) => k.includes(ymd) && k.includes(tag)).length + 1;
@@ -192,6 +195,8 @@ export function freshCertificate(type: EquipmentTypeKey, existingNumbers: Set<st
     base.calibration = freshCalibrationState(CALIBRATION_CERT_TYPES[0].id);
   } else if (cfg.kind === "frcservice") {
     base.frcServiceReport = freshFRCServiceReportState();
+  } else if (cfg.kind === "hookreinstall") {
+    base.hookReinstall = freshHookReinstallState();
   } else if (cfg.kind === "gangwayloadtest") {
     base.gangwayLoadTest = freshGangwayLoadTestState();
   }
@@ -691,6 +696,58 @@ export function freshFRCServiceReportState(): FRCServiceReportData {
     findingsRemarks: "",
     recommendations: "",
     spareParts: [freshFRCSparePartRow(), freshFRCSparePartRow()],
+    clientRepName: "",
+    clientRepSig: "",
+  };
+}
+
+// Release Hook Re-installation certificate — see HookReinstallData's own
+// comment in inspection.types.ts and data/hookReinstall.ts for the
+// fixed component/check lists this seeds from. Every check starts
+// unanswered ("") — never pre-ticked — for the same reason
+// freshCertificate's checklist items no longer default to "good": a
+// blank has to mean "nobody has looked", and getHookBlockers refuses to
+// finalize until each one is answered.
+export function freshHookReinstallState(): HookReinstallData {
+  return {
+    subType: "hook_reinstall",
+    attendingEngineer: "",
+    nextServiceDue: "",
+    clientOwner: "",
+    vesselType: "",
+    contactPerson: "",
+    craftType: "",
+    craftMakeModel: "",
+    hullSerialNo: "",
+    manufacturer: "",
+    yearOfManufacture: "",
+    seatingCapacity: "",
+    davitLaunchingAppliance: "",
+    hookMakeModel: "",
+    hookType: "",
+    hookApprovalCertNo: "",
+    serviceProviderApprovalRef: "",
+    dateOfLastService: "",
+    classFlag: "",
+    removedFor: [],
+    removedForOther: "",
+    components: HOOK_COMPONENT_ROWS.map((c) => ({ key: c.key, oldSerial: "", newSerial: "", qty: "", nextDue: "" })),
+    checks: Object.fromEntries(HOOK_ALL_CHECKS.map((c) => [c.key, "" as HookCheckAnswer])),
+    checkRemarks: {},
+    loadTest: {
+      craftMass: "",
+      personsCount: "",
+      personMass: "",
+      equipmentMass: "",
+      jibSwl: "",
+      loadCellId: "",
+      loadCellCertNo: "",
+      loadCellCertExpiry: "",
+      loadMethods: [],
+    },
+    outcome: "",
+    findingsRemarks: "",
+    recommendations: "",
     clientRepName: "",
     clientRepSig: "",
   };

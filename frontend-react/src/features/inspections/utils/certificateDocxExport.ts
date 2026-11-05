@@ -51,6 +51,7 @@ import {
   FRCCheckAnswer,
   FRCServiceReportData,
   GangwayLoadTestData,
+  HookReinstallData,
   CalibrationData,
   InspectionCertificate,
   LooseGearData,
@@ -60,9 +61,13 @@ import {
   NDTFooterData,
 } from "../types/inspection.types";
 import { getFFEConfig, getEffectiveFFELabel, getEffectiveFFENote } from "../data/ffeCertTypes";
-import { getCalibrationConfig } from "../data/calibrationCertTypes";
+import { getCalibrationConfig, groupTechnicalFields } from "../data/calibrationCertTypes";
 import { DEFECT_REPORT_COLUMNS, FRC_SPARE_PARTS_COLUMNS, LOOSE_GEAR_STATUS_CODES, MULTIPLE_ITEMS_REGISTER_COLUMNS, RegisterColumn, normalizedSerialNos } from "../data/inspectionHelpers";
 import { FRC_COMPONENT_ROWS, FRC_FUNCTION_CHECKS, FRC_SCOPE_OF_WORK, FRC_SERVICE_TYPE_LABELS, FRC_CERTIFICATION_STATEMENT } from "../data/frcServiceReport";
+import {
+  HOOK_CERTIFICATION_STATEMENT, HOOK_CHECK_GROUPS, HOOK_COMPONENT_ROWS, HOOK_CRAFT_TYPES, HOOK_LOAD_CHECKS, HOOK_LOAD_METHODS,
+  HOOK_LOAD_TEST_NOTE, HOOK_OUTCOME_LABELS, HOOK_REMOVAL_REASONS, HOOK_SCOPE_OF_WORK, HookCheckDef, computeHookLoad,
+} from "../data/hookReinstall";
 import { GANGWAY_INSPECTION_STATEMENT, GANGWAY_RESULT_LABELS } from "../data/gangwayLoadTest";
 import { HMZC_LOGO_DATA_URI } from "../assets/logo";
 import { HMZC_STAMP_DATA_URI } from "../assets/stamp";
@@ -445,7 +450,7 @@ function frcCheckLabel(v?: FRCCheckAnswer): string {
 // here. Engineer reuses cert.engineerName/engineerSig and gets the
 // stamp (see signCellContent's own `stamp` param — never the other
 // party's box); Client Representative is FRC-specific.
-async function frcSignatureBlock(cert: InspectionCertificate, data: FRCServiceReportData): Promise<Table> {
+async function frcSignatureBlock(cert: InspectionCertificate, data: { clientRepName: string; clientRepSig: string }): Promise<Table> {
   const [engineerContent, clientContent] = await Promise.all([
     signCellContent("Attending Engineer", cert.engineerName, cert.engineerSig, true),
     signCellContent("Client Representative", data.clientRepName, data.clientRepSig, false),
@@ -532,6 +537,120 @@ async function buildFRCServiceReportSection(cert: InspectionCertificate, data: F
   );
   blocks.push(new Paragraph({ text: "" }), textP(FRC_CERTIFICATION_STATEMENT, { size: 14, color: MUTED }));
   blocks.push(new Paragraph({ text: "" }), ...issuedByLine(cert));
+  blocks.push(await frcSignatureBlock(cert, data));
+  return blocks;
+}
+
+function hookGlyph(on: boolean): string {
+  return on ? "☒" : "☐";
+}
+
+// Requested directly: incorporate HMZC's own Release Hook
+// Re-installation Certificate — dispatched by config.kind ===
+// "hookreinstall" in exportCertificateDocx below, same as
+// CertificatePreview.tsx's matching two-page print layout (the
+// certificate, then the Inspection & Test Check Sheet starting on its
+// own page).
+async function buildHookReinstallSection(cert: InspectionCertificate, data: HookReinstallData): Promise<Block[]> {
+  const load = computeHookLoad(data.loadTest);
+  const checkRow = (c: HookCheckDef, n: string): string[] => {
+    const v = data.checks[c.key] || "";
+    return [n, c.label, c.ref, hookGlyph(v === "yes"), hookGlyph(v === "no"), hookGlyph(v === "na"), data.checkRemarks[c.key] || ""];
+  };
+  const checkHeaders = ["#", "Check Performed", "Ref.", "Yes", "No", "N/A", "Remarks"];
+
+  const blocks: Block[] = [badgeLine("Hook Re-installation Certificate", "Release Hook System")];
+  blocks.push(
+    kvTable([
+      ["Certificate No.", cert.certNo],
+      ["Date of Service", fmtDate(cert.dateOfServicing)],
+      ["Job Ref.", cert.jobRef || "—"],
+      ["Service Type", "Re-installation"],
+      ["Attending Engineer", data.attendingEngineer || cert.engineerName || "—"],
+      ["Next Service Due", fmtDate(data.nextServiceDue)],
+      ["Service Provider Approval Ref.", data.serviceProviderApprovalRef || "—"],
+    ])
+  );
+  blocks.push(
+    heading("Client & Vessel Details"),
+    kvTable([
+      ["Client / Owner", data.clientOwner || "—"],
+      ["Vessel / Installation Name", cert.vesselName || "—"],
+      ["IMO No. / Reg. No.", cert.imoNo || "—"],
+      ["Location / Port", cert.location || "—"],
+      ["Vessel Type", data.vesselType || "—"],
+      ["Contact Person", data.contactPerson || "—"],
+    ])
+  );
+  blocks.push(
+    heading("Survival Craft & Release Hook Details"),
+    kvTable([
+      ["Craft Type", HOOK_CRAFT_TYPES.map((t) => `${hookGlyph(data.craftType === t.key)} ${t.label}`).join("    ")],
+      ["Craft Make & Model", data.craftMakeModel || "—"],
+      ["Hull / Serial No.", data.hullSerialNo || "—"],
+      ["Manufacturer", data.manufacturer || "—"],
+      ["Year of Manufacture", data.yearOfManufacture || "—"],
+      ["Seating Capacity", data.seatingCapacity || "—"],
+      ["Davit / Launching Appliance", data.davitLaunchingAppliance || "—"],
+      ["Hook Make & Model", data.hookMakeModel || "—"],
+      ["Hook Type", data.hookType || "—"],
+      ["Hook Type-Approval Cert. No.", data.hookApprovalCertNo || "—"],
+      ["Class / Flag", data.classFlag || "—"],
+      ["Date of Last Service", fmtDate(data.dateOfLastService)],
+    ])
+  );
+  blocks.push(heading("Scope of Work"), textP(HOOK_SCOPE_OF_WORK, { size: 18 }));
+  blocks.push(
+    textP(
+      `Hooks removed for:   ${HOOK_REMOVAL_REASONS.map((r) => `${hookGlyph(data.removedFor.includes(r.key))} ${r.label}${r.key === "other" && data.removedFor.includes("other") && data.removedForOther ? ` (${data.removedForOther})` : ""}`).join("     ")}`,
+      { size: 18 }
+    )
+  );
+  blocks.push(
+    heading("Components Removed / Installed"),
+    dataTable(
+      ["#", "Description", "Old S/N (Removed)", "New S/N (Installed)", "Qty", "Next Due"],
+      data.components.map((row, i) => [
+        String(i + 1),
+        HOOK_COMPONENT_ROWS.find((c) => c.key === row.key)?.description || "—",
+        row.oldSerial || "—",
+        row.newSerial || "—",
+        row.qty || "—",
+        fmtDate(row.nextDue),
+      ])
+    )
+  );
+
+  // Page 2 of the template: Inspection & Test Check Sheet.
+  let n = 0;
+  blocks.push(heading("Inspection & Test Check Sheet — MSC.402(96) · SOLAS III/20", true));
+  for (const g of HOOK_CHECK_GROUPS) {
+    blocks.push(textP(g.title.toUpperCase(), { bold: true, color: NAVY, size: 18 }));
+    blocks.push(dataTable(checkHeaders, g.checks.map((c) => checkRow(c, String(++n)))));
+  }
+  blocks.push(heading("Load Test (Proof Load / Jib Test)"), textP(HOOK_LOAD_TEST_NOTE, { size: 16, color: MUTED }));
+  const lt = data.loadTest;
+  blocks.push(
+    kvTable([
+      ["Craft mass (kg)", lt.craftMass || "—"],
+      ["Persons (no. × mass kg)", lt.personsCount || lt.personMass ? `${lt.personsCount || "—"} × ${lt.personMass || "—"}` : "—"],
+      ["Equipment (kg)", lt.equipmentMass || "—"],
+      ["Total mass (kg)", load?.totalMass ?? "—"],
+      ["Test load = 1.1 × total mass (kg)", load?.testLoad ?? "—"],
+      ["Jib / crane SWL", lt.jibSwl || "—"],
+      ["Load cell / scale ID", lt.loadCellId || "—"],
+      ["Calibration cert. no. and expiry", lt.loadCellCertNo || lt.loadCellCertExpiry ? `${lt.loadCellCertNo || "—"} · ${fmtDate(lt.loadCellCertExpiry)}` : "—"],
+      ["Load applied by", HOOK_LOAD_METHODS.map((m) => `${hookGlyph(lt.loadMethods.includes(m.key))} ${m.label}`).join("    ")],
+    ])
+  );
+  blocks.push(new Paragraph({ text: "" }), dataTable(["#", "Result at Test Load", "Ref.", "Yes", "No", "N/A", "Remarks"], HOOK_LOAD_CHECKS.map((c, i) => checkRow(c, `L${i + 1}`))));
+  blocks.push(new Paragraph({ text: "" }), kvTable([["Overall Result", HOOK_OUTCOME_LABELS[data.outcome]]]));
+  blocks.push(new Paragraph({ text: "" }), remarksBox("Findings / Remarks", data.findingsRemarks || "None"));
+  blocks.push(new Paragraph({ text: "" }), remarksBox("Recommendations", data.recommendations || "None"));
+  blocks.push(new Paragraph({ text: "" }), textP(HOOK_CERTIFICATION_STATEMENT, { size: 14, color: MUTED }));
+  blocks.push(new Paragraph({ text: "" }), ...issuedByLine(cert));
+  // Same bespoke Engineer + Client Representative sign-off as the FRC
+  // Service Report (frcSignatureBlock) — its fields are identical in shape.
   blocks.push(await frcSignatureBlock(cert, data));
   return blocks;
 }
@@ -752,11 +871,17 @@ async function buildCalibrationSection(cert: InspectionCertificate, calibration:
       ["Place of Service", calibration.placeOfService || "—"],
     ])
   );
-  if (cfg.technicalFields.length) {
-    blocks.push(heading("Calibration Reference"), kvTable(cfg.technicalFields.map((f) => [f.label, calibration.technicalValues[f.key] || "—"] as [string, string])));
+  for (const block of groupTechnicalFields(cfg.technicalFields)) {
+    blocks.push(heading(block.title || "Calibration Reference"), kvTable(block.fields.map((f) => [f.label, calibration.technicalValues[f.key] || "—"] as [string, string])));
   }
   blocks.push(heading(cfg.itemTableLabel), dataTable(["#", ...cfg.itemColumns.map((c) => c.label)], calibration.items.map((row, i) => [String(i + 1), ...cfg.itemColumns.map((c) => row[c.key] || "—")])));
   blocks.push(heading(cfg.items2Label), dataTable(["#", ...cfg.items2Columns.map((c) => c.label)], calibration.items2.map((row, i) => [String(i + 1), ...cfg.items2Columns.map((c) => row[c.key] || "—")])));
+  // The print preview shows the sub-type's certificate-facing note under
+  // the Test Data; the Word export never did, so a method/traceability
+  // statement (e.g. the Flow Meter's ISO references) was silently
+  // missing from the .docx copy of the same certificate.
+  const calNote = cfg.certNote || cfg.note;
+  if (calNote) blocks.push(textP(calNote, { size: 16, color: MUTED }));
   blocks.push(new Paragraph({ text: "" }), kvTable([["Next Calibration Date", fmtDate(calibration.nextCalibrationDate)]]));
   blocks.push(new Paragraph({ text: "" }), remarksBox("Comments", calibration.comments || "None"), new Paragraph({ text: "" }));
   blocks.push(textP(`This Certificate is valid for ${cfg.validityYears === 2 ? "Two Years" : "One Year"} from the date of issue.`, { size: 16, color: MUTED }));
@@ -1425,6 +1550,8 @@ export async function exportCertificateDocx(cert: InspectionCertificate, config:
 
   if (config.kind === "frcservice" && cert.frcServiceReport) {
     children.push(...(await buildFRCServiceReportSection(cert, cert.frcServiceReport)));
+  } else if (config.kind === "hookreinstall" && cert.hookReinstall) {
+    children.push(...(await buildHookReinstallSection(cert, cert.hookReinstall)));
   } else if (config.kind === "gangwayloadtest" && cert.gangwayLoadTest) {
     children.push(...(await buildGangwayLoadTestSection(cert, cert.gangwayLoadTest)));
   } else if (config.kind === "ffe" && cert.ffe) {

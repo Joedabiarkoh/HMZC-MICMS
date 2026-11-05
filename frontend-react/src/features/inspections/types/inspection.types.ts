@@ -32,6 +32,13 @@ export type EquipmentTypeKey =
   // not to be discoverable enough — it never showed up in the
   // Lifesaving Appliances subsection list itself.
   | "frc_service"
+  // Requested directly: incorporate HMZC's own
+  // HMZC_Hook_Reinstallation_Certificate.docx (re-installation of the
+  // release hook assembly on a lifeboat/rescue boat/free-fall boat,
+  // with its Inspection & Test Check Sheet and proof-load test) as its
+  // own listed subsection under Lifesaving Appliances, same as
+  // frc_service above — see TYPE_GROUPS in InspectionWorkspace.tsx.
+  | "hook_reinstall"
   // Requested directly: "photo report for FFE and Calibration should
   // be all together for the vessel but not for each inspection, make
   // a section for photo report that the technician can select and
@@ -184,6 +191,10 @@ export interface InspectionCertificate {
   // Fast Rescue Craft (FRC) Service Report fields (type ===
   // "frc_service") — see FRCServiceReportData's own comment below.
   frcServiceReport?: FRCServiceReportData;
+
+  // Release Hook Re-installation certificate fields (type ===
+  // "hook_reinstall") — see HookReinstallData's own comment below.
+  hookReinstall?: HookReinstallData;
 
   // Gangway / Accommodation Ladder Load Test fields (type ===
   // "gangway_load_test") — see GangwayLoadTestData's own comment below.
@@ -815,6 +826,82 @@ export interface FRCServiceReportData {
   clientRepSig: string;
 }
 
+// ---- Release Hook Re-installation Certificate — its own equipment
+// type (type === "hook_reinstall", kind: "hookreinstall" — see
+// inspectionChecklists.ts's INSPECTION_TYPES entry), listed under
+// Lifesaving Appliances (TYPE_GROUPS in InspectionWorkspace.tsx)
+// alongside the boat types and the FRC Service Report. Built from
+// HMZC's own HMZC_Hook_Reinstallation_Certificate.docx; see
+// data/hookReinstall.ts for the fixed component/check lists. ----
+export type HookCraftType = "conventional" | "rescue" | "freefall" | "";
+export type HookCheckAnswer = "yes" | "no" | "na" | "";
+export type HookOutcome = "satisfactory" | "not_satisfactory" | "";
+
+export interface HookComponentRow {
+  key: string; // one of HOOK_COMPONENT_ROWS' own keys (data/hookReinstall.ts)
+  oldSerial: string;
+  newSerial: string;
+  qty: string;
+  nextDue: string;
+}
+
+// The proof-load ("Load Test") block. All numeric fields are free text
+// (a technician may write "1,250" or "1250 kg"); computeHookLoad parses
+// them for the derived total mass / test load.
+export interface HookLoadTestData {
+  craftMass: string;
+  personsCount: string;
+  personMass: string;
+  equipmentMass: string;
+  jibSwl: string;
+  loadCellId: string;
+  loadCellCertNo: string;
+  loadCellCertExpiry: string;
+  loadMethods: string[]; // keys of HOOK_LOAD_METHODS
+}
+
+export interface HookReinstallData {
+  // Always "hook_reinstall" — same convention as FRCServiceReportData.subType.
+  subType: "hook_reinstall";
+  attendingEngineer: string;
+  nextServiceDue: string;
+  clientOwner: string;
+  vesselType: string;
+  contactPerson: string;
+  craftType: HookCraftType;
+  craftMakeModel: string;
+  hullSerialNo: string;
+  manufacturer: string;
+  yearOfManufacture: string;
+  seatingCapacity: string;
+  davitLaunchingAppliance: string;
+  hookMakeModel: string;
+  hookType: string; // "On-load release" | "Off-load release only" (see HOOK_TYPES)
+  // Not in the source template — added because the hook's own approval
+  // and the servicing company's authorisation are what an auditor or
+  // port-state inspector asks for first on a release-gear job.
+  hookApprovalCertNo: string;
+  serviceProviderApprovalRef: string;
+  dateOfLastService: string;
+  classFlag: string;
+  removedFor: string[]; // keys of HOOK_REMOVAL_REASONS
+  removedForOther: string;
+  components: HookComponentRow[];
+  checks: Record<string, HookCheckAnswer>; // keyed by HOOK_CHECK_GROUPS/HOOK_LOAD_CHECKS keys
+  checkRemarks: Record<string, string>;
+  loadTest: HookLoadTestData;
+  // Overall result — not in the source template, which only had
+  // per-check answers and left "did this pass" to be inferred.
+  outcome: HookOutcome;
+  findingsRemarks: string;
+  recommendations: string;
+  // Engineer name/signature reuse cert.engineerName/engineerSig, same
+  // as every other certificate type — only the Client Representative
+  // needs its own fields (this template's second signer).
+  clientRepName: string;
+  clientRepSig: string;
+}
+
 // ---- Gangway / Accommodation Ladder Load Test — its own equipment
 // type (type === "gangway_load_test", kind: "gangwayloadtest" — see
 // inspectionChecklists.ts's INSPECTION_TYPES entry), listed under
@@ -842,7 +929,7 @@ export interface GangwayLoadTestData {
 }
 
 export interface EquipmentTypeConfig {
-  kind: "boat" | "crane" | "ffe" | "loosegear" | "calibration" | "photoreport" | "frcservice" | "gangwayloadtest";
+  kind: "boat" | "crane" | "ffe" | "loosegear" | "calibration" | "photoreport" | "frcservice" | "hookreinstall" | "gangwayloadtest";
   typeName: string;
   label: string;
   statementIntro?: string;
