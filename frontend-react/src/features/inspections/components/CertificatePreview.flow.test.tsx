@@ -19,18 +19,20 @@ function renderCert(type: EquipmentTypeKey) {
 
 describe("a certificate prints as one continuous flow", () => {
   it.each<EquipmentTypeKey>(["rescueboat", "lifeboat", "crane", "hook_reinstall", "frc_service", "calibration", "firefighting", "gangway_load_test"])(
-    "%s: one page frame, one letterhead, one pinned footer",
+    "%s: one page frame, one letterhead, one in-page footer",
     (type) => {
       const root = renderCert(type);
       expect(root.querySelectorAll(".insp-cert-page")).toHaveLength(1);
       expect(root.querySelectorAll("table.insp-page-frame")).toHaveLength(1);
       expect(root.querySelectorAll(".insp-letterhead")).toHaveLength(1);
-      // The approvals footer is pinned to the bottom of every printed page
-      // (position: fixed in print), with a spacer in the repeating <tfoot>
-      // reserving its room so content never runs underneath it.
-      expect(root.querySelectorAll(".insp-footer-pin")).toHaveLength(1);
-      expect(root.querySelectorAll(".insp-footer-pin img").length).toBeGreaterThanOrEqual(7);
-      expect(root.querySelectorAll("table.insp-page-frame > tfoot .insp-footer-spacer")).toHaveLength(1);
+      // One in-page approvals footer (the on-screen footer and the print
+      // fallback), in the frame's repeating <tfoot>. In print it is replaced by
+      // the page-margin footer (utils/printFooter.ts) where the browser
+      // supports it. No position: fixed pin, which real prints showed is
+      // unreliable.
+      expect(root.querySelectorAll("table.insp-page-frame > tfoot .insp-footer-flow")).toHaveLength(1);
+      expect(root.querySelectorAll(".insp-footer-flow img").length).toBeGreaterThanOrEqual(7);
+      expect(root.querySelector(".insp-footer-pin")).toBeNull();
       expect(root.querySelectorAll(".insp-flow-section").length).toBeGreaterThanOrEqual(1);
     }
   );

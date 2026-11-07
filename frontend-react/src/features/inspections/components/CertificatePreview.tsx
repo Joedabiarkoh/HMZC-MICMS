@@ -1,7 +1,8 @@
-import { Fragment } from "react";
+import { Fragment, useEffect } from "react";
 import type { ReactNode } from "react";
 import { EquipmentTypeConfig, InspectionCertificate, ChecklistStatus, EquipResult, CalibrationData, FFEData, FRCCheckAnswer, FRCServiceReportData, GangwayLoadTestData, HookCheckAnswer, HookReinstallData, LooseGearData, LooseGearDefectReportData, LooseGearMultipleItemsData, LooseGearStandardReportData, LooseGearStatutoryAnswers, LooseGearVisualCertData, LooseGearYesNo, NDTCommonData, NDTFooterData, MPIData, PTData, RTData, UTData, VTData, ETData, LoadTestData, PhotoEvidence } from "../types/inspection.types";
 import { INSPECTION_TYPES } from "../data/inspectionChecklists";
+import { installPrintFooter } from "../utils/printFooter";
 import { getFFEConfig, getEffectiveFFELabel, getEffectiveFFENote } from "../data/ffeCertTypes";
 import { getCalibrationConfig, groupTechnicalFields } from "../data/calibrationCertTypes";
 import { DEFECT_REPORT_COLUMNS, FRC_SPARE_PARTS_COLUMNS, LOOSE_GEAR_STATUS_CODES, MULTIPLE_ITEMS_REGISTER_COLUMNS, normalizedSerialNos } from "../data/inspectionHelpers";
@@ -47,6 +48,10 @@ export default function CertificatePreview({ cert, config }: Props) {
   // print where a Rescue Boat certificate came out with another type's
   // layout because the page-level type had not followed it.
   const ownConfig = INSPECTION_TYPES[cert.type] || config;
+  // Draw the approvals footer in every printed page's bottom margin while a
+  // certificate is on screen (removed on unmount so it can't leak onto other
+  // printouts) — see utils/printFooter.ts.
+  useEffect(() => installPrintFooter(), []);
   return (
     <CertFlow cert={cert}>
       <CertificateSections cert={cert} config={ownConfig} />
@@ -2409,13 +2414,12 @@ function CertFlow({ cert, children }: { cert: InspectionCertificate; children: R
       <table className="insp-page-frame">
         <thead><tr><td><Letterhead cert={cert} /></td></tr></thead>
         <tbody><tr><td>{children}</td></tr></tbody>
-        {/* Print-only spacer: repeats at the bottom of every page (a <tfoot>
-            does) and reserves the room the pinned footer below occupies. */}
-        <tfoot><tr><td><div className="insp-footer-spacer" aria-hidden="true" /></td></tr></tfoot>
+        {/* The in-page approvals footer: the on-screen footer, and the print
+            fallback. Where the browser supports page-margin boxes the footer is
+            drawn in every printed page's bottom margin instead (see
+            utils/printFooter.ts) and CSS hides this copy in print. */}
+        <tfoot><tr><td><div className="insp-footer-flow"><ApprovalLogosRow /></div></td></tr></tfoot>
       </table>
-      {/* The approvals footer: on screen it follows the content; in print it
-          is pinned to the bottom edge of every page (inspections.css). */}
-      <div className="insp-footer-pin"><ApprovalLogosRow /></div>
     </div>
   );
 }

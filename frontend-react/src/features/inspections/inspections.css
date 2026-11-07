@@ -746,10 +746,14 @@ table.insp-keep > tbody > tr > td { padding: 0; border: none; }
    the block together (reproduced with a 448-row register: the comments stayed
    on one page and the sign-off landed alone on the next). */
 
-/* ---- Approvals footer pinned to the bottom of every printed page ---- */
-.insp-footer-spacer { display: none; }
-@media print {
-  .insp-footer-spacer { display: block; height: 80px; }
-  .insp-cert-page > .insp-footer-pin { position: fixed; left: 0; right: 0; bottom: 0; margin: 0; padding: 0; }
-  .insp-panel { overflow: visible !important; }
+/* ---- Approvals footer ----
+   On screen (and as the print fallback) the footer is the in-page copy in the
+   frame's <tfoot>. When the browser supports page-margin boxes AND the margin
+   footer has installed (utils/printFooter.ts sets html[data-hmzc-footer]), the
+   footer is drawn in every printed page's bottom margin instead, so the
+   in-page copy is hidden in print — otherwise it would print twice. */
+@supports at-rule(@bottom-center) {
+  @media print {
+    html[data-hmzc-footer="margin"] .insp-footer-flow { display: none; }
+  }
 }
