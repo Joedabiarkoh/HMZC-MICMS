@@ -21,6 +21,7 @@ import GangwayLoadTestForm from "../components/GangwayLoadTestForm";
 import { getFFEConfig } from "../data/ffeCertTypes";
 import { getCalibrationConfig } from "../data/calibrationCertTypes";
 import { exportCertificateDocx } from "../utils/certificateDocxExport";
+import { refreshPrintFooter } from "../utils/printFooter";
 import { LOOSE_GEAR_STATUS_CODES, checklistProgress, freshCertificate, freshLooseGearStandardReportData, freshLooseGearState } from "../data/inspectionHelpers";
 import { dirtyKey } from "../data/dirtyKey";
 import { useAuth } from "../../../context/AuthContext";
@@ -158,6 +159,10 @@ export default function InspectionWorkspace() {
 
   async function handlePrint() {
     await waitForCertImages();
+    // Make sure the page-margin footer (utils/printFooter.ts) is freshly
+    // stamped AND its image already decoded before the browser starts printing:
+    // reported as "the footer sometimes doesn't appear on the first print".
+    await refreshPrintFooter();
     window.print();
   }
 

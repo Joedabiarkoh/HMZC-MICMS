@@ -411,7 +411,7 @@ table.insp-page-frame > tfoot > tr > td {
 /* padding/margin trimmed a couple px each, same real-printed-Gangway-
    certificate overflow measurement as table.insp-print-chk/
    .insp-remarks-box above. */
-.insp-letterhead { display: flex; justify-content: space-between; border-bottom: 3px solid var(--insp-accent); padding-bottom: 6px; margin-bottom: 7px; }
+.insp-letterhead { display: flex; justify-content: space-between; border-bottom: 3px solid var(--insp-accent); padding-bottom: 4px; margin-bottom: 5px; }
 /* Requested directly, reviewing why Paged.js pagination on a
    multi-section certificate was blocking the browser for tens of
    seconds: was <img src={HMZC_LOGO_DATA_URI}>, duplicating the logo's
@@ -469,7 +469,7 @@ table.insp-id-table td.insp-label-cell { background: #F4F6F7; font-weight: 700; 
    never reported as too tall. */
 .lg-compact table.insp-id-table { margin-bottom: 6px; }
 .lg-compact table.insp-id-table td { padding: 2px 6px; }
-.lg-compact .insp-remarks-box { margin: 5px 0; padding: 4px 8px; }
+.lg-compact .insp-remarks-box { margin: 3px 0; padding: 4px 8px; }
 .lg-compact .insp-cert-title-row { margin: 2px 0 5px; }
 
 /* Requested directly: "make the whole document layout just as the pdf

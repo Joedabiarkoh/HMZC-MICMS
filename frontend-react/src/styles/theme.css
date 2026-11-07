@@ -61,7 +61,10 @@
    only the app-wide chrome every printable page shares. */
 @page {
   size: A4;
-  margin: 12mm 14mm;
+  /* Top trimmed from 12mm to 10mm: a certificate that only just fits a page
+     (esp. on US Letter, ~50pt shorter than A4) must not lose its sign-off to a
+     second page for want of a few millimetres. */
+  margin: 10mm 14mm;
 }
 @media print {
   /* .shell-header already contains BackendStatusDot and SyncStatusBadge

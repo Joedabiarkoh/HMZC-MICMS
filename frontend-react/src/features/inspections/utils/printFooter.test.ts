@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { APPROVAL_LOGOS, buildFooterCss, buildFooterSvg, installPrintFooter } from "./printFooter";
+import { APPROVAL_LOGOS, buildFooterCss, buildFooterSvg, installPrintFooter, refreshPrintFooter } from "./printFooter";
 
 const sizes = APPROVAL_LOGOS.map((l) => ({ src: l.src, w: 100, h: 50 }));
 
@@ -27,7 +27,7 @@ describe("margin-box footer content", () => {
     const css = buildFooterCss(buildFooterSvg(sizes, "x"));
     expect(css).toContain("@page");
     expect(css).toContain("@bottom-center");
-    expect(css).toContain("margin-bottom: 26mm");
+    expect(css).toContain("margin-bottom: 14mm");
     expect(css).toContain('content: url("data:image/svg+xml;charset=utf-8,');
   });
 });
@@ -77,13 +77,41 @@ describe("installPrintFooter", () => {
     expect(document.getElementById("hmzc-print-footer")).toBeNull();
   });
 
-  it("refreshes the Printed-at stamp when printing starts", async () => {
+  it("keeps a decoded copy of the footer image alive so the first print does not wait for it", async () => {
+    const dispose = installPrintFooter();
+    await new Promise((r) => setTimeout(r, 0));
+    const holder = document.getElementById("hmzc-print-footer-img") as HTMLImageElement | null;
+    expect(holder).not.toBeNull();
+    expect(holder!.getAttribute("src")).toContain("data:image/svg+xml");
+    // the held image is the very one the @page rule points at
+    const css = document.getElementById("hmzc-print-footer")!.textContent || "";
+    expect(css).toContain(holder!.getAttribute("src")!);
+    dispose();
+    expect(document.getElementById("hmzc-print-footer-img")).toBeNull();
+  });
+
+  it("does NOT rewrite the footer when printing starts (a fresh image there is the not-yet-loaded case)", async () => {
     const dispose = installPrintFooter();
     await new Promise((r) => setTimeout(r, 0));
     const before = document.getElementById("hmzc-print-footer")!.textContent;
     window.dispatchEvent(new Event("beforeprint"));
-    expect(document.getElementById("hmzc-print-footer")!.textContent).toBeTruthy();
-    expect(before).toBeTruthy();
+    expect(document.getElementById("hmzc-print-footer")!.textContent).toBe(before);
     dispose();
+  });
+
+  it("refreshPrintFooter swaps in a freshly stamped footer only after its image is ready", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-11-07T20:00:00"));
+    const dispose = installPrintFooter();
+    await new Promise((r) => setTimeout(r, 0));
+    const first = document.getElementById("hmzc-print-footer")!.textContent;
+    vi.setSystemTime(new Date("2026-11-07T20:09:00"));
+    await refreshPrintFooter();
+    const second = document.getElementById("hmzc-print-footer")!.textContent;
+    expect(second).not.toBe(first);
+    expect(decodeURIComponent(second || "")).toContain("08:09");
+    expect(document.getElementById("hmzc-print-footer-img-next")).toBeNull(); // no leftover staging image
+    dispose();
+    vi.useRealTimers();
   });
 });

@@ -1039,7 +1039,7 @@ function FFECertificatePage({ cert, ffe }: { cert: InspectionCertificate; ffe: F
 
       {!!cfg.workCodes?.length && (
         <>
-          <div style={{ fontWeight: 700, fontSize: 11.5, color: "var(--insp-navy)", margin: "10px 0 4px" }}>Description of Work Codes</div>
+          <div style={{ fontWeight: 700, fontSize: 11.5, color: "var(--insp-navy)", margin: "7px 0 3px" }}>Description of Work Codes</div>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1px 16px", fontSize: 10.5 }}>
             {cfg.workCodes.map((w) => <div key={w}>{w}</div>)}
           </div>
@@ -1048,7 +1048,7 @@ function FFECertificatePage({ cert, ffe }: { cert: InspectionCertificate; ffe: F
 
       {!!cfg.technicalFields?.length && (
         <>
-          <div style={{ fontWeight: 700, fontSize: 11.5, color: "var(--insp-navy)", margin: "10px 0 4px" }}>Technical Description</div>
+          <div style={{ fontWeight: 700, fontSize: 11.5, color: "var(--insp-navy)", margin: "7px 0 3px" }}>Technical Description</div>
           {/* Requested directly: "for FFE section the technical
               description and the value cell should be split 50% for
               all systems" — .insp-label-cell's shared 16% width (sized
@@ -1082,7 +1082,7 @@ function FFECertificatePage({ cert, ffe }: { cert: InspectionCertificate; ffe: F
 
       {!!cfg.checklistItems?.length && (
         <>
-          <div style={{ fontWeight: 700, fontSize: 11.5, color: "var(--insp-navy)", margin: "10px 0 4px" }}>Description of Inspection/Tests</div>
+          <div style={{ fontWeight: 700, fontSize: 11.5, color: "var(--insp-navy)", margin: "7px 0 3px" }}>Description of Inspection/Tests</div>
           <table className="insp-print-chk">
             <thead>
               <CertNoTheadRow certNo={cert.certNo} colSpan={4} />
@@ -1118,7 +1118,7 @@ function FFECertificatePage({ cert, ffe }: { cert: InspectionCertificate; ffe: F
 
       {!!cfg.readingsRows?.length && (
         <>
-          <div style={{ fontWeight: 700, fontSize: 11.5, color: "var(--insp-navy)", margin: "10px 0 4px" }}>Readings</div>
+          <div style={{ fontWeight: 700, fontSize: 11.5, color: "var(--insp-navy)", margin: "7px 0 3px" }}>Readings</div>
           <table className="insp-print-chk">
             <thead>
               <CertNoTheadRow certNo={cert.certNo} colSpan={4} />
@@ -1144,12 +1144,12 @@ function FFECertificatePage({ cert, ffe }: { cert: InspectionCertificate; ffe: F
           signatures alone on a page. */}
       <KeepTogether>
       <div className="insp-remarks-box">Comments: {ffe.comments || "None"}</div>
-      <div style={{ fontSize: 10, color: "var(--insp-muted)", marginTop: 8 }}>
+      {/* Validity statement and "Issued by" share one line — a spare line of
+          height decides whether a certificate that just fits stays on one page. */}
+      <div style={{ fontSize: 10, color: "var(--insp-muted)", marginTop: 4 }}>
         This Certificate is valid for {cfg.validityYears === 2 ? "Two Years" : "One Year"} from the date of issue.
         {cert.issuedBy && (
-          <div style={{ marginTop: 4 }}>
-            Issued by {cert.issuedBy}{cert.issuedAt ? ` — ${new Date(cert.issuedAt).toLocaleString()}` : ""}
-          </div>
+          <> &nbsp;·&nbsp; Issued by {cert.issuedBy}{cert.issuedAt ? ` — ${new Date(cert.issuedAt).toLocaleString()}` : ""}</>
         )}
       </div>
 
@@ -1296,12 +1296,12 @@ function CalibrationCertificatePage({ cert, calibration }: { cert: InspectionCer
           block, never leaving the signatures alone on a page. */}
       <KeepTogether>
       <div className="insp-remarks-box">Comments: {calibration.comments || "None"}</div>
-      <div style={{ fontSize: 10, color: "var(--insp-muted)", marginTop: 8 }}>
+      {/* Validity statement and "Issued by" share one line — a spare line of
+          height decides whether a certificate that just fits stays on one page. */}
+      <div style={{ fontSize: 10, color: "var(--insp-muted)", marginTop: 6 }}>
         This Certificate is valid for {cfg.validityYears === 2 ? "Two Years" : "One Year"} from the date of issue.
         {cert.issuedBy && (
-          <div style={{ marginTop: 4 }}>
-            Issued by {cert.issuedBy}{cert.issuedAt ? ` — ${new Date(cert.issuedAt).toLocaleString()}` : ""}
-          </div>
+          <> &nbsp;·&nbsp; Issued by {cert.issuedBy}{cert.issuedAt ? ` — ${new Date(cert.issuedAt).toLocaleString()}` : ""}</>
         )}
       </div>
 
@@ -2503,7 +2503,7 @@ function SignatureGrid({ cert, masterLabel, techLabel, hideFitForPurpose }: { ce
     // the next one, which is exactly why the letterhead/footer above
     // and every data table in this file already use a table for
     // anything that has to survive pagination intact. */}
-    <table style={{ width: "100%", borderCollapse: "collapse", marginTop: 12, breakInside: "avoid", pageBreakInside: "avoid" } as any}>
+    <table style={{ width: "100%", borderCollapse: "collapse", marginTop: 8, breakInside: "avoid", pageBreakInside: "avoid" } as any}>
       <tbody>
         <tr style={{ breakInside: "avoid", pageBreakInside: "avoid" } as any}>
           <td style={{ width: "50%", verticalAlign: "top", paddingRight: 7 }}>
