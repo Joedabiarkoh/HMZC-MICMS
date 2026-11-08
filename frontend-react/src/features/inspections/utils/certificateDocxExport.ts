@@ -67,8 +67,13 @@ import { DEFECT_REPORT_COLUMNS, FRC_SPARE_PARTS_COLUMNS, LOOSE_GEAR_STATUS_CODES
 import { FRC_COMPONENT_ROWS, FRC_FUNCTION_CHECKS, FRC_SCOPE_OF_WORK, FRC_SERVICE_TYPE_LABELS, FRC_CERTIFICATION_STATEMENT } from "../data/frcServiceReport";
 import {
   HOOK_CERTIFICATION_STATEMENT, HOOK_CHECK_GROUPS, HOOK_COMPONENT_ROWS, HOOK_CRAFT_TYPES, HOOK_LOAD_CHECKS, HOOK_LOAD_METHODS,
-  HOOK_LOAD_TEST_NOTE, HOOK_OUTCOME_LABELS, HOOK_REMOVAL_REASONS, HOOK_SCOPE_OF_WORK, HookCheckDef, computeHookLoad,
+  HOOK_LOAD_TEST_NOTE, HOOK_OUTCOME_LABELS, HOOK_REMOVAL_REASONS, HOOK_SCOPE_OF_WORK, HOOK_TESTER_KEY, HookCheckDef, computeHookLoad,
 } from "../data/hookReinstall";
+import {
+  HOOK_TESTER_ACCEPTANCE, HOOK_TESTER_CONDITIONS_NOTE, HOOK_TESTER_FACTOR_NOTE, HOOK_TESTER_GAUGE_NOTE, HOOK_TESTER_PROCEDURE,
+  HOOK_TESTER_RESULT_LABELS, computeHookTesterPlan, fmtBar, fmtTonnes, freshHookTesterReport, hookTesterDrop,
+} from "../data/hookTester";
+import { parseNumber } from "../data/parseNumber";
 import { GANGWAY_INSPECTION_STATEMENT, GANGWAY_RESULT_LABELS } from "../data/gangwayLoadTest";
 import { HMZC_LOGO_DATA_URI } from "../assets/logo";
 import { HMZC_STAMP_DATA_URI } from "../assets/stamp";
@@ -594,10 +599,8 @@ async function buildHookReinstallSection(cert: InspectionCertificate, data: Hook
       ["Seating Capacity", data.seatingCapacity || "—"],
       ["Davit / Launching Appliance", data.davitLaunchingAppliance || "—"],
       ["Hook Make & Model", data.hookMakeModel || "—"],
-      ["Hook Type", data.hookType || "—"],
+      ["Hook Type (on-load / off-load)", data.hookType || "—"],
       ["Hook Type-Approval Cert. No.", data.hookApprovalCertNo || "—"],
-      ["Class / Flag", data.classFlag || "—"],
-      ["Date of Last Service", fmtDate(data.dateOfLastService)],
     ])
   );
   blocks.push(heading("Scope of Work"), textP(HOOK_SCOPE_OF_WORK, { size: 18 }));
@@ -610,14 +613,12 @@ async function buildHookReinstallSection(cert: InspectionCertificate, data: Hook
   blocks.push(
     heading("Components Removed / Installed"),
     dataTable(
-      ["#", "Description", "Old S/N (Removed)", "New S/N (Installed)", "Qty", "Next Due"],
+      ["#", "Description", "Old S/N (Removed)", "New S/N (Installed)"],
       data.components.map((row, i) => [
         String(i + 1),
         HOOK_COMPONENT_ROWS.find((c) => c.key === row.key)?.description || "—",
         row.oldSerial || "—",
         row.newSerial || "—",
-        row.qty || "—",
-        fmtDate(row.nextDue),
       ])
     )
   );
@@ -633,9 +634,8 @@ async function buildHookReinstallSection(cert: InspectionCertificate, data: Hook
   const lt = data.loadTest;
   blocks.push(
     kvTable([
-      ["Craft mass (kg)", lt.craftMass || "—"],
+      ["Craft mass + equipment (kg)", lt.craftMass || "—"],
       ["Persons (no. × mass kg)", lt.personsCount || lt.personMass ? `${lt.personsCount || "—"} × ${lt.personMass || "—"}` : "—"],
-      ["Equipment (kg)", lt.equipmentMass || "—"],
       ["Total mass (kg)", load?.totalMass ?? "—"],
       ["Test load = 1.1 × total mass (kg)", load?.testLoad ?? "—"],
       ["Jib / crane SWL", lt.jibSwl || "—"],
@@ -653,8 +653,111 @@ async function buildHookReinstallSection(cert: InspectionCertificate, data: Hook
   // Same bespoke Engineer + Client Representative sign-off as the FRC
   // Service Report (frcSignatureBlock) — its fields are identical in shape.
   blocks.push(await frcSignatureBlock(cert, data));
+  // Load test done with the hook tester: its report follows on its own page.
+  if (data.loadTest.loadMethods.includes(HOOK_TESTER_KEY)) blocks.push(...(await buildHookTesterBlocks(cert, data)));
   return blocks;
 }
+
+// The Hook Load Test Report (HMZC's Hook_Test_Report_3.5t.docx) for the Word
+// copy — same content and the same computed figures as the print layout
+// (CertificatePreview's HookTesterPages, via data/hookTester.ts).
+async function buildHookTesterBlocks(cert: InspectionCertificate, data: HookReinstallData): Promise<Block[]> {
+  const r = data.hookTester ?? freshHookTesterReport();
+  const plan = computeHookTesterPlan(r);
+  const drop = hookTesterDrop(r);
+  const swl = parseNumber(r.swl);
+  const rated = parseNumber(r.ratedPressure);
+  const dash = (v?: string) => (v && v.trim() ? v : "—");
+  const swlLabel = swl === null ? "—" : `${r.swl} t (${Math.round(swl * 1000).toLocaleString("en-US")} kg)`;
+  const gauge = [
+    r.gaugeRange && `Range ${r.gaugeRange}`,
+    r.gaugeMake && `Make ${r.gaugeMake}`,
+    r.gaugeSerialNo && `S/N ${r.gaugeSerialNo}`,
+    r.gaugeCertNo && `Cal. cert. no. ${r.gaugeCertNo}`,
+    r.gaugeCertExpiry && `expiry ${fmtDate(r.gaugeCertExpiry)}`,
+  ].filter(Boolean).join(" · ");
+
+  const blocks: Block[] = [heading("Hook Load Test Report — hydraulic hook tester", true)];
+  blocks.push(textP(`Release hook, SWL ${swlLabel} — hydraulic hook tester · Certificate No: ${cert.certNo}`, { size: 16, color: MUTED }));
+  blocks.push(
+    heading("1. Equipment tested"),
+    kvTable([
+      ["Client / vessel", dash(r.clientVessel || cert.vesselName)],
+      ["Equipment", dash(r.equipment)],
+      ["Hook maker / type", dash(r.hookMakerType)],
+      ["Hook serial no. / cert. no.", dash(r.hookSerialCertNo)],
+      ["Safe Working Load (SWL)", swlLabel],
+      ["Date / place of test", [r.dateOfTest && fmtDate(r.dateOfTest), r.placeOfTest].filter(Boolean).join(" · ") || "—"],
+    ])
+  );
+  blocks.push(
+    heading("2. Test equipment"),
+    kvTable([
+      ["Hydraulic cylinder", dash(r.cylinderModel)],
+      ["Cylinder S/N / date", dash(r.cylinderSerialDate)],
+      ["Rated working pressure", rated === null ? "—" : `${Math.round(rated) / 10} MPa (${r.ratedPressure} bar)`],
+      ["Pressure gauge", gauge || "—"],
+      ["Pump / reaction frame", dash(r.pumpFrame)],
+    ]),
+    textP(HOOK_TESTER_GAUGE_NOTE, { size: 16, color: MUTED })
+  );
+  blocks.push(heading("3. Test load and pressure calculation"));
+  if (plan) {
+    blocks.push(
+      textP(`Pressure (bar) = load (t) × ${r.ratedPressure} ÷ ${r.cylinderCapacity} = load (t) × ${fmtBar(plan.barPerTonne)} bar per tonne.`, { size: 18 }),
+      textP(`Test load = ${plan.factor.toFixed(1)} × SWL = ${plan.factor.toFixed(1)} × ${r.swl} t = ${fmtTonnes(plan.testLoad)} t (${Math.round(plan.testLoad * 1000).toLocaleString("en-US")} kg). Test pressure = ${fmtTonnes(plan.testLoad)} × ${fmtBar(plan.barPerTonne)} = ${fmtBar(plan.testPressure)} bar.`, { size: 18, bold: true }),
+      dataTable(
+        ["Test factor", "Test load (t)", "Pressure (bar)", "Use"],
+        plan.reference.map((row) => [`${row.factor.toFixed(1)} × SWL`, fmtTonnes(row.loadT), fmtBar(row.pressureBar), `${row.use}${row.selected ? " (used in this report)" : ""}`])
+      )
+    );
+  } else {
+    blocks.push(textP("— (SWL, test factor and the cylinder's rated capacity and pressure are required)", { size: 18 }));
+  }
+  blocks.push(textP(HOOK_TESTER_FACTOR_NOTE, { size: 16, color: MUTED }));
+  blocks.push(heading("4. Test procedure and record"));
+  HOOK_TESTER_PROCEDURE.forEach((step, i) => blocks.push(textP(`${i + 1}. ${step}`, { size: 17 })));
+  blocks.push(
+    textP(`Hold time used: ${dash(r.holdMinutes)} min`, { size: 18, bold: true }),
+    dataTable(
+      ["Stage", "% of test load", "Load (t)", "Calculated pressure (bar)", "Gauge reading (bar)"],
+      (plan?.stages ?? [25, 50, 75, 100].map((pct) => ({ pct, label: pct === 100 ? "Full test load - hold" : "Increment", loadT: NaN, pressureBar: NaN }))).map((st) => [
+        st.label,
+        `${st.pct}%`,
+        Number.isNaN(st.loadT) ? "—" : fmtTonnes(st.loadT),
+        Number.isNaN(st.pressureBar) ? "—" : fmtBar(st.pressureBar),
+        dash(r.gaugeReadings[String(st.pct)]),
+      ])
+    ),
+    textP(HOOK_TESTER_CONDITIONS_NOTE, { size: 16, color: MUTED })
+  );
+  blocks.push(
+    heading("5. Results"),
+    kvTable([
+      ["Pressure held at full test load", `Gauge reading ${dash(r.pressureStart)} bar at start; ${dash(r.pressureEnd)} bar after hold. Drop: ${drop === null ? "—" : `${Math.round(drop * 10) / 10} bar`}`],
+      ["Visual inspection after test", `No cracks, distortion or permanent set observed ${hookGlyph(r.visualConfirmed)} Confirmed`],
+      ["Release / reset function after test", `Operates freely and locks correctly ${hookGlyph(r.releaseConfirmed)} Confirmed`],
+      ["NDT after proof load", dash(r.ndt)],
+      ["Overall result", HOOK_TESTER_RESULT_LABELS[r.result]],
+    ])
+  );
+  blocks.push(heading("6. Acceptance criteria"));
+  HOOK_TESTER_ACCEPTANCE.forEach((a) => blocks.push(textP(`• ${a}`, { size: 17 })));
+  blocks.push(
+    heading("7. Sign-off"),
+    kvTable([
+      ["Company", dash(r.company)],
+      ["Date", r.testDate ? fmtDate(r.testDate) : "—"],
+      ["Witnessed by", dash(r.witnessedBy)],
+      ["Witness date", r.witnessDate ? fmtDate(r.witnessDate) : "—"],
+    ])
+  );
+  // Tested by = the certificate's attending engineer (name, signature, stamp).
+  blocks.push(new Paragraph({ text: "" }), await frcSignatureBlock(cert, { clientRepName: r.witnessedBy, clientRepSig: "" }));
+  return blocks;
+}
+
+
 
 function gangwayResultLabel(v: GangwayLoadTestData["result"]): string {
   return GANGWAY_RESULT_LABELS[v] || "—";

@@ -56,13 +56,54 @@ describe("Word export — hook re-installation certificate", () => {
     expect(text).toContain(cert.certNo);
     expect(text).toContain("Inspection & Test Check Sheet");
     expect(text).toContain("A. RECORDS AND PREPARATION");
-    expect(text).toContain("D. OPERATIONAL TESTS");
+    expect(text).toContain("C. OPERATIONAL TESTS");
+    expect(text).not.toContain("CRAFT AND LAUNCHING APPLIANCE"); // removed by the revised template
+    expect(text).toContain("Swivel (if fitted)");
+    expect(text).not.toContain("Date of Last Service");
+    expect(text).not.toContain("Hook Load Test Report"); // no hook tester selected
     expect(text).toContain("Crack on pin");
     expect(text).toContain("7370"); // 1.1 × (5000 + 20×75 + 200)
     expect(text).toContain("Not satisfactory");
     expect(text).toContain("☒ Rescue Boat");
     expect(text).toContain("☐ Conventional Lifeboat");
     expect(text).toContain("Release hook, forward");
+  });
+});
+
+describe("Word export — hook certificate with the hook tester", () => {
+  it("adds the Hook Load Test Report, with the figures computed from its inputs", async () => {
+    const cert = freshCertificate("hook_reinstall", new Set());
+    Object.assign(cert, { vesselName: "MT TEST", imoNo: "1234567", engineerName: "A. Engineer" });
+    const h = cert.hookReinstall!;
+    h.craftType = "rescue";
+    h.removedFor = ["servicing"];
+    h.loadTest.loadMethods = ["hooktester"];
+    h.hookTester = {
+      ...h.hookTester!,
+      clientVessel: "MT TEST",
+      hookMakerType: "Hatecke HK-16",
+      gaugeCertNo: "CAL-8891",
+      gaugeReadings: { "25": "55", "50": "110", "75": "165", "100": "220" },
+      pressureStart: "220",
+      pressureEnd: "218",
+      visualConfirmed: true,
+      releaseConfirmed: true,
+      result: "pass",
+      witnessedBy: "Capt. Silva",
+    };
+
+    await exportCertificateDocx(cert, INSPECTION_TYPES.hook_reinstall);
+    const text = await exportedText();
+
+    expect(text).toContain("Hook Load Test Report");
+    expect(text).toContain("Raptor Pro RC20T-100"); // the report's default cylinder
+    expect(text).toContain("31.5 bar per tonne");
+    expect(text).toContain("Test pressure = 7.00 × 31.5 = 220.5 bar");
+    expect(text).toContain("242.6"); // the 2.2 × SWL reference row
+    expect(text).toContain("CAL-8891");
+    expect(text).toContain("Drop: 2 bar");
+    expect(text).toContain("PASS");
+    expect(text).toContain("Capt. Silva");
   });
 });
 

@@ -3,6 +3,7 @@ import { FFE_CERT_TYPES } from "./ffeCertTypes";
 import { CALIBRATION_CERT_TYPES } from "./calibrationCertTypes";
 import { FRC_COMPONENT_ROWS, FRC_FUNCTION_CHECKS } from "./frcServiceReport";
 import { HOOK_ALL_CHECKS, HOOK_COMPONENT_ROWS } from "./hookReinstall";
+import { freshHookTesterReport } from "./hookTester";
 import {
   CalibrationData,
   ChecklistSection,
@@ -727,11 +728,9 @@ export function freshHookReinstallState(): HookReinstallData {
     hookType: "",
     hookApprovalCertNo: "",
     serviceProviderApprovalRef: "",
-    dateOfLastService: "",
-    classFlag: "",
     removedFor: [],
     removedForOther: "",
-    components: HOOK_COMPONENT_ROWS.map((c) => ({ key: c.key, oldSerial: "", newSerial: "", qty: "", nextDue: "" })),
+    components: HOOK_COMPONENT_ROWS.map((c) => ({ key: c.key, oldSerial: "", newSerial: "" })),
     checks: Object.fromEntries(HOOK_ALL_CHECKS.map((c) => [c.key, "" as HookCheckAnswer])),
     checkRemarks: {},
     loadTest: {
@@ -745,6 +744,7 @@ export function freshHookReinstallState(): HookReinstallData {
       loadCellCertExpiry: "",
       loadMethods: [],
     },
+    hookTester: freshHookTesterReport(),
     outcome: "",
     findingsRemarks: "",
     recommendations: "",

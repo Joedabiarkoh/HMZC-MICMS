@@ -9,8 +9,13 @@ import { DEFECT_REPORT_COLUMNS, FRC_SPARE_PARTS_COLUMNS, LOOSE_GEAR_STATUS_CODES
 import { FRC_COMPONENT_ROWS, FRC_FUNCTION_CHECKS, FRC_SCOPE_OF_WORK, FRC_SERVICE_TYPE_LABELS, FRC_CERTIFICATION_STATEMENT } from "../data/frcServiceReport";
 import {
   HOOK_CERTIFICATION_STATEMENT, HOOK_CHECK_GROUPS, HOOK_COMPONENT_ROWS, HOOK_CRAFT_TYPES, HOOK_LOAD_CHECKS, HOOK_LOAD_METHODS,
-  HOOK_LOAD_TEST_NOTE, HOOK_OUTCOME_LABELS, HOOK_REMOVAL_REASONS, HOOK_SCOPE_OF_WORK, HookCheckDef, computeHookLoad,
+  HOOK_LOAD_TEST_NOTE, HOOK_OUTCOME_LABELS, HOOK_REMOVAL_REASONS, HOOK_SCOPE_OF_WORK, HOOK_TESTER_KEY, HookCheckDef, computeHookLoad,
 } from "../data/hookReinstall";
+import {
+  HOOK_TESTER_ACCEPTANCE, HOOK_TESTER_CONDITIONS_NOTE, HOOK_TESTER_FACTOR_NOTE, HOOK_TESTER_GAUGE_NOTE, HOOK_TESTER_PROCEDURE,
+  HOOK_TESTER_RESULT_LABELS, computeHookTesterPlan, fmtBar, fmtTonnes, freshHookTesterReport, hookTesterDrop,
+} from "../data/hookTester";
+import { parseNumber } from "../data/parseNumber";
 import { GANGWAY_INSPECTION_STATEMENT, GANGWAY_RESULT_LABELS } from "../data/gangwayLoadTest";
 import { RegisterPreviewTable } from "./RegisterTable";
 import { ABS_LOGO_DATA_URI, BUREAU_VERITAS_LOGO_DATA_URI, CRALOG_LOGO_DATA_URI, DNV_LOGO_DATA_URI, INEFOP_LOGO_DATA_URI, ISO_LOGO_DATA_URI, ANPG_LOGO_DATA_URI } from "../assets/approvalLogos";
@@ -645,14 +650,10 @@ function HookReinstallPages({ cert, data }: { cert: InspectionCertificate; data:
             </tr>
             <tr>
               <td className="insp-label-cell">Hook Make &amp; Model</td><td>{data.hookMakeModel || "—"}</td>
-              <td className="insp-label-cell">Hook Type</td><td>{data.hookType || "—"}</td>
+              <td className="insp-label-cell">Hook Type (on-load / off-load)</td><td>{data.hookType || "—"}</td>
             </tr>
             <tr>
-              <td className="insp-label-cell">Hook Type-Approval Cert. No.</td><td>{data.hookApprovalCertNo || "—"}</td>
-              <td className="insp-label-cell">Class / Flag</td><td>{data.classFlag || "—"}</td>
-            </tr>
-            <tr>
-              <td className="insp-label-cell">Date of Last Service</td><td colSpan={3}>{fmtDate(data.dateOfLastService)}</td>
+              <td className="insp-label-cell">Hook Type-Approval Cert. No.</td><td colSpan={3}>{data.hookApprovalCertNo || "—"}</td>
             </tr>
           </tbody>
         </table>
@@ -671,8 +672,8 @@ function HookReinstallPages({ cert, data }: { cert: InspectionCertificate; data:
         <div style={HOOK_SUBHEAD_STYLE}>Components Removed / Installed</div>
         <table className="insp-print-chk">
           <thead>
-            <CertNoTheadRow certNo={cert.certNo} colSpan={6} />
-            <tr><th>#</th><th>Description</th><th>Old S/N (Removed)</th><th>New S/N (Installed)</th><th>Qty</th><th>Next Due</th></tr>
+            <CertNoTheadRow certNo={cert.certNo} colSpan={4} />
+            <tr><th>#</th><th>Description</th><th>Old S/N (Removed)</th><th>New S/N (Installed)</th></tr>
           </thead>
           <tbody>
             {data.components.map((row, i) => (
@@ -681,8 +682,6 @@ function HookReinstallPages({ cert, data }: { cert: InspectionCertificate; data:
                 <td>{HOOK_COMPONENT_ROWS.find((c) => c.key === row.key)?.description || "—"}</td>
                 <td>{row.oldSerial || "—"}</td>
                 <td>{row.newSerial || "—"}</td>
-                <td>{row.qty || "—"}</td>
-                <td>{fmtDate(row.nextDue)}</td>
               </tr>
             ))}
           </tbody>
@@ -718,21 +717,20 @@ function HookReinstallPages({ cert, data }: { cert: InspectionCertificate; data:
           <colgroup><col style={{ width: "28%" }} /><col style={{ width: "22%" }} /><col style={{ width: "28%" }} /><col style={{ width: "22%" }} /></colgroup>
           <tbody>
             <tr>
-              <td className="insp-label-cell">Craft mass (kg)</td><td>{data.loadTest.craftMass || "—"}</td>
+              <td className="insp-label-cell">Craft mass + equipment (kg)</td><td>{data.loadTest.craftMass || "—"}</td>
               <td className="insp-label-cell">Persons (no. × mass kg)</td><td>{data.loadTest.personsCount || data.loadTest.personMass ? `${data.loadTest.personsCount || "—"} × ${data.loadTest.personMass || "—"}` : "—"}</td>
             </tr>
             <tr>
-              <td className="insp-label-cell">Equipment (kg)</td><td>{data.loadTest.equipmentMass || "—"}</td>
               <td className="insp-label-cell">Total mass (kg)</td><td>{load?.totalMass ?? "—"}</td>
-            </tr>
-            <tr>
               <td className="insp-label-cell">Test load = 1.1 × total (kg)</td><td>{load?.testLoad ?? "—"}</td>
-              <td className="insp-label-cell">Jib / crane SWL</td><td>{data.loadTest.jibSwl || "—"}</td>
             </tr>
             <tr>
+              <td className="insp-label-cell">Jib / crane SWL</td><td>{data.loadTest.jibSwl || "—"}</td>
               <td className="insp-label-cell">Load cell / scale ID</td><td>{data.loadTest.loadCellId || "—"}</td>
-              <td className="insp-label-cell">Calibration cert. no. / expiry</td>
-              <td>{data.loadTest.loadCellCertNo || data.loadTest.loadCellCertExpiry ? `${data.loadTest.loadCellCertNo || "—"} · ${fmtDate(data.loadTest.loadCellCertExpiry)}` : "—"}</td>
+            </tr>
+            <tr>
+              <td className="insp-label-cell">Calibration cert. no. and expiry</td>
+              <td colSpan={3}>{data.loadTest.loadCellCertNo || data.loadTest.loadCellCertExpiry ? `${data.loadTest.loadCellCertNo || "—"} · ${fmtDate(data.loadTest.loadCellCertExpiry)}` : "—"}</td>
             </tr>
             <tr>
               <td className="insp-label-cell">Load applied by</td>
@@ -775,7 +773,199 @@ function HookReinstallPages({ cert, data }: { cert: InspectionCertificate; data:
         </KeepTogether>
        </div>
       </CertPageFrame>
+
+      {/* The load test was done with the hook tester: its report (HMZC's Hook
+          Load Test Report) prints as the next section, on its own page(s). */}
+      {data.loadTest.loadMethods.includes(HOOK_TESTER_KEY) && <HookTesterPages cert={cert} data={data} />}
     </>
+  );
+}
+
+// The Hook Load Test Report (HMZC's Hook_Test_Report_3.5t.docx) — printed as
+// its own section of the hook certificate when the load test was done with the
+// hook tester ("Hook tester" under Load applied by). Every figure that is
+// arithmetic is computed from the report's own inputs (data/hookTester.ts).
+// See HookTesterForm.tsx for the matching edit-side form.
+function HookTesterPages({ cert, data }: { cert: InspectionCertificate; data: HookReinstallData }) {
+  const r = data.hookTester ?? freshHookTesterReport();
+  const plan = computeHookTesterPlan(r);
+  const drop = hookTesterDrop(r);
+  const swl = parseNumber(r.swl);
+  const rated = parseNumber(r.ratedPressure);
+  const dash = (v?: string) => (v && v.trim() ? v : "—");
+  const swlLabel = swl === null ? "—" : `${r.swl} t (${Math.round(swl * 1000).toLocaleString("en-US")} kg)`;
+  const gauge = [
+    r.gaugeRange && `Range ${r.gaugeRange}`,
+    r.gaugeMake && `Make ${r.gaugeMake}`,
+    r.gaugeSerialNo && `S/N ${r.gaugeSerialNo}`,
+    r.gaugeCertNo && `Cal. cert. no. ${r.gaugeCertNo}`,
+    r.gaugeCertExpiry && `expiry ${fmtDate(r.gaugeCertExpiry)}`,
+  ].filter(Boolean).join(" · ");
+
+  return (
+    <CertPageFrame cert={cert}>
+      <div className="lg-compact">
+        <div className="insp-cert-title-row">
+          <h2>Hook Load Test Report</h2>
+          <span className="insp-badge">HYDRAULIC HOOK TESTER</span>
+        </div>
+        <div style={{ fontSize: 10.5, color: "var(--insp-muted)", marginBottom: 4 }}>
+          Release hook, SWL {swlLabel} — hydraulic hook tester · Certificate No: {cert.certNo}
+        </div>
+
+        <div style={HOOK_SUBHEAD_STYLE}>1. Equipment tested</div>
+        <table className="insp-id-table">
+          {HOOK_ID_COLS}
+          <tbody>
+            <tr>
+              <td className="insp-label-cell">Client / vessel</td><td>{dash(r.clientVessel || cert.vesselName)}</td>
+              <td className="insp-label-cell">Equipment</td><td>{dash(r.equipment)}</td>
+            </tr>
+            <tr>
+              <td className="insp-label-cell">Hook maker / type</td><td>{dash(r.hookMakerType)}</td>
+              <td className="insp-label-cell">Hook serial no. / cert. no.</td><td>{dash(r.hookSerialCertNo)}</td>
+            </tr>
+            <tr>
+              <td className="insp-label-cell">Safe Working Load (SWL)</td><td>{swlLabel}</td>
+              <td className="insp-label-cell">Date / place of test</td><td>{[r.dateOfTest && fmtDate(r.dateOfTest), r.placeOfTest].filter(Boolean).join(" · ") || "—"}</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div style={HOOK_SUBHEAD_STYLE}>2. Test equipment</div>
+        <table className="insp-id-table">
+          {HOOK_ID_COLS}
+          <tbody>
+            <tr>
+              <td className="insp-label-cell">Hydraulic cylinder</td><td>{dash(r.cylinderModel)}</td>
+              <td className="insp-label-cell">Cylinder S/N / date</td><td>{dash(r.cylinderSerialDate)}</td>
+            </tr>
+            <tr>
+              <td className="insp-label-cell">Rated working pressure</td><td>{rated === null ? "—" : `${Math.round(rated) / 10} MPa (${r.ratedPressure} bar)`}</td>
+              <td className="insp-label-cell">Pump / reaction frame</td><td>{dash(r.pumpFrame)}</td>
+            </tr>
+            <tr>
+              <td className="insp-label-cell">Pressure gauge</td><td colSpan={3}>{gauge || "—"}</td>
+            </tr>
+          </tbody>
+        </table>
+        <div style={{ fontSize: 9.5, color: "var(--insp-muted)" }}>{HOOK_TESTER_GAUGE_NOTE}</div>
+
+        <div style={HOOK_SUBHEAD_STYLE}>3. Test load and pressure calculation</div>
+        {plan ? (
+          <>
+            <div style={{ fontSize: 10.5, lineHeight: 1.5 }}>
+              Pressure (bar) = load (t) × {r.ratedPressure} ÷ {r.cylinderCapacity} = load (t) × {fmtBar(plan.barPerTonne)} bar per tonne.<br />
+              <strong>Test load = {plan.factor.toFixed(1)} × SWL = {plan.factor.toFixed(1)} × {r.swl} t = {fmtTonnes(plan.testLoad)} t ({Math.round(plan.testLoad * 1000).toLocaleString("en-US")} kg). Test pressure = {fmtTonnes(plan.testLoad)} × {fmtBar(plan.barPerTonne)} = {fmtBar(plan.testPressure)} bar.</strong>
+            </div>
+            <table className="insp-print-chk" style={{ marginTop: 4 }}>
+              <thead>
+                <CertNoTheadRow certNo={cert.certNo} colSpan={4} />
+                <tr><th>Test factor</th><th>Test load (t)</th><th>Pressure (bar)</th><th>Use</th></tr>
+              </thead>
+              <tbody>
+                {plan.reference.map((row) => (
+                  <tr key={row.factor} style={row.selected ? { fontWeight: 700 } : undefined}>
+                    <td>{row.factor.toFixed(1)} × SWL</td>
+                    <td>{fmtTonnes(row.loadT)}</td>
+                    <td>{fmtBar(row.pressureBar)}</td>
+                    <td>{row.use}{row.selected ? " (used in this report)" : ""}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </>
+        ) : (
+          <div style={{ fontSize: 10.5 }}>— (SWL, test factor and the cylinder's rated capacity and pressure are required)</div>
+        )}
+        <div style={{ fontSize: 9.5, color: "var(--insp-muted)" }}>{HOOK_TESTER_FACTOR_NOTE}</div>
+
+        <div style={HOOK_SUBHEAD_STYLE}>4. Test procedure and record</div>
+        <ol style={{ fontSize: 10, lineHeight: 1.4, margin: "0 0 4px", paddingLeft: 16 }}>
+          {HOOK_TESTER_PROCEDURE.map((step) => <li key={step}>{step}</li>)}
+        </ol>
+        <div style={{ fontSize: 10.5, marginBottom: 3 }}>Hold time used: <strong>{dash(r.holdMinutes)} min</strong></div>
+        <table className="insp-print-chk">
+          <thead>
+            <CertNoTheadRow certNo={cert.certNo} colSpan={5} />
+            <tr><th>Stage</th><th>% of test load</th><th>Load (t)</th><th>Calculated pressure (bar)</th><th>Gauge reading (bar)</th></tr>
+          </thead>
+          <tbody>
+            {(plan?.stages ?? [25, 50, 75, 100].map((pct) => ({ pct, label: pct === 100 ? "Full test load - hold" : "Increment", loadT: NaN, pressureBar: NaN }))).map((st) => (
+              <tr key={st.pct}>
+                <td>{st.label}</td>
+                <td>{st.pct}%</td>
+                <td>{Number.isNaN(st.loadT) ? "—" : fmtTonnes(st.loadT)}</td>
+                <td>{Number.isNaN(st.pressureBar) ? "—" : fmtBar(st.pressureBar)}</td>
+                <td>{dash(r.gaugeReadings[String(st.pct)])}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        <div style={{ fontSize: 9.5, color: "var(--insp-muted)" }}>{HOOK_TESTER_CONDITIONS_NOTE}</div>
+
+        <div style={HOOK_SUBHEAD_STYLE}>5. Results</div>
+        <table className="insp-id-table">
+          <colgroup><col style={{ width: "30%" }} /><col style={{ width: "70%" }} /></colgroup>
+          <tbody>
+            <tr>
+              <td className="insp-label-cell">Pressure held at full test load</td>
+              <td>Gauge reading {dash(r.pressureStart)} bar at start; {dash(r.pressureEnd)} bar after hold. Drop: {drop === null ? "—" : `${Math.round(drop * 10) / 10} bar`}</td>
+            </tr>
+            <tr>
+              <td className="insp-label-cell">Visual inspection after test</td>
+              <td>No cracks, distortion or permanent set observed {hookBox(r.visualConfirmed)} Confirmed</td>
+            </tr>
+            <tr>
+              <td className="insp-label-cell">Release / reset function after test</td>
+              <td>Operates freely and locks correctly {hookBox(r.releaseConfirmed)} Confirmed</td>
+            </tr>
+            <tr>
+              <td className="insp-label-cell">NDT after proof load</td><td>{dash(r.ndt)}</td>
+            </tr>
+            <tr>
+              <td className="insp-label-cell">Overall result</td><td><strong>{HOOK_TESTER_RESULT_LABELS[r.result]}</strong></td>
+            </tr>
+          </tbody>
+        </table>
+
+        {/* Acceptance criteria and sign-off move together: if the report runs
+            past one page, page 2 opens with the criteria and the sign-off, not
+            with a single stranded criterion above it. */}
+        <KeepTogether>
+          <div style={HOOK_SUBHEAD_STYLE}>6. Acceptance criteria</div>
+          <ul style={{ fontSize: 10, lineHeight: 1.4, margin: "0 0 4px", paddingLeft: 16 }}>
+            {HOOK_TESTER_ACCEPTANCE.map((a) => <li key={a}>{a}</li>)}
+          </ul>
+          <div style={HOOK_SUBHEAD_STYLE}>7. Sign-off</div>
+          <table className="insp-id-table">
+            {HOOK_ID_COLS}
+            <tbody>
+              <tr>
+                <td className="insp-label-cell">Company</td><td>{dash(r.company)}</td>
+                <td className="insp-label-cell">Date</td><td>{r.testDate ? fmtDate(r.testDate) : "—"}</td>
+              </tr>
+              <tr>
+                <td className="insp-label-cell">Witnessed by</td><td>{dash(r.witnessedBy)}</td>
+                <td className="insp-label-cell">Witness date</td><td>{r.witnessDate ? fmtDate(r.witnessDate) : "—"}</td>
+              </tr>
+            </tbody>
+          </table>
+          <table style={{ width: "100%", borderCollapse: "collapse", marginTop: 4 }}>
+            <tbody>
+              <tr>
+                <td style={{ width: "50%", verticalAlign: "top", paddingRight: 7 }}>
+                  <SignBox label="Tested by" name={cert.engineerName} sig={cert.engineerSig} stamp />
+                </td>
+                <td style={{ width: "50%", verticalAlign: "top", paddingLeft: 7 }}>
+                  <SignBox label="Witnessed by" name={r.witnessedBy} sig="" />
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </KeepTogether>
+      </div>
+    </CertPageFrame>
   );
 }
 

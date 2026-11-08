@@ -1,5 +1,8 @@
 // Fixed content for the Release Hook Re-installation Certificate, built
-// directly from HMZC's own HMZC_Hook_Reinstallation_Certificate.docx
+// directly from HMZC's own HMZC_Hook_Reinstallation_Certificate.docx (revised
+// template: no Date of Last Service / Class-Flag fields, no Qty / Next Due
+// columns, a "Swivel (if fitted)" row, and the check sheet runs A, B, C —
+// the craft / launching-appliance checks were removed)
 // (re-installation of the release hook assembly on a lifeboat, rescue
 // boat or free-fall boat, followed by its Inspection & Test Check Sheet
 // and proof-load test). The wording, order and MSC.402(96) paragraph
@@ -15,6 +18,7 @@
 // with the answers) so a half-completed check sheet can't be issued.
 
 import { parseNumber } from "./parseNumber";
+import { getHookTesterBlockers } from "./hookTester";
 import { HookCheckAnswer, HookCraftType, HookLoadTestData, HookOutcome, HookReinstallData } from "../types/inspection.types";
 
 export const HOOK_CRAFT_TYPES: { key: Exclude<HookCraftType, "">; label: string }[] = [
@@ -32,15 +36,20 @@ export const HOOK_REMOVAL_REASONS: { key: string; label: string }[] = [
 
 export const HOOK_TYPES = ["On-load release", "Off-load release only"];
 
+/** The "Load applied by" option that opens the Hook Load Test Report. */
+export const HOOK_TESTER_KEY = "hooktester";
+
 export const HOOK_LOAD_METHODS: { key: string; label: string }[] = [
   { key: "jib", label: "Jib / crane" },
   { key: "weights", label: "Test weights" },
   { key: "waterbags", label: "Water bags" },
   { key: "persons", label: "Craft with persons" },
+  // Brings up the Hook Load Test Report form (data/hookTester.ts).
+  { key: HOOK_TESTER_KEY, label: "Hook tester" },
 ];
 
 // The template's "Components Removed / Installed" table — a fixed list
-// by number, like FRC_COMPONENT_ROWS; only serials/qty/next-due are
+// by number, like FRC_COMPONENT_ROWS; only the old / new serial numbers are
 // filled in per job.
 export const HOOK_COMPONENT_ROWS: { key: string; description: string }[] = [
   { key: "hookFwd", description: "Release hook, forward (or free-fall release unit)" },
@@ -49,6 +58,7 @@ export const HOOK_COMPONENT_ROWS: { key: string; description: string }[] = [
   { key: "cable", description: "Release cable / linkage and handle" },
   { key: "fastenings", description: "Hook fastenings (bolts, pins, locking devices)" },
   { key: "other", description: "Other parts replaced" },
+  { key: "swivel", description: "Swivel (if fitted)" },
 ];
 
 export interface HookCheckDef {
@@ -57,8 +67,9 @@ export interface HookCheckDef {
   ref: string;
 }
 
-// The template's "Inspection & Test Check Sheet", sections A–D, items
-// 1–17 in the template's own order.
+// The template's "Inspection & Test Check Sheet", sections A–C (the revised
+// template dropped the craft / launching-appliance section), in the
+// template's own order. Numbered 1–13 on the certificate.
 export const HOOK_CHECK_GROUPS: { title: string; checks: HookCheckDef[] }[] = [
   {
     title: "A. Records and Preparation",
@@ -79,16 +90,7 @@ export const HOOK_CHECK_GROUPS: { title: string; checks: HookCheckDef[] }[] = [
     ],
   },
   {
-    title: "C. Craft and Launching Appliance",
-    checks: [
-      { key: "attachmentPoints", label: "Boat structure and fixed equipment at hook attachment points", ref: "6.2.3" },
-      { key: "davitStructure", label: "Davit / launching structure: corrosion, alignment, deformation, play", ref: "6.2.9" },
-      { key: "wiresSheaves", label: "Wires and sheaves (kinks, corrosion) and lubrication", ref: "6.2.9" },
-      { key: "winchBrake", label: "Winch brake system, foundation, limit switches, hydraulics", ref: "6.2.9" },
-    ],
-  },
-  {
-    title: "D. Operational Tests",
+    title: "C. Operational Tests",
     checks: [
       { key: "winchBrakeTest", label: "Annual winch brake test (abrupt brake at max lowering speed)", ref: "6.2.10" },
       { key: "offLoadRelease", label: "Off-load release test", ref: "6.2.6" },
@@ -174,9 +176,13 @@ export function getHookBlockers(data: HookReinstallData | undefined): string[] {
     problems.push("Overall Result cannot be Satisfactory while any check is answered NO");
   }
 
-  // A YES on the on-load release at test load asserts a load test was
-  // actually done — it needs the mass data that produced the test load.
-  if (data.checks.loadOnLoadRelease === "yes" && !computeHookLoad(data.loadTest)) {
+  if (data.loadTest.loadMethods.includes(HOOK_TESTER_KEY)) {
+    // Load test done with the hook tester: the Hook Load Test Report is the
+    // record (its own cylinder rating / gauge readings), not the mass figures.
+    problems.push(...getHookTesterBlockers(data.hookTester));
+  } else if (data.checks.loadOnLoadRelease === "yes" && !computeHookLoad(data.loadTest)) {
+    // A YES on the on-load release at test load asserts a load test was
+    // actually done — it needs the mass data that produced the test load.
     problems.push("Load Test: craft mass, number of persons and mass per person are required to record the test load");
   }
 

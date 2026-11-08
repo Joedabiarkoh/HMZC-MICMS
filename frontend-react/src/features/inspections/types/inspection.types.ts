@@ -841,8 +841,10 @@ export interface HookComponentRow {
   key: string; // one of HOOK_COMPONENT_ROWS' own keys (data/hookReinstall.ts)
   oldSerial: string;
   newSerial: string;
-  qty: string;
-  nextDue: string;
+  // The revised template dropped the Qty / Next Due columns. Kept optional
+  // only so certificates saved under the earlier layout still load.
+  qty?: string;
+  nextDue?: string;
 }
 
 // The proof-load ("Load Test") block. All numeric fields are free text
@@ -858,6 +860,52 @@ export interface HookLoadTestData {
   loadCellCertNo: string;
   loadCellCertExpiry: string;
   loadMethods: string[]; // keys of HOOK_LOAD_METHODS
+}
+
+// The "Hook Load Test Report" (HMZC's Hook_Test_Report_3.5t.docx): a proof
+// load done with the HYDRAULIC HOOK TESTER (a cylinder + calibrated gauge,
+// pressure derived from the cylinder's rating plate). Shown, printed and
+// exported only when "Hook tester" is ticked under the certificate's Load Test
+// "Load applied by" (see HOOK_LOAD_METHODS) — see data/hookTester.ts for the
+// pressure calculation and its defaults.
+export type HookTesterResult = "pass" | "fail" | "";
+
+export interface HookTesterReport {
+  // 1. Equipment tested
+  clientVessel: string;
+  equipment: string;
+  hookMakerType: string;
+  hookSerialCertNo: string;
+  swl: string; // tonnes
+  dateOfTest: string;
+  placeOfTest: string;
+  // 2. Test equipment
+  cylinderModel: string;
+  cylinderSerialDate: string;
+  cylinderCapacity: string; // tonnes, from the rating plate
+  ratedPressure: string; // bar, from the rating plate
+  gaugeRange: string;
+  gaugeMake: string;
+  gaugeSerialNo: string;
+  gaugeCertNo: string;
+  gaugeCertExpiry: string;
+  pumpFrame: string;
+  // 3/4. Test load, procedure and record
+  testFactor: string; // × SWL — "2.0" is the standard proof factor
+  holdMinutes: string;
+  gaugeReadings: Record<string, string>; // keyed by stage % ("25" | "50" | "75" | "100")
+  // 5. Results
+  pressureStart: string;
+  pressureEnd: string;
+  visualConfirmed: boolean;
+  releaseConfirmed: boolean;
+  ndt: string;
+  result: HookTesterResult;
+  // 7. Sign-off (the tester's name/signature are the certificate's engineer)
+  company: string;
+  testDate: string;
+  witnessedBy: string;
+  witnessDate: string;
 }
 
 export interface HookReinstallData {
@@ -882,14 +930,19 @@ export interface HookReinstallData {
   // port-state inspector asks for first on a release-gear job.
   hookApprovalCertNo: string;
   serviceProviderApprovalRef: string;
-  dateOfLastService: string;
-  classFlag: string;
+  // Retired by the revised template (Date of Last Service / Class-Flag). Kept
+  // optional only so certificates saved under the earlier layout still load.
+  dateOfLastService?: string;
+  classFlag?: string;
   removedFor: string[]; // keys of HOOK_REMOVAL_REASONS
   removedForOther: string;
   components: HookComponentRow[];
   checks: Record<string, HookCheckAnswer>; // keyed by HOOK_CHECK_GROUPS/HOOK_LOAD_CHECKS keys
   checkRemarks: Record<string, string>;
   loadTest: HookLoadTestData;
+  // The hook-tester report — only used when the load test was done with the
+  // hook tester. Optional so certificates saved before it existed still load.
+  hookTester?: HookTesterReport;
   // Overall result — not in the source template, which only had
   // per-check answers and left "did this pass" to be inferred.
   outcome: HookOutcome;

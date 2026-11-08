@@ -52,14 +52,14 @@ describe("getHookBlockers", () => {
     const problems = getHookBlockers(freshHookReinstallState()).join(" | ");
     expect(problems).toMatch(/Craft Type/);
     expect(problems).toMatch(/hooks were removed/);
-    expect(problems).toMatch(/20 checks/);
+    expect(problems).toMatch(/16 checks/);
     expect(problems).toMatch(/Overall Result/);
   });
 
-  it("covers all 17 template checks plus the 3 load-test results", () => {
-    expect(HOOK_CHECK_GROUPS.flatMap((g) => g.checks)).toHaveLength(17);
+  it("covers the revised template's 13 checks (A, B, C) plus the 3 load-test results", () => {
+    expect(HOOK_CHECK_GROUPS.flatMap((g) => g.checks)).toHaveLength(13);
     expect(HOOK_LOAD_CHECKS).toHaveLength(3);
-    expect(new Set(HOOK_ALL_CHECKS.map((c) => c.key)).size).toBe(20);
+    expect(new Set(HOOK_ALL_CHECKS.map((c) => c.key)).size).toBe(16);
   });
 
   it("one unanswered check blocks, naming the count", () => {
@@ -107,7 +107,7 @@ describe("hook_reinstall registration", () => {
     expect(generateCertNo("hook_reinstall", new Set())).toMatch(/^CERT\/HMZC\/HOOK\/\d{8}-001$/);
     const cert = freshCertificate("hook_reinstall", new Set());
     expect(cert.hookReinstall?.subType).toBe("hook_reinstall");
-    expect(cert.hookReinstall?.components).toHaveLength(6);
+    expect(cert.hookReinstall?.components).toHaveLength(7); // incl. "Swivel (if fitted)"
     // never pre-ticked: every check starts unanswered
     expect(Object.values(cert.hookReinstall!.checks).every((v) => v === "")).toBe(true);
   });

@@ -10,10 +10,13 @@ import {
   HOOK_OUTCOME_LABELS,
   HOOK_REMOVAL_REASONS,
   HOOK_SCOPE_OF_WORK,
+  HOOK_TESTER_KEY,
   HOOK_TYPES,
   HookCheckDef,
   computeHookLoad,
 } from "../data/hookReinstall";
+import HookTesterForm from "./HookTesterForm";
+import { freshHookTesterReport } from "../data/hookTester";
 import SignatureCanvas from "./SignatureCanvas";
 import VesselLookupPanel from "./VesselLookupPanel";
 
@@ -56,6 +59,10 @@ export default function HookReinstallForm({ current, updateField, openCertificat
   }
 
   const load = computeHookLoad(data.loadTest);
+  // Older certificates (saved before the hook-tester report existed) have no
+  // hookTester object: fall back to the report's defaults.
+  const testerSelected = data.loadTest.loadMethods.includes(HOOK_TESTER_KEY);
+  const tester = data.hookTester ?? freshHookTesterReport();
   const anyNo = Object.values(data.checks).includes("no");
 
   function checkRow(c: HookCheckDef, numLabel: string) {
@@ -166,11 +173,7 @@ export default function HookReinstallForm({ current, updateField, openCertificat
             </select>
           </div>
         </div>
-        <div className="insp-row2">
-          <div className="insp-field"><label htmlFor="hook-approval">Hook Type-Approval Certificate No.</label><input id="hook-approval" value={data.hookApprovalCertNo} onChange={(e) => patch({ hookApprovalCertNo: e.target.value })} /></div>
-          <div className="insp-field"><label htmlFor="hook-class-flag">Class / Flag</label><input id="hook-class-flag" value={data.classFlag} onChange={(e) => patch({ classFlag: e.target.value })} /></div>
-        </div>
-        <div className="insp-field"><label htmlFor="hook-last-service">Date of Last Service</label><input id="hook-last-service" type="date" value={data.dateOfLastService} onChange={(e) => patch({ dateOfLastService: e.target.value })} /></div>
+        <div className="insp-field"><label htmlFor="hook-approval">Hook Type-Approval Certificate No.</label><input id="hook-approval" value={data.hookApprovalCertNo} onChange={(e) => patch({ hookApprovalCertNo: e.target.value })} /></div>
       </fieldset>
 
       <fieldset className="insp-fieldset">
@@ -202,8 +205,6 @@ export default function HookReinstallForm({ current, updateField, openCertificat
                 <th style={{ padding: "4px 6px" }}>Description</th>
                 <th style={{ padding: "4px 6px" }}>Old S/N (Removed)</th>
                 <th style={{ padding: "4px 6px" }}>New S/N (Installed)</th>
-                <th style={{ padding: "4px 6px" }}>Qty</th>
-                <th style={{ padding: "4px 6px" }}>Next Due</th>
               </tr>
             </thead>
             <tbody>
@@ -213,8 +214,6 @@ export default function HookReinstallForm({ current, updateField, openCertificat
                   <td style={{ padding: "4px 6px" }}>{HOOK_COMPONENT_ROWS.find((c) => c.key === row.key)?.description}</td>
                   <td style={{ padding: "4px 6px" }}><input aria-label="Old serial" value={row.oldSerial} onChange={(e) => patchComponent(row.key, "oldSerial", e.target.value)} /></td>
                   <td style={{ padding: "4px 6px" }}><input aria-label="New serial" value={row.newSerial} onChange={(e) => patchComponent(row.key, "newSerial", e.target.value)} /></td>
-                  <td style={{ padding: "4px 6px" }}><input aria-label="Quantity" value={row.qty} onChange={(e) => patchComponent(row.key, "qty", e.target.value)} style={{ width: 50 }} /></td>
-                  <td style={{ padding: "4px 6px" }}><input aria-label="Next due" type="date" value={row.nextDue} onChange={(e) => patchComponent(row.key, "nextDue", e.target.value)} /></td>
                 </tr>
               ))}
             </tbody>
@@ -254,8 +253,8 @@ export default function HookReinstallForm({ current, updateField, openCertificat
         <legend className="insp-legend">Load Test (Proof Load / Jib Test)</legend>
         <p style={{ fontSize: 11.5, color: "var(--insp-muted)", margin: "0 0 8px" }}>{HOOK_LOAD_TEST_NOTE}</p>
         <div className="insp-row2">
-          <div className="insp-field"><label htmlFor="hook-craft-mass">Craft mass (kg)</label><input id="hook-craft-mass" inputMode="decimal" value={data.loadTest.craftMass} onChange={(e) => patchLoad({ craftMass: e.target.value })} /></div>
-          <div className="insp-field"><label htmlFor="hook-equip-mass">Equipment (kg)</label><input id="hook-equip-mass" inputMode="decimal" value={data.loadTest.equipmentMass} onChange={(e) => patchLoad({ equipmentMass: e.target.value })} /></div>
+          <div className="insp-field"><label htmlFor="hook-craft-mass">Craft mass + equipment (kg)</label><input id="hook-craft-mass" inputMode="decimal" value={data.loadTest.craftMass} onChange={(e) => patchLoad({ craftMass: e.target.value })} /></div>
+          <div className="insp-field" />
         </div>
         <div className="insp-row2">
           <div className="insp-field"><label htmlFor="hook-persons">Persons (number)</label><input id="hook-persons" inputMode="numeric" value={data.loadTest.personsCount} onChange={(e) => patchLoad({ personsCount: e.target.value })} /></div>
@@ -283,6 +282,11 @@ export default function HookReinstallForm({ current, updateField, openCertificat
               </label>
             ))}
           </div>
+          {testerSelected && (
+            <p style={{ fontSize: 11.5, color: "var(--insp-accent)", margin: "6px 0 0" }}>
+              Hook tester selected — the Hook Load Test Report form is below.
+            </p>
+          )}
         </div>
         <div style={{ overflowX: "auto", marginTop: 8 }}>
           <table style={{ width: "100%", fontSize: 12, borderCollapse: "collapse", minWidth: 560 }}>
@@ -301,6 +305,16 @@ export default function HookReinstallForm({ current, updateField, openCertificat
           </table>
         </div>
       </fieldset>
+
+      {/* The load test was done with the hydraulic hook tester: bring up its
+          own report (HMZC's Hook Load Test Report) right under the Load Test. */}
+      {testerSelected && (
+        <HookTesterForm
+          report={tester}
+          onChange={(p) => patch({ hookTester: { ...tester, ...p } })}
+          engineerName={current.engineerName}
+        />
+      )}
 
       <fieldset className="insp-fieldset">
         <legend className="insp-legend">Overall Result</legend>
