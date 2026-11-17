@@ -57,6 +57,15 @@ class Settings(BaseSettings):
     SMTP_FROM_EMAIL: Optional[str] = None
     SMTP_USE_TLS: bool = True
 
+    # Interactive API documentation (/docs, /redoc, /openapi.json) is OFF
+    # unless this is explicitly turned on. Found during a hosting review:
+    # the production backend was serving the full endpoint map to anyone
+    # on the internet. Nothing in the app itself uses these pages, so the
+    # safe default is off everywhere and a developer opts in locally with
+    # ENABLE_API_DOCS=true in their own .env — no production variable
+    # needs to be set (or can be forgotten).
+    ENABLE_API_DOCS: bool = False
+
     # Used to build the sign-in link in account-creation/password-reset
     # emails (core/email.py) — the backend has no way to know the
     # frontend's real deployed URL otherwise. Defaults to local Vite dev.

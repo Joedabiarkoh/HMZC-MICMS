@@ -99,10 +99,20 @@ async def lifespan(_: FastAPI):
 # now that every environment's database is stamped to a real Alembic
 # revision and every startup actually runs migrations, not just once
 # manually remembered by whoever happened to be setting up that database.
+# Interactive docs are opt-in (ENABLE_API_DOCS, core/config.py): left on
+# they publish the whole endpoint map of a production API. Passing None
+# for all three URLs removes the routes entirely (404), not just hides a link.
+_docs_urls = (
+    {}
+    if settings.ENABLE_API_DOCS
+    else {"docs_url": None, "redoc_url": None, "openapi_url": None}
+)
+
 app = FastAPI(
     title="HMZC Marine Inspection & Certification Management System",
     version="1.0",
     lifespan=lifespan,
+    **_docs_urls,
 )
 
 # Found during a security review — this app had no security headers at
@@ -119,9 +129,15 @@ app = FastAPI(
 #     clickjacking.
 #   - Referrer-Policy limits what leaks in the Referer header on
 #     outbound links/requests, since URLs here can contain cert numbers.
+#   - Strict-Transport-Security tells a browser to only ever reach this
+#     host over HTTPS once it has seen it do so (a year). Browsers ignore
+#     it on plain http, so local development is unaffected. Deliberately
+#     no includeSubDomains/preload: this API shares a parent domain with
+#     things this code can't see.
 @app.middleware("http")
 async def add_security_headers(request, call_next):
     response = await call_next(request)
+    response.headers["Strict-Transport-Security"] = "max-age=31536000"
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["X-Frame-Options"] = "DENY"
     response.headers["Content-Security-Policy"] = "frame-ancestors 'none'"

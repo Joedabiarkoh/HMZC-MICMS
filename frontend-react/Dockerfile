@@ -42,5 +42,7 @@ ENV PORT=80
 # injected env var can never accidentally collide with and mangle one.
 ENV NGINX_ENVSUBST_TEMPLATE_VARS=PORT
 COPY nginx.conf /etc/nginx/templates/default.conf.template
+# Shared browser security headers, included by nginx.conf (see that file).
+COPY security-headers.conf /etc/nginx/snippets/security-headers.conf
 EXPOSE 80
 CMD ["nginx", "-g", "daemon off;"]

@@ -78,7 +78,10 @@ docker compose up --build
 ```
 
 - Frontend: http://localhost:3000 (or http://localhost via nginx)
-- Backend: http://localhost:8000/docs
+- Backend: http://localhost:8000/api/health — the interactive API docs
+  (`/docs`) are off by default so a production deploy never publishes its
+  endpoint map; set `ENABLE_API_DOCS=true` in your local
+  `backend-fastapi/.env` to turn them on for development.
 - DB: localhost:5432 (hmzc_user / password / hmzc_db)
 
 Or run backend and frontend separately — see each folder's own README /
