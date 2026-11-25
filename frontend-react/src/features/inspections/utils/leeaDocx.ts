@@ -28,8 +28,6 @@ import type {
 } from "../types/inspection.types";
 import { LOOSE_GEAR_STATUS_CODES } from "../data/inspectionHelpers";
 import {
-  HMZC_COMPANY_NAME_ADDRESS,
-  HMZC_COMPANY_PHONE,
   LEEA_DOCS,
   LEEA_LOLER_STATEMENT,
   LEEA_MULTIPLE_STATEMENT,
@@ -240,7 +238,6 @@ export function buildLeeaMultipleBlocks(cert: InspectionCertificate, d: LooseGea
   const blocks: Block[] = [...docHead(meta)];
   blocks.push(para("Report Of Thorough Examination", { bold: true, size: 26, align: AlignmentType.CENTER, before: 40 }));
   blocks.push(para(LEEA_MULTIPLE_STATEMENT, { bold: true, size: 20, align: AlignmentType.CENTER, after: 100 }));
-  blocks.push(para(`Company Name & Address: ${HMZC_COMPANY_NAME_ADDRESS}    Phone: ${HMZC_COMPANY_PHONE}`, { size: 20 }));
   blocks.push(para(
     `Report No: ${cert.certNo}      Customer No: ${d.customerNo || ""}      Date of this Thorough Examination ${dateText(d.dateOfExamination)}      Date of Report: ${dateText(d.dateOfReport || cert.dateOfServicing)}      Colour code (if required): ${d.colourCode || ""}`,
     { size: 20, before: 80, after: 100 }

@@ -17,8 +17,6 @@ import type {
 } from "../types/inspection.types";
 import { LOOSE_GEAR_STATUS_CODES } from "../data/inspectionHelpers";
 import {
-  HMZC_COMPANY_NAME_ADDRESS,
-  HMZC_COMPANY_PHONE,
   LEEA_DOCS,
   LEEA_LOLER_STATEMENT,
   LEEA_MULTIPLE_STATEMENT,
@@ -339,10 +337,6 @@ export function LeeaMultiplePage({ cert, data }: { cert: InspectionCertificate; 
       <div className="leea-title leea-title-sm">Report Of Thorough Examination</div>
       <div className="leea-subtitle leea-subtitle-b">{LEEA_MULTIPLE_STATEMENT}</div>
 
-      <div className="leea-line">
-        <span>Company Name &amp; Address: {HMZC_COMPANY_NAME_ADDRESS}</span>
-        <span>Phone: {HMZC_COMPANY_PHONE}</span>
-      </div>
       <div className="leea-line leea-line-spread">
         <span>Report No: {cert.certNo}</span>
         <span>Customer No: {data.customerNo || ""}</span>
