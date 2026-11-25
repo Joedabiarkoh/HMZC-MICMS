@@ -45,6 +45,17 @@ class NotificationSettings(BaseModel):
     # way the source document did, without needing structured/markdown
     # storage. Text (not String) since this is genuinely long-form.
     terms_conditions = Column(Text, nullable=True)
+    # Company identity printed in the letterhead of every finance document
+    # (invoice, quotation, purchase order): the registered name, the tax
+    # number (NIF) and the contact phone numbers. Admin-editable in Settings
+    # so a change of number or registered name doesn't need a code change.
+    company_legal_name = Column(String, nullable=True)
+    company_nif = Column(String, nullable=True)
+    company_phones = Column(String, nullable=True)
+    # Standard terms and conditions printed as the last page of every
+    # purchase order - same "Label: clause" one-per-line convention as
+    # terms_conditions above.
+    po_terms_conditions = Column(Text, nullable=True)
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
     updated_by_id = Column(Integer, ForeignKey("users.id"), nullable=True)
     updated_by = relationship("User")

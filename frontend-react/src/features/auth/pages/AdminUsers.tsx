@@ -19,6 +19,7 @@ const PERM_LABELS: Record<string, string> = {
   [PERM.FIN_EDIT]: "Create & edit quotations/invoices",
   [PERM.FIN_DELETE]: "Delete quotations/invoices",
   [PERM.FIN_CATALOG_MANAGE]: "Manage the item/price catalog",
+  [PERM.FIN_PO_APPROVE]: "Approve purchase orders",
   [PERM.USERS_MANAGE]: "Manage users (reserved for Administrators)",
 };
 

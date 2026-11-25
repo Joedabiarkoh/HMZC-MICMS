@@ -16,6 +16,10 @@ const BLANK_COMPANY_FORM = {
   bank_swift_code: "",
   bank_iban: "",
   terms_conditions: "",
+  company_legal_name: "",
+  company_nif: "",
+  company_phones: "",
+  po_terms_conditions: "",
 };
 
 /**
@@ -82,6 +86,10 @@ export default function NotificationSettings() {
           bank_swift_code: data.bank_swift_code || "",
           bank_iban: data.bank_iban || "",
           terms_conditions: data.terms_conditions || "",
+          company_legal_name: data.company_legal_name || "",
+          company_nif: data.company_nif || "",
+          company_phones: data.company_phones || "",
+          po_terms_conditions: data.po_terms_conditions || "",
         });
       })
       .catch((e) => setCompanyErr(e?.response?.data?.detail || "Could not load company information."))
@@ -113,6 +121,10 @@ export default function NotificationSettings() {
         bank_swift_code: updated.bank_swift_code || "",
         bank_iban: updated.bank_iban || "",
         terms_conditions: updated.terms_conditions || "",
+        company_legal_name: updated.company_legal_name || "",
+        company_nif: updated.company_nif || "",
+        company_phones: updated.company_phones || "",
+        po_terms_conditions: updated.po_terms_conditions || "",
       });
       setCompanySaved(true);
     } catch (e: any) {
@@ -246,7 +258,18 @@ export default function NotificationSettings() {
 
       {!companyLoading && (
         <div style={{ background: "#F4F6F7", border: "1px solid #DCE1E5", borderRadius: 8, padding: 16, marginBottom: 14 }}>
+          <div style={{ fontSize: 12, fontWeight: 700, color: "#1F3B5C", marginBottom: 8 }}>
+            Company Identity (letterhead on invoices, quotations and purchase orders)
+          </div>
+          {bankField("company_legal_name", "Registered Company Name", "e.g. HMZC LDA — Prestação de Serviços Lda")}
+          <div className="finance-row2">
+            {bankField("company_nif", "NIF (Tax Number)", "e.g. 5001114387")}
+            {bankField("company_phones", "Phone Number(s)", "e.g. +244 972 320 300 / 944 442 255")}
+          </div>
+
+          <div style={{ marginTop: 16 }}>
           {bankField("peppol_id", "PEPPOL ID", "e.g. 0192:987654321")}
+          </div>
 
           <div style={{ fontSize: 12, fontWeight: 700, color: "#1F3B5C", marginTop: 16, marginBottom: 8 }}>
             Supplier Bank Account Details
@@ -282,6 +305,23 @@ export default function NotificationSettings() {
               id="company-terms_conditions"
               value={companyForm.terms_conditions}
               onChange={(e) => updateCompanyField("terms_conditions", e.target.value)}
+              rows={10}
+              style={{ width: "100%", fontFamily: "inherit", fontSize: 12.5, padding: "7px 9px", border: "1px solid #C9D1D8", borderRadius: 5 }}
+            />
+          </div>
+
+          <div style={{ fontSize: 12, fontWeight: 700, color: "#1F3B5C", marginTop: 16, marginBottom: 8 }}>
+            Purchase Order Terms &amp; Conditions
+          </div>
+          <p style={{ fontSize: 11, color: "#6B7480", marginTop: 0, marginBottom: 6 }}>
+            Printed as the last page of every purchase order. Same shape as the invoice terms: one clause per
+            line, "Label: clause text".
+          </p>
+          <div className="auth-field">
+            <textarea
+              id="company-po_terms_conditions"
+              value={companyForm.po_terms_conditions}
+              onChange={(e) => updateCompanyField("po_terms_conditions", e.target.value)}
               rows={10}
               style={{ width: "100%", fontFamily: "inherit", fontSize: 12.5, padding: "7px 9px", border: "1px solid #C9D1D8", borderRadius: 5 }}
             />

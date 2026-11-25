@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import CertificateQR from "../../inspections/components/CertificateQR";
+import FinanceLetterhead from "./FinanceLetterhead";
 import { getCompanyInfo } from "../../auth/services/auth.api";
 import { CompanyInfo } from "../../auth/types/auth.types";
 import { LineItem } from "../types/finance.types";
@@ -74,7 +74,6 @@ export default function FinanceDocumentPreview({
   useEffect(() => {
     getCompanyInfo().then(setCompanyInfo).catch(() => {});
   }, []);
-  const peppolId = companyInfo?.peppol_id || null;
   // Requested directly, invoices only — a quotation isn't a payment
   // demand yet, so printing bank details on one is premature. Shown
   // only once at least one field has actually been filled in via
@@ -106,19 +105,7 @@ export default function FinanceDocumentPreview({
     <div className="finance-doc-page">
       <table className="insp-page-frame">
         <thead ref={theadRef}><tr><td>
-          <div className="insp-letterhead">
-            <div role="img" aria-label="HMZC LTD" className="insp-letterhead-logo" />
-            <div className="insp-lh-right" style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
-              <div>
-                HMZC LTD — Marine Engineering Services<br />
-                Cabinda HQ: Urbanização 4 De Abril, Cabinda, Angola<br />
-                Luanda, Benfica Rua Bento Raimundo.<br />
-                admin@hmzchealthinmarine.com&nbsp;|&nbsp;+244 972 320 300
-                {peppolId && <><br />PEPPOL ID: {peppolId}</>}
-              </div>
-              <CertificateQR payload={`HMZC ${kind}\nNo: ${docNo}\nCustomer: ${customer || "—"}\nTotal: ${money(total)}`} size={54} />
-            </div>
-          </div>
+          <FinanceLetterhead companyInfo={companyInfo} qrPayload={`HMZC ${kind}\nNo: ${docNo}\nCustomer: ${customer || "—"}\nTotal: ${money(total)}`} />
         </td></tr></thead>
         <tbody><tr><td><div ref={fillRef} className="insp-page-tbody-fill">
 

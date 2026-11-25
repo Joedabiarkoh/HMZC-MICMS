@@ -41,6 +41,13 @@ FIN_EDIT = "finance.edit"            # create/save quotations and invoices
 FIN_DELETE = "finance.delete"
 FIN_CATALOG_MANAGE = "finance.catalog_manage"  # add/edit the item/price catalog itself
 
+# Approving a purchase order is its own, separately grantable permission
+# (like jobs.create): whoever writes a PO needs finance.edit, but the person
+# who authorises the spend (e.g. the Director Manager) holds this one.
+# Administrators have it automatically; anyone else is granted it per
+# person through Manage Access.
+FIN_PO_APPROVE = "finance.po_approve"
+
 USERS_MANAGE = "users.manage"        # approve/deactivate accounts, change roles, reset passwords
 
 SUPPLIER_VIEW = "suppliers.view"      # download the boarding form template, see/download submitted forms
@@ -49,7 +56,7 @@ SUPPLIER_MANAGE = "suppliers.manage"  # upload a completed form, delete a submis
 ALL_PERMISSIONS = {
     CERT_VIEW, CERT_VIEW_ALL, CERT_EDIT, CERT_DELETE,
     JOB_VIEW, JOB_CREATE,
-    FIN_VIEW, FIN_EDIT, FIN_DELETE, FIN_CATALOG_MANAGE,
+    FIN_VIEW, FIN_EDIT, FIN_DELETE, FIN_CATALOG_MANAGE, FIN_PO_APPROVE,
     USERS_MANAGE,
     SUPPLIER_VIEW, SUPPLIER_MANAGE,
 }

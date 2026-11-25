@@ -5,6 +5,8 @@ import QuotationForm from "./features/finance/pages/QuotationForm";
 import Invoices from "./features/finance/pages/Invoices";
 import InvoiceForm from "./features/finance/pages/InvoiceForm";
 import ItemCatalog from "./features/finance/pages/ItemCatalog";
+import PurchaseOrders from "./features/finance/pages/PurchaseOrders";
+import PurchaseOrderForm from "./features/finance/pages/PurchaseOrderForm";
 import Payments from "./features/finance/pages/Payments";
 import Expenses from "./features/finance/pages/Expenses";
 import JobCosting from "./features/finance/pages/JobCosting";
@@ -100,6 +102,9 @@ export default function App() {
               <Route path="/finance/invoices" element={<RequirePermission permission={PERM.FIN_VIEW}><Invoices /></RequirePermission>} />
               <Route path="/finance/invoices/new" element={<RequirePermission permission={PERM.FIN_EDIT}><InvoiceForm /></RequirePermission>} />
               <Route path="/finance/invoices/:invoiceNo" element={<RequirePermission permission={PERM.FIN_VIEW}><InvoiceForm /></RequirePermission>} />
+              <Route path="/finance/purchase-orders" element={<RequirePermission permission={PERM.FIN_VIEW}><PurchaseOrders /></RequirePermission>} />
+              <Route path="/finance/purchase-orders/new" element={<RequirePermission permission={PERM.FIN_EDIT}><PurchaseOrderForm /></RequirePermission>} />
+              <Route path="/finance/purchase-orders/:poNo" element={<RequirePermission permission={PERM.FIN_VIEW}><PurchaseOrderForm /></RequirePermission>} />
               <Route path="/finance/payments" element={<RequirePermission permission={PERM.FIN_VIEW}><Payments /></RequirePermission>} />
               <Route path="/finance/expenses" element={<RequirePermission permission={PERM.FIN_VIEW}><Expenses /></RequirePermission>} />
               <Route path="/finance/job-costing" element={<RequirePermission permission={PERM.FIN_VIEW}><JobCosting /></RequirePermission>} />

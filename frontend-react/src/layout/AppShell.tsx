@@ -56,6 +56,7 @@ const NAV_GROUPS: NavGroup[] = [
       { to: "/finance", label: "Finance Dashboard", permission: PERM.FIN_VIEW },
       { to: "/finance/quotations", label: "Quotations", permission: PERM.FIN_VIEW },
       { to: "/finance/invoices", label: "Invoices", permission: PERM.FIN_VIEW },
+      { to: "/finance/purchase-orders", label: "Purchase Orders", permission: PERM.FIN_VIEW },
       { to: "/finance/items", label: "Item Catalog", permission: PERM.FIN_CATALOG_MANAGE },
     ],
   },

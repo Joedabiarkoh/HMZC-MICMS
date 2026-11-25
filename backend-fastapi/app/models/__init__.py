@@ -6,6 +6,7 @@ from app.models.audit_log import AuditLog  # noqa: F401
 from app.models.notification_settings import NotificationSettings  # noqa: F401
 from app.models.expense import Expense  # noqa: F401
 from app.models.finance_attachment import InvoiceAttachment  # noqa: F401
+from app.models.purchase_order import PurchaseOrder, PurchaseOrderAttachment  # noqa: F401
 from app.models.supplier_boarding import SupplierBoardingSubmission  # noqa: F401
 from app.models.job import Job  # noqa: F401
 from app.models.cert_number_counter import CertNumberCounter  # noqa: F401

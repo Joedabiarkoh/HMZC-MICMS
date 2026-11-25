@@ -71,6 +71,11 @@ table.finance-table a { color: var(--insp-green); font-weight: 700; text-decorat
 .finance-status-pill.sent, .finance-status-pill.issued { background: var(--insp-amber); }
 .finance-status-pill.accepted, .finance-status-pill.paid { background: var(--insp-green); }
 .finance-status-pill.rejected, .finance-status-pill.void { background: var(--insp-red); }
+.finance-status-pill.pending_approval { background: #C9822B; }
+.finance-status-pill.approved { background: #2F7FB5; }
+.finance-status-pill.received { background: var(--insp-green); }
+.finance-status-pill.closed { background: #4B5563; }
+.finance-status-pill.cancelled { background: var(--insp-red); }
 
 .finance-btn {
   display: inline-block; padding: 8px 15px; border-radius: 6px; border: 1px solid transparent;

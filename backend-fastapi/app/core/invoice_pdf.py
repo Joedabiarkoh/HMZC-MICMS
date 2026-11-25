@@ -22,6 +22,7 @@ from reportlab.platypus import (
     TableStyle,
 )
 
+from app.core.po_terms import DEFAULT_LEGAL_NAME, DEFAULT_NIF, DEFAULT_PHONES
 from app.models.notification_settings import NotificationSettings
 
 # Requested directly: "the invoice command to give include to serve all
@@ -219,6 +220,65 @@ def _terms_flowables(terms_conditions: str) -> list:
     return flowables
 
 
+def letterhead_lines(company: Optional[NotificationSettings]) -> list[str]:
+    """
+    The letterhead text, shared by invoices, quotations and purchase
+    orders: trade name, then the registered name with the NIF (tax number),
+    the two addresses, and contact email/phones. The registered name, NIF
+    and phones come from Settings -> Company Information (HMZC's own values
+    are the fallback, so a database that never had them entered still
+    prints a correct letterhead). The frontend's FinanceLetterhead.tsx
+    builds the same lines.
+    """
+    legal = (company.company_legal_name if company else None) or DEFAULT_LEGAL_NAME
+    nif = (company.company_nif if company else None) or DEFAULT_NIF
+    phones = (company.company_phones if company else None) or DEFAULT_PHONES
+    lines = [
+        "HMZC LTD — Marine Engineering Services",
+        f"{legal} | NIF: {nif}",
+        "Cabinda HQ: Urbanização 4 De Abril, Cabinda, Angola",
+        "Luanda, Benfica Rua Bento Raimundo.",
+        f"Tel: {phones}",
+        "admin@hmzchealthinmarine.com",
+    ]
+    if company and company.peppol_id:
+        lines.append(f"PEPPOL ID: {company.peppol_id}")
+    return lines
+
+
+def letterhead_flowables(company: Optional[NotificationSettings], qr_payload: str) -> list:
+    """
+    Matches .insp-letterhead's actual layout (inspections.css), the one
+    every certificate and the on-screen finance preview already uses: logo
+    on the left; on the right, the address block sits immediately left of
+    the QR code as one right-aligned group - and the whole thing sits on a
+    3px accent-green bottom border.
+    """
+    letterhead_text = Paragraph("<br/>".join(letterhead_lines(company)), _STYLE_LETTERHEAD)
+    logo_cell = _scaled_image(LOGO_PATH, 40, 17) if LOGO_PATH.is_file() else Paragraph("HMZC", _STYLE_TITLE)
+    qr_cell = _qr_image(qr_payload)
+
+    right_group = Table([[letterhead_text, qr_cell]], colWidths=[97 * mm, 25 * mm])
+    right_group.setStyle(TableStyle([
+        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+        ("LEFTPADDING", (0, 0), (-1, -1), 0),
+        ("RIGHTPADDING", (0, 0), (0, 0), 10),
+        ("RIGHTPADDING", (1, 0), (1, 0), 0),
+    ]))
+
+    header = Table([[logo_cell, right_group]], colWidths=[45 * mm, 122 * mm])
+    header.setStyle(TableStyle([
+        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+        ("LEFTPADDING", (0, 0), (0, 0), 0),
+        ("RIGHTPADDING", (0, 0), (0, 0), 0),
+        ("LEFTPADDING", (1, 0), (1, 0), 0),
+        ("RIGHTPADDING", (1, 0), (1, 0), 0),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 9),
+        ("LINEBELOW", (0, 0), (-1, -1), 2.2, ACCENT),
+    ]))
+    return [header, Spacer(1, 10)]
+
+
 def build_document_pdf(doc, kind: str, company: Optional[NotificationSettings]) -> bytes:
     """
     Builds the invoice/quotation itself as a standalone PDF. `doc` is an
@@ -248,37 +308,10 @@ def build_document_pdf(doc, kind: str, company: Optional[NotificationSettings]) 
     # previously matched none of this (evenly-spread 3-column layout,
     # left-aligned unstyled text, no border), which is what actually
     # made it look like a different document from everything else.
-    letterhead_text = Paragraph(
-        "HMZC LTD — Marine Engineering Services<br/>"
-        "Cabinda HQ: Urbanização 4 De Abril, Cabinda, Angola<br/>"
-        "Luanda, Benfica Rua Bento Raimundo.<br/>"
-        "admin@hmzchealthinmarine.com | +244 972 320 300"
-        + (f"<br/>PEPPOL ID: {company.peppol_id}" if company and company.peppol_id else ""),
-        _STYLE_LETTERHEAD,
-    )
-    logo_cell = _scaled_image(LOGO_PATH, 40, 17) if LOGO_PATH.is_file() else Paragraph("HMZC", _STYLE_TITLE)
-    qr_cell = _qr_image(f"HMZC {kind}\nNo: {doc_no}\nCustomer: {doc.customer or '—'}\nTotal: {_money(doc.total, currency, exchange_rate)}")
-
-    right_group = Table([[letterhead_text, qr_cell]], colWidths=[97 * mm, 25 * mm])
-    right_group.setStyle(TableStyle([
-        ("VALIGN", (0, 0), (-1, -1), "TOP"),
-        ("LEFTPADDING", (0, 0), (-1, -1), 0),
-        ("RIGHTPADDING", (0, 0), (0, 0), 10),
-        ("RIGHTPADDING", (1, 0), (1, 0), 0),
-    ]))
-
-    header = Table([[logo_cell, right_group]], colWidths=[45 * mm, 122 * mm])
-    header.setStyle(TableStyle([
-        ("VALIGN", (0, 0), (-1, -1), "TOP"),
-        ("LEFTPADDING", (0, 0), (0, 0), 0),
-        ("RIGHTPADDING", (0, 0), (0, 0), 0),
-        ("LEFTPADDING", (1, 0), (1, 0), 0),
-        ("RIGHTPADDING", (1, 0), (1, 0), 0),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 9),
-        ("LINEBELOW", (0, 0), (-1, -1), 2.2, ACCENT),
-    ]))
-    story.append(header)
-    story.append(Spacer(1, 10))
+    story.extend(letterhead_flowables(
+        company,
+        f"HMZC {kind}\nNo: {doc_no}\nCustomer: {doc.customer or '—'}\nTotal: {_money(doc.total, currency, exchange_rate)}",
+    ))
 
     # ---- title + status badge ----
     title_row = Table([[Paragraph("Invoice" if kind == "INVOICE" else "Quotation", _STYLE_TITLE), _status_badge(kind, doc.status)]], colWidths=[None, None])

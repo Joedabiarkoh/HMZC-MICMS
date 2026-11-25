@@ -40,6 +40,7 @@ export const PERM = {
   FIN_EDIT: "finance.edit",
   FIN_DELETE: "finance.delete",
   FIN_CATALOG_MANAGE: "finance.catalog_manage",
+  FIN_PO_APPROVE: "finance.po_approve",
   USERS_MANAGE: "users.manage",
   SUPPLIER_VIEW: "suppliers.view",
   SUPPLIER_MANAGE: "suppliers.manage",
@@ -202,4 +203,11 @@ export interface CompanyInfo {
   // bolded on print. Invoice-only (not quotations), same reasoning as
   // bank details above.
   terms_conditions: string | null;
+  // Letterhead identity printed on every finance document (invoice,
+  // quotation, purchase order), and the standard terms page printed last
+  // on a purchase order. Admin-editable in Settings.
+  company_legal_name: string | null;
+  company_nif: string | null;
+  company_phones: string | null;
+  po_terms_conditions: string | null;
 }
