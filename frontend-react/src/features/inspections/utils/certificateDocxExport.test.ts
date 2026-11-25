@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import JSZip from "jszip";
 import { exportCertificateDocx } from "./certificateDocxExport";
 import { INSPECTION_TYPES } from "../data/inspectionChecklists";
-import { freshCalibrationState, freshCertificate } from "../data/inspectionHelpers";
+import { freshCalibrationState, freshCertificate, freshLooseGearDefectRow, freshLooseGearRegisterRow, freshLooseGearState } from "../data/inspectionHelpers";
 import { HOOK_ALL_CHECKS } from "../data/hookReinstall";
 
 // exportCertificateDocx hands the generated file to the browser via an
@@ -104,6 +104,63 @@ describe("Word export — hook certificate with the hook tester", () => {
     expect(text).toContain("Drop: 2 bar");
     expect(text).toContain("PASS");
     expect(text).toContain("Capt. Silva");
+  });
+});
+
+describe("Word export — LEEA report forms", () => {
+  function looseCert(subType: Parameters<typeof freshLooseGearState>[0]) {
+    const cert = freshCertificate("loosegear", new Set());
+    Object.assign(cert, { vesselName: "MV TEST", engineerName: "A. Examiner" });
+    cert.looseGear = freshLooseGearState(subType);
+    return cert;
+  }
+
+  it("1a4 carries the LEEA wording, ticks and report number", async () => {
+    const cert = looseCert("standard_report");
+    const d = cert.looseGear!.standardReport!;
+    Object.assign(d, { description: "Chain sling", examinationType: "6monthly", safeForUse: "yes", defectsImmediate: "Link stretched" });
+    await exportCertificateDocx(cert, INSPECTION_TYPES.loosegear);
+    const text = await exportedText();
+    expect(text).toContain("REPORT OF THOROUGH EXAMINATION");
+    expect(text).toContain("Document Reference LEEA-030.1a4");
+    expect(text).toContain(`Report number: ${cert.certNo}`);
+    expect(text).toContain("Within an interval of 6 months?");
+    expect(text).toContain("Link stretched");
+    expect(text).toContain("Version 1 May 2023");
+    expect(text).not.toContain("UNSAFE");
+  });
+
+  it("1b4 is marked UNSAFE", async () => {
+    const cert = looseCert("unsafe_report");
+    await exportCertificateDocx(cert, INSPECTION_TYPES.loosegear);
+    const text = await exportedText();
+    expect(text).toContain("Document Reference LEEA-030.1b4");
+    expect(text).toContain("UNSAFE");
+  });
+
+  it("1c4 is a landscape register with the LEEA columns, and 1d a landscape defect list", async () => {
+    const reg = looseCert("multiple_items");
+    reg.looseGear!.multipleItems!.rows = [{ ...freshLooseGearRegisterRow(), serialNo: "SH-1", description: "Shackle", swl: "2t", result: "SDR", safeToUse: "no", reason: "6monthly" }];
+    await exportCertificateDocx(reg, INSPECTION_TYPES.loosegear);
+    let zip = await JSZip.loadAsync(await captured!.arrayBuffer());
+    let xml = await zip.file("word/document.xml")!.async("string");
+    expect(xml).toContain('w:orient="landscape"');
+    let text = await exportedText();
+    expect(text).toContain("Document Reference LEEA-030.1c4");
+    expect(text).toContain("Details of any Test");
+    expect(text).toContain("SH-1");
+
+    const def = looseCert("defect_report");
+    def.looseGear!.defectReport!.referencedReportNo = "CERT/X/1";
+    def.looseGear!.defectReport!.defects = [{ ...freshLooseGearDefectRow(), equipmentIdNo: "SH-1", immediateDanger: "no" }];
+    await exportCertificateDocx(def, INSPECTION_TYPES.loosegear);
+    zip = await JSZip.loadAsync(await captured!.arrayBuffer());
+    xml = await zip.file("word/document.xml")!.async("string");
+    expect(xml).toContain('w:orient="landscape"');
+    text = await exportedText();
+    expect(text).toContain("Defect Report List");
+    expect(text).toContain("CERT/X/1");
+    expect(text).toContain("*If yes must be reported to HSE");
   });
 });
 

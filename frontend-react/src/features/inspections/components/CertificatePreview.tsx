@@ -1,11 +1,11 @@
 import { Fragment, useEffect } from "react";
 import type { ReactNode } from "react";
-import { EquipmentTypeConfig, InspectionCertificate, ChecklistStatus, EquipResult, CalibrationData, FFEData, FRCCheckAnswer, FRCServiceReportData, GangwayLoadTestData, HookCheckAnswer, HookReinstallData, LooseGearData, LooseGearDefectReportData, LooseGearMultipleItemsData, LooseGearStandardReportData, LooseGearStatutoryAnswers, LooseGearVisualCertData, LooseGearYesNo, NDTCommonData, NDTFooterData, MPIData, PTData, RTData, UTData, VTData, ETData, LoadTestData, PhotoEvidence } from "../types/inspection.types";
+import { EquipmentTypeConfig, InspectionCertificate, ChecklistStatus, EquipResult, CalibrationData, FFEData, FRCCheckAnswer, FRCServiceReportData, GangwayLoadTestData, HookCheckAnswer, HookReinstallData, LooseGearData, LooseGearStatutoryAnswers, LooseGearVisualCertData, LooseGearYesNo, NDTCommonData, NDTFooterData, MPIData, PTData, RTData, UTData, VTData, ETData, LoadTestData, PhotoEvidence } from "../types/inspection.types";
 import { INSPECTION_TYPES } from "../data/inspectionChecklists";
 import { installPrintFooter } from "../utils/printFooter";
 import { getFFEConfig, getEffectiveFFELabel, getEffectiveFFENote } from "../data/ffeCertTypes";
 import { getCalibrationConfig, groupTechnicalFields } from "../data/calibrationCertTypes";
-import { DEFECT_REPORT_COLUMNS, FRC_SPARE_PARTS_COLUMNS, LOOSE_GEAR_STATUS_CODES, MULTIPLE_ITEMS_REGISTER_COLUMNS, normalizedSerialNos } from "../data/inspectionHelpers";
+import { FRC_SPARE_PARTS_COLUMNS } from "../data/inspectionHelpers";
 import { FRC_COMPONENT_ROWS, FRC_FUNCTION_CHECKS, FRC_SCOPE_OF_WORK, FRC_SERVICE_TYPE_LABELS, FRC_CERTIFICATION_STATEMENT } from "../data/frcServiceReport";
 import {
   HOOK_CERTIFICATION_STATEMENT, HOOK_CHECK_GROUPS, HOOK_COMPONENT_ROWS, HOOK_CRAFT_TYPES, HOOK_LOAD_CHECKS, HOOK_LOAD_METHODS,
@@ -18,6 +18,7 @@ import {
 import { parseNumber } from "../data/parseNumber";
 import { GANGWAY_INSPECTION_STATEMENT, GANGWAY_RESULT_LABELS } from "../data/gangwayLoadTest";
 import { RegisterPreviewTable } from "./RegisterTable";
+import { LeeaDefectPage, LeeaMultiplePage, LeeaReportPage } from "./LeeaReportPages";
 import { ABS_LOGO_DATA_URI, BUREAU_VERITAS_LOGO_DATA_URI, CRALOG_LOGO_DATA_URI, DNV_LOGO_DATA_URI, INEFOP_LOGO_DATA_URI, ISO_LOGO_DATA_URI, ANPG_LOGO_DATA_URI } from "../assets/approvalLogos";
 import { APP_BUILD_VERSION } from "../data/appVersion";
 import CertificateQR, { buildCertQrPayload } from "./CertificateQR";
@@ -1528,11 +1529,13 @@ function LooseGearCertificatePage({ cert, looseGear }: { cert: InspectionCertifi
   if (looseGear.subType === "visual_certificate" && looseGear.visualCert) {
     return <VisualCertPage cert={cert} data={looseGear.visualCert} />;
   }
-  if (looseGear.subType === "standard_report" && looseGear.standardReport) {
-    return <StandardReportPage cert={cert} data={looseGear.standardReport} />;
+  // The four LEEA forms (LEEA-030.1a4 / 1b4 / 1c4 / 1d) - laid out to match
+  // the LEEA originals, see components/LeeaReportPages.tsx.
+  if ((looseGear.subType === "standard_report" || looseGear.subType === "unsafe_report") && looseGear.standardReport) {
+    return <LeeaReportPage cert={cert} data={looseGear.standardReport} unsafe={looseGear.subType === "unsafe_report"} />;
   }
   if (looseGear.subType === "multiple_items" && looseGear.multipleItems) {
-    return <MultipleItemsPage cert={cert} data={looseGear.multipleItems} />;
+    return <LeeaMultiplePage cert={cert} data={looseGear.multipleItems} />;
   }
   // Requested directly: "the defect report should be separate, it
   // should not merge with the multiple items list" — first tried as a
@@ -1541,7 +1544,7 @@ function LooseGearCertificatePage({ cert, looseGear }: { cert: InspectionCertifi
   // certificate. See LooseGearDefectReportData's own comment in
   // inspection.types.ts.
   if (looseGear.subType === "defect_report" && looseGear.defectReport) {
-    return <DefectReportPage cert={cert} data={looseGear.defectReport} />;
+    return <LeeaDefectPage cert={cert} data={looseGear.defectReport} />;
   }
   if (looseGear.subType === "mpi" && looseGear.mpi) return <MPIPage cert={cert} data={looseGear.mpi} />;
   if (looseGear.subType === "pt" && looseGear.pt) return <PTPage cert={cert} data={looseGear.pt} />;
@@ -1727,348 +1730,6 @@ function VisualCertPage({ cert, data }: { cert: InspectionCertificate; data: Loo
           </tr>
         </tbody>
       </table>
-
-      {cert.issuedBy && (
-        <div style={{ fontSize: 9, color: "var(--insp-muted)", marginTop: 8 }}>
-          Issued by {cert.issuedBy}{cert.issuedAt ? ` — ${new Date(cert.issuedAt).toLocaleString()}` : ""}
-        </div>
-      )}
-      <SignatureGrid cert={cert} masterLabel="Master" techLabel="Inspector" hideFitForPurpose />
-      </div>
-    </CertPageFrame>
-  );
-}
-
-const EXAMINATION_TYPE_PRINT_LABELS: Record<string, string> = {
-  initial: "Initial",
-  standard: "Standard",
-  under_scheme: "Under A Scheme",
-  exceptional: "After Exceptional Circumstances",
-  "": "—",
-};
-
-// Requested directly: "change the thorough examination report to this
-// type and style" — restructured to match the attached reference
-// ("Test & Tag" branded "Report of Thorough Examination of Lifting
-// Equipment", LOLER 1998): customer/site/report#/date header,
-// examination type, equipment identification block, free-text
-// examination details, and a PASS/FAIL result — no LOLER statutory
-// declaration section (that stayed on the legacy Visual Certificate
-// template only, see LooseGearStandardReportData's own comment in
-// inspection.types.ts). "Do not imbed the photo" — no
-// LooseGearItemPhoto here either now.
-// Requested directly: "make the whole document layout just as the pdf
-// loaded do not change the style" (Exam-Report-Sheet-1.pdf, the "Test
-// & Tag" branded reference) — rebuilt as a plain black-bordered form
-// grid matching that reference's own field grouping, in place of the
-// app's usual soft-card .insp-id-table/.insp-remarks-box/.insp-pill
-// styling (see .tt-report in inspections.css for why this is its own
-// scoped style rather than a change to those shared rules). HMZC's own
-// letterhead — already rendered above by CertPageFrame — is kept
-// as-is; the reference's OWN company letterhead ("TEST & TAG",
-// Certificate of Incorporation Number, LEEA accreditation logo) is
-// intentionally not reproduced, matching the same "style, not literal
-// branding" call made when this report was first redesigned. "Page 1
-// of 1" (the reference's own pagination footer, meaningless for this
-// app's single-certificate model) is swapped for a Vessel field this
-// business actually needs and the reference has no field for.
-//
-// "remove the previous examiner sign and master sign section" — the
-// reference has only ONE signer block ("Examination Carried Out By":
-// Name, Signature — Position/LEEA ID Number were removed on later
-// request), not the app's usual Master+Technician pair, so the shared SignatureGrid
-// (see MultipleItemsPage and every other certificate kind) is dropped
-// here in favor of a bespoke table matching that exact grouping — no
-// Master/Captain name or signature field renders for this report type
-// at all now (see the same exclusion in VesselLookupAndSignatures,
-// LooseGearForm.tsx).
-function StandardReportPage({ cert, data }: { cert: InspectionCertificate; data: LooseGearStandardReportData }) {
-  // Same class of bug as MultipleItemsPage's `defects` (see that
-  // function's own comment) — see normalizedSerialNos's own comment in
-  // inspectionHelpers.ts for why this one recovers the old value
-  // instead of just falling back to an empty list.
-  const serialNos = normalizedSerialNos(data);
-  return (
-    <CertPageFrame cert={cert}>
-      <div className="lg-compact tt-report">
-      <div className="tt-title">Report of Thorough Examination of Lifting Equipment</div>
-      <div className="tt-subtitle">This report complies with the requirements of the Lifting Operations and Lifting Equipment Regulations 1998</div>
-
-      <table className="tt-grid">
-        <tbody>
-          <tr>
-            <td rowSpan={2} style={{ width: "27%" }}><span className="tt-label">Customer Details</span>{data.customerDetails || "—"}</td>
-            <td rowSpan={2} style={{ width: "27%" }}><span className="tt-label">Site Address</span>{data.siteAddress || "—"}</td>
-            <td style={{ width: "23%" }}><span className="tt-label">Report No.</span>{cert.certNo}</td>
-            <td style={{ width: "23%" }}><span className="tt-label">Date of Examination</span>{fmtDate(data.dateOfExamination)}</td>
-          </tr>
-          <tr>
-            <td colSpan={2}>
-              <span className="tt-label">Examination Type</span>{EXAMINATION_TYPE_PRINT_LABELS[data.examinationType] || "—"}
-              <div className="tt-note">Types: Initial, Standard, Under A Scheme, After Exceptional Circumstances</div>
-            </td>
-            {/* Requested directly: "look at this [BDA Technical Guide]
-                at the report section and include section where
-                needed" — LOLER Schedule 1 item 11's own "date of the
-                report", and item 6(b)'s "installed correctly" answer
-                (only meaningful when Examination Type is "Initial" —
-                see the type definition's own comment). Date of Report
-                spans both remaining columns when there's no Installed
-                Correctly cell to sit beside, so the row always fills
-                the table's width. */}
-            <td colSpan={data.examinationType === "initial" ? 1 : 2}><span className="tt-label">Date of Report</span>{fmtDate(data.dateOfReport)}</td>
-            {data.examinationType === "initial" && (
-              <td><span className="tt-label">Installed Correctly?</span>{yesNoCheckboxes(data.installedCorrectly)}</td>
-            )}
-          </tr>
-          <tr>
-            <td><span className="tt-label">Job No</span>{cert.jobRef || data.jobNo || "—"}</td>
-            <td><span className="tt-label">Prev. Exam Date</span>{fmtDate(data.prevExamDate)}</td>
-            <td><span className="tt-label">Next Exam Date</span>{fmtDate(data.nextExamDate)}</td>
-            <td><span className="tt-label">Vessel</span>{cert.vesselName || "—"}</td>
-          </tr>
-        </tbody>
-      </table>
-
-      <table className="tt-grid">
-        <tbody>
-          <tr><td className="tt-section-header" colSpan={3}>Description and Identification of the Equipment Item Examined</td></tr>
-          <tr>
-            <td><span className="tt-label">I.D. No</span>{data.idNo || "—"}</td>
-            <td><span className="tt-label">Description</span>{data.description || "—"}</td>
-            <td><span className="tt-label">Model Details</span>{data.modelDetails || "—"}</td>
-          </tr>
-          <tr>
-            <td><span className="tt-label">Serial No(s)</span>{serialNos.filter((s) => s.trim()).join(", ") || "—"}</td>
-            <td><span className="tt-label">Manufacturer</span>{data.manufacturer || "—"}</td>
-            <td><span className="tt-label">P.R.V. Fitted</span>{yesNoCheckboxes(data.prvFitted)}</td>
-          </tr>
-          <tr>
-            <td><span className="tt-label">Mfg. Date</span>{fmtDate(data.mfgDate)}</td>
-            <td><span className="tt-label">Location</span>{data.itemLocation || "—"}</td>
-            <td><span className="tt-label">S.W.L</span>{data.swl || "—"}</td>
-            <td><span className="tt-label">WLL</span>{data.ewl || "—"}</td>
-          </tr>
-          {/* Requested directly, from the BDA Technical Guide: MBL is
-              the figure SWL/WLL is calculated FROM (WLL = MBL/FoS),
-              and the guide repeatedly recommends recording the Factor
-              of Safety used on the certificate itself. */}
-          <tr>
-            <td colSpan={2}><span className="tt-label">MBL (Minimum Breaking Load)</span>{data.mbl || "—"}</td>
-            <td colSpan={2}><span className="tt-label">Factor of Safety</span>{data.factorOfSafety || "—"}</td>
-          </tr>
-        </tbody>
-      </table>
-
-      <table className="tt-grid">
-        <tbody>
-          <tr><td className="tt-section-header" colSpan={3}>Examination Details</td></tr>
-          <tr>
-            <td><span className="tt-label">Type of Examination/Test Carried Out</span>{data.examinationCarriedOut || "—"}</td>
-            <td><span className="tt-label">Examination Result / Equipment Status</span>{data.examinationResult || "—"}</td>
-            <td><span className="tt-label">Safe For Use</span>{yesNoCheckboxes(data.safeForUse)}</td>
-          </tr>
-          <tr>
-            <td colSpan={2}><span className="tt-label">(A) Defects In Need of Attention To Prevent Immediate Failure &amp; Details of Action Required</span>{data.defectsImmediate || "NONE"}</td>
-            <td colSpan={1}><span className="tt-label">(B) Defects to be Kept Under Observation, Date When Must Be Rectified By and Parts Required</span>{data.defectsObservation || "NONE"}</td>
-          </tr>
-          {/* LOLER Schedule 1 item 8(a)'s own sub-question, flagged
-              explicitly in the BDA guide: a defect that IS an
-              immediate danger to persons must be reported to the
-              enforcing authority, a materially different consequence
-              than one merely kept under observation above. */}
-          <tr>
-            <td colSpan={3}><span className="tt-label">Is Defect (A) an Immediate Danger to Persons?</span>{yesNoCheckboxes(data.defectImmediateDanger)}</td>
-          </tr>
-          <tr>
-            <td colSpan={2}><span className="tt-label">Particulars of Any Tests Carried Out as Part of the Examination</span>{data.testsCarriedOut || "NONE"}</td>
-            <td colSpan={1}><span className="tt-label">Additional Comments Made As Part of This Examination</span>{data.additionalComments || "None"}</td>
-          </tr>
-        </tbody>
-      </table>
-
-      <table className="tt-grid tt-result-grid">
-        <tbody>
-          <tr>
-            <td style={{ width: "34%" }}>RESULT</td>
-            <td className={`tt-result-pass ${data.result === "pass" ? "" : "tt-result-dim"}`}>PASS</td>
-            <td className={`tt-result-fail ${data.result === "fail" ? "" : "tt-result-dim"}`}>FAIL</td>
-          </tr>
-        </tbody>
-      </table>
-
-      <table className="tt-grid">
-        <tbody>
-          <tr>
-            <td rowSpan={2} style={{ width: "24%" }}><span className="tt-label">Examination Carried Out By</span></td>
-            <td><span className="tt-label">Name</span>{cert.engineerName || "—"}</td>
-          </tr>
-          <tr>
-            <td style={{ position: "relative" }}>
-              <span className="tt-label">Signature</span>
-              {/* Requested directly: "the signature and stamp appears
-                  small, check if the size can be increased on all the
-                  certificate" — matches SignBox's own scale-up above. */}
-              {cert.engineerSig ? (
-                <img src={cert.engineerSig} alt="Examiner signature" style={{ height: 42 }} />
-              ) : cert.engineerName ? (
-                <span style={{ fontFamily: "cursive", fontSize: 20 }}>{cert.engineerName}</span>
-              ) : "—"}
-              {/* Requested directly: "the stamp is removed from the
-                  Lose gear certificate, you need to bring it back" —
-                  restores the same HMZC stamp overlay SignBox applies
-                  elsewhere (see SignBox's own comment for the full
-                  technique/reasoning) onto this report's own Examiner
-                  signature cell, since this report doesn't render a
-                  SignBox/SignatureGrid at all anymore (see this
-                  function's own top comment). */}
-              <div
-                role="img"
-                aria-label="HMZC Official Stamp"
-                style={{
-                  position: "absolute",
-                  left: "58%",
-                  bottom: -11,
-                  transform: "translateX(-50%) rotate(-7deg)",
-                  height: 58,
-                  width: 182,
-                  backgroundImage: "var(--insp-stamp-url)",
-                  backgroundSize: "contain",
-                  backgroundRepeat: "no-repeat",
-                  printColorAdjust: "exact",
-                  WebkitPrintColorAdjust: "exact",
-                  opacity: 0.9,
-                  pointerEvents: "none",
-                }}
-              />
-            </td>
-          </tr>
-        </tbody>
-      </table>
-
-      {cert.issuedBy && (
-        <div style={{ fontSize: 9, color: "#555", marginTop: 4 }}>
-          Issued by {cert.issuedBy}{cert.issuedAt ? ` — ${new Date(cert.issuedAt).toLocaleString()}` : ""}
-        </div>
-      )}
-      </div>
-    </CertPageFrame>
-  );
-}
-
-const REASON_PRINT_LABELS: Record<string, string> = {
-  installation: "Installation (A)",
-  "6monthly": "6 Monthly (B)",
-  "12monthly": "12 Monthly (C)",
-  written_scheme: "Written Scheme (D)",
-  exceptional: "Exceptional Circumstance (E)",
-  "": "—",
-};
-
-function MultipleItemsPage({ cert, data }: { cert: InspectionCertificate; data: LooseGearMultipleItemsData }) {
-  return (
-    <CertPageFrame cert={cert}>
-      <div className="lg-compact">
-      <div className="insp-cert-title-row">
-        <h2>Report of Thorough Examination (Multiple Items)</h2>
-        <span className="insp-badge">LOOSE GEAR &amp; LIFTING EQUIPMENT</span>
-      </div>
-      <table className="insp-id-table">
-        <tbody>
-          <tr>
-            <td className="insp-label-cell">Certificate No</td><td colSpan={3}>{cert.certNo}</td>
-          </tr>
-          <tr>
-            <td className="insp-label-cell">Job/PO No.</td><td>{data.jobPoNo || "—"}</td>
-            <td className="insp-label-cell">Inspected By</td><td>{data.inspectedBy || "—"}</td>
-          </tr>
-          <tr>
-            <td className="insp-label-cell">Vessel Name</td><td>{cert.vesselName || "—"}</td>
-            <td className="insp-label-cell">Colour Code</td><td>{data.colourCode || "—"}</td>
-          </tr>
-          <tr>
-            <td className="insp-label-cell">Location/Port</td><td>{cert.location || "—"}</td>
-            <td className="insp-label-cell">Date of Report</td><td>{fmtDate(cert.dateOfServicing)}</td>
-          </tr>
-          <tr>
-            <td className="insp-label-cell">Reason for Inspection</td><td colSpan={3}>{REASON_PRINT_LABELS[data.reasonForInspection] || "—"}</td>
-          </tr>
-        </tbody>
-      </table>
-
-      {/* Requested directly: "for all multiple should have numbering
-          also appearing in print and preview just as you see when
-          inputing the data" — RegisterPreviewTable always renders a #
-          column, so this is now structurally guaranteed to match the
-          form rather than something each certificate type has to
-          remember to add. Same shared config (MULTIPLE_ITEMS_REGISTER_COLUMNS)
-          the form and the Word export use — see RegisterTable.tsx's own
-          top comment. */}
-      <RegisterPreviewTable
-        columns={MULTIPLE_ITEMS_REGISTER_COLUMNS}
-        rows={data.rows as unknown as Record<string, string>[]}
-        certNoHeaderRow={(colSpan) => <CertNoTheadRow certNo={cert.certNo} colSpan={colSpan} />}
-        emptyMessage="No items recorded."
-        legend={{ title: "Status", items: LOOSE_GEAR_STATUS_CODES.map((s) => s.label) }}
-      />
-
-      {cert.issuedBy && (
-        <div style={{ fontSize: 9, color: "var(--insp-muted)", marginTop: 8 }}>
-          Issued by {cert.issuedBy}{cert.issuedAt ? ` — ${new Date(cert.issuedAt).toLocaleString()}` : ""}
-        </div>
-      )}
-      <SignatureGrid cert={cert} masterLabel="Master" techLabel="Inspector" hideFitForPurpose />
-      </div>
-    </CertPageFrame>
-  );
-}
-
-// Requested directly, from a real reference form (LEEA-030.1d "Report of
-// Thorough Examination — Defect Report List", Version 3, May 2023):
-// first built nested inside a Multiple Items certificate, then split
-// onto its own page still within that same certificate; the actual ask
-// ("the defect report should be separate, it should not merge with the
-// multiple items list") was for a genuinely independent, separately-
-// selectable certificate — own Report Type entry, own certificate
-// number, own sign-off — that can name ANY already-issued Thorough
-// Examination report by number (data.referencedReportNo, free text,
-// same as the real paper form), not just the certificate it happens to
-// be attached to. Styled after MultipleItemsPage's own insp-id-table/
-// insp-print-chk conventions for a consistent look across Loose Gear's
-// register-style reports.
-function DefectReportPage({ cert, data }: { cert: InspectionCertificate; data: LooseGearDefectReportData }) {
-  return (
-    <CertPageFrame cert={cert}>
-      <div className="lg-compact">
-      <div className="insp-cert-title-row">
-        <h2>Defect Report</h2>
-        <span className="insp-badge">LOOSE GEAR &amp; LIFTING EQUIPMENT</span>
-      </div>
-      <table className="insp-id-table">
-        <tbody>
-          <tr>
-            <td className="insp-label-cell">Certificate No</td><td colSpan={3}>{cert.certNo}</td>
-          </tr>
-          <tr>
-            <td className="insp-label-cell">Vessel Name</td><td>{cert.vesselName || "—"}</td>
-            <td className="insp-label-cell">Date of Report</td><td>{fmtDate(cert.dateOfServicing)}</td>
-          </tr>
-        </tbody>
-      </table>
-      <p style={{ fontSize: 10.5, margin: "8px 0" }}>
-        This defect report refers to the equipment listed on the Thorough Examination report number: <strong>{data.referencedReportNo || "—"}</strong>
-      </p>
-      <RegisterPreviewTable
-        columns={DEFECT_REPORT_COLUMNS}
-        rows={data.defects as unknown as Record<string, string>[]}
-        certNoHeaderRow={(colSpan) => <CertNoTheadRow certNo={cert.certNo} colSpan={colSpan} />}
-        emptyMessage="No defects recorded."
-      />
-      <p style={{ fontSize: 9.5, color: "var(--insp-red)", margin: "4px 0 8px" }}>* If yes, must be reported to HSE.</p>
-      <div style={{ fontWeight: 700, fontSize: 11.5, color: "var(--insp-navy)", margin: "6px 0 4px" }}>
-        Observations / Additional Comments Relative to This Thorough Examination
-      </div>
-      <p style={{ fontSize: 10.5, margin: "0 0 8px" }}>{data.defectObservations || "None"}</p>
 
       {cert.issuedBy && (
         <div style={{ fontSize: 9, color: "var(--insp-muted)", marginTop: 8 }}>

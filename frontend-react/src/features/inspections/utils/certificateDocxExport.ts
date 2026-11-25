@@ -32,6 +32,7 @@ import {
   Footer,
   Header,
   ImageRun,
+  PageOrientation,
   Packer,
   Paragraph,
   ShadingType,
@@ -75,6 +76,7 @@ import {
 } from "../data/hookTester";
 import { parseNumber } from "../data/parseNumber";
 import { GANGWAY_INSPECTION_STATEMENT, GANGWAY_RESULT_LABELS } from "../data/gangwayLoadTest";
+import { buildLeeaDefectBlocks, buildLeeaMultipleBlocks, buildLeeaReportBlocks } from "./leeaDocx";
 import { HMZC_LOGO_DATA_URI } from "../assets/logo";
 import { HMZC_STAMP_DATA_URI } from "../assets/stamp";
 
@@ -437,6 +439,20 @@ async function examinerDetailsTable(cert: InspectionCertificate): Promise<Table>
       new TableRow({ children: [fieldCell("Signature", sigContent)] }),
     ],
   });
+}
+
+// The examiner's signature with the HMZC stamp under it, for the LEEA forms'
+// "Signature:" cell (utils/leeaDocx.ts).
+async function leeaSignatureParagraphs(cert: InspectionCertificate): Promise<Paragraph[]> {
+  const [sigRun, stampRun] = await Promise.all([
+    cert.engineerSig ? imageRunAtHeight(cert.engineerSig, 40) : Promise.resolve(null),
+    imageRunAtHeight(HMZC_STAMP_DATA_URI, 40),
+  ]);
+  const out: Paragraph[] = [];
+  if (sigRun) out.push(new Paragraph({ children: [sigRun] }));
+  else if (cert.engineerName) out.push(new Paragraph({ children: [new TextRun({ text: cert.engineerName, italics: true, color: NAVY, size: 22 })] }));
+  if (stampRun) out.push(new Paragraph({ children: [stampRun] }));
+  return out;
 }
 
 function issuedByLine(cert: InspectionCertificate): Paragraph[] {
@@ -1127,159 +1143,18 @@ async function buildLooseGearSection(cert: InspectionCertificate, looseGear: Loo
     return blocks;
   }
 
-  if (looseGear.subType === "standard_report" && looseGear.standardReport) {
-    const d = looseGear.standardReport;
-    // Requested directly: "change the thorough examination report to
-    // this type and style" — matches StandardReportPage's own print
-    // layout (CertificatePreview.tsx) and its own comment for the
-    // full reasoning: restructured to the attached Test & Tag
-    // reference's simpler customer/site/examination-type header,
-    // equipment ID block, free-text examination details, and a
-    // PASS/FAIL result — no LOLER statutory declaration, no photo
-    // ("do not imbed the photo" — no buildLooseGearItemPhotoBlocks
-    // call here either now).
-    const examinationTypeLabels: Record<string, string> = {
-      initial: "Initial", standard: "Standard", under_scheme: "Under A Scheme", exceptional: "After Exceptional Circumstances", "": "—",
-    };
-    // A certificate saved before serialNo was renamed to serialNos
-    // (string[]) has the old key, not the new array — see
-    // normalizedSerialNos's own comment in inspectionHelpers.ts.
-    const serialNos = normalizedSerialNos(d);
-    const blocks: Block[] = [badgeLine("Report of Thorough Examination", "LOOSE GEAR & LIFTING EQUIPMENT")];
-    blocks.push(
-      kvTable([
-        ["Customer Details", d.customerDetails || "—"],
-        ["Site Address", d.siteAddress || "—"],
-        ["Report No.", cert.certNo],
-        ["Date of Examination", fmtDate(d.dateOfExamination)],
-        ["Date of Report", fmtDate(d.dateOfReport)],
-        ["Examination Type", examinationTypeLabels[d.examinationType] || "—"],
-        ["Job No", d.jobNo || "—"],
-        ...(d.examinationType === "initial" ? [["Installed Correctly?", yesNoLabel(d.installedCorrectly)] as [string, string]] : []),
-        ["Prev. Exam Date", fmtDate(d.prevExamDate)],
-        ["Next Exam Date", fmtDate(d.nextExamDate)],
-        ["Vessel", cert.vesselName || "—"],
-      ])
-    );
-    blocks.push(
-      heading("Description and Identification of the Equipment Item Examined"),
-      kvTable([
-        ["I.D. No", d.idNo || "—"],
-        ["Description", d.description || "—"],
-        ["Serial No(s)", serialNos.filter((s) => s.trim()).join(", ") || "—"],
-        ["Model Details", d.modelDetails || "—"],
-        ["Manufacturer", d.manufacturer || "—"],
-        ["P.R.V. Fitted", yesNoLabel(d.prvFitted)],
-        ["Mfg. Date", fmtDate(d.mfgDate)],
-        ["Location", d.itemLocation || "—"],
-        ["S.W.L", d.swl || "—"],
-        ["WLL", d.ewl || "—"],
-        ["MBL (Minimum Breaking Load)", d.mbl || "—"],
-        ["Factor of Safety", d.factorOfSafety || "—"],
-      ])
-    );
-    blocks.push(
-      heading("Examination Details"),
-      kvTable([
-        ["Type of Examination/Test Carried Out", d.examinationCarriedOut || "—"],
-        ["Examination Result / Equipment Status", d.examinationResult || "—"],
-        ["Safe For Use", yesNoLabel(d.safeForUse)],
-      ])
-    );
-    blocks.push(
-      new Paragraph({ text: "" }),
-      remarksBox("(A) Defects Needing Immediate Attention", d.defectsImmediate || "NONE"),
-      new Paragraph({ text: "" }),
-      remarksBox("Is Defect (A) an Immediate Danger to Persons?", yesNoLabel(d.defectImmediateDanger)),
-      new Paragraph({ text: "" }),
-      remarksBox("(B) Defects Under Observation / Parts Required", d.defectsObservation || "NONE"),
-      new Paragraph({ text: "" }),
-      remarksBox("Particulars of Any Tests Carried Out", d.testsCarriedOut || "NONE"),
-      new Paragraph({ text: "" }),
-      remarksBox("Additional Comments", d.additionalComments || "None"),
-      new Paragraph({ text: "" })
-    );
-    blocks.push(
-      new Paragraph({
-        children: [
-          new TextRun({ text: "RESULT: ", bold: true, color: NAVY, size: 20 }),
-          new TextRun({
-            text: d.result ? d.result.toUpperCase() : "—",
-            bold: true,
-            color: d.result === "pass" ? "1E7A34" : d.result === "fail" ? "B3261E" : MUTED,
-            size: 20,
-          }),
-        ],
-      }),
-      new Paragraph({ text: "" })
-    );
-    blocks.push(new Paragraph({ text: "" }), ...issuedByLine(cert));
-    blocks.push(await examinerDetailsTable(cert));
-    return blocks;
+  // The four LEEA forms (LEEA-030.1a4 / 1b4 / 1c4 / 1d) - same layout as the
+  // print/preview (components/LeeaReportPages.tsx), see utils/leeaDocx.ts.
+  if ((looseGear.subType === "standard_report" || looseGear.subType === "unsafe_report") && looseGear.standardReport) {
+    return buildLeeaReportBlocks(cert, looseGear.standardReport, looseGear.subType === "unsafe_report", await leeaSignatureParagraphs(cert));
   }
 
   if (looseGear.subType === "multiple_items" && looseGear.multipleItems) {
-    const d = looseGear.multipleItems;
-    const reasonLabels: Record<string, string> = {
-      installation: "Installation (A)",
-      "6monthly": "6 Monthly (B)",
-      "12monthly": "12 Monthly (C)",
-      written_scheme: "Written Scheme (D)",
-      exceptional: "Exceptional Circumstance (E)",
-      "": "—",
-    };
-    const blocks: Block[] = [badgeLine("Report of Thorough Examination (Multiple Items)", "LOOSE GEAR & LIFTING EQUIPMENT")];
-    blocks.push(
-      kvTable([
-        ["Certificate No", cert.certNo],
-        ["Job/PO No.", d.jobPoNo || "—"],
-        ["Inspected By", d.inspectedBy || "—"],
-        ["Vessel Name", cert.vesselName || "—"],
-        ["Colour Code", d.colourCode || "—"],
-        ["Location/Port", cert.location || "—"],
-        ["Date of Report", fmtDate(cert.dateOfServicing)],
-        ["Reason for Inspection", reasonLabels[d.reasonForInspection] || "—"],
-      ])
-    );
-    blocks.push(registerTable(MULTIPLE_ITEMS_REGISTER_COLUMNS, d.rows as unknown as Record<string, string>[]));
-    blocks.push(
-      new Paragraph({
-        spacing: { before: 80 },
-        children: [new TextRun({ text: "Status: ", bold: true, size: 18 }), new TextRun({ text: LOOSE_GEAR_STATUS_CODES.map((s) => s.label).join("   |   "), size: 18, color: MUTED })],
-      })
-    );
-    blocks.push(new Paragraph({ text: "" }), ...issuedByLine(cert));
-    blocks.push(...(await signatureBlock(cert, "Master", "Inspector", true)));
-    return blocks;
+    return buildLeeaMultipleBlocks(cert, looseGear.multipleItems, await leeaSignatureParagraphs(cert));
   }
 
-  // Requested directly, from a real reference form (LEEA-030.1d "Report
-  // of Thorough Examination — Defect Report List"): first built nested
-  // inside the Multiple Items branch above; "the defect report should
-  // be separate, it should not merge with the multiple items list" made
-  // it its own top-level certificate — own certificate number, own
-  // sign-off, and referencedReportNo can name any already-issued report
-  // by number (free text, same as the real paper form), not just the
-  // one it's attached to. See DefectReportPage's own comment in
-  // CertificatePreview.tsx for the matching print/preview change.
   if (looseGear.subType === "defect_report" && looseGear.defectReport) {
-    const d = looseGear.defectReport;
-    const blocks: Block[] = [badgeLine("Defect Report", "LOOSE GEAR & LIFTING EQUIPMENT")];
-    blocks.push(
-      kvTable([
-        ["Certificate No", cert.certNo],
-        ["Vessel Name", cert.vesselName || "—"],
-        ["Date of Report", fmtDate(cert.dateOfServicing)],
-      ])
-    );
-    blocks.push(new Paragraph({ text: `This defect report refers to the equipment listed on the Thorough Examination report number: ${d.referencedReportNo || "—"}`, spacing: { before: 100, after: 120 } }));
-    blocks.push(registerTable(DEFECT_REPORT_COLUMNS, d.defects as unknown as Record<string, string>[]));
-    blocks.push(new Paragraph({ spacing: { before: 60, after: 120 }, children: [new TextRun({ text: "* If yes, must be reported to HSE.", color: "B3382C", size: 18 })] }));
-    blocks.push(heading("Observations / Additional Comments Relative to This Thorough Examination"));
-    blocks.push(new Paragraph({ text: d.defectObservations || "None" }));
-    blocks.push(new Paragraph({ text: "" }), ...issuedByLine(cert));
-    blocks.push(...(await signatureBlock(cert, "Master", "Inspector", true)));
-    return blocks;
+    return buildLeeaDefectBlocks(cert, looseGear.defectReport);
   }
 
   if (looseGear.subType === "mpi" && looseGear.mpi) {
@@ -1679,10 +1554,13 @@ export async function exportCertificateDocx(cert: InspectionCertificate, request
     children.push(...buildExplanatoryNotesSection(config));
   }
 
+  // LEEA-030.1c4 (register) and 1d (defect list) are landscape A4 forms.
+  const landscape = config.kind === "loosegear" && (cert.looseGear?.subType === "multiple_items" || cert.looseGear?.subType === "defect_report");
+
   const doc = new Document({
     sections: [
       {
-        properties: { page: { margin: { top: 1000, bottom: 900, left: 900, right: 900 } } },
+        properties: { page: { ...(landscape ? { size: { orientation: PageOrientation.LANDSCAPE } } : {}), margin: { top: 1000, bottom: 900, left: 900, right: 900 } } },
         headers: { default: await buildHeader() },
         footers: { default: buildFooter(cert.certNo) },
         children,

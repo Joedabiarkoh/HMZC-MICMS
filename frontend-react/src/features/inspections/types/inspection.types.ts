@@ -337,6 +337,10 @@ export type LooseGearYesNo = "yes" | "no" | "";
 
 export type LooseGearSubTypeId =
   | "visual_certificate" | "standard_report" | "multiple_items"
+  // LEEA-030.1b4 "Report of Thorough Examination - Unsafe": the same form
+  // as standard_report (LEEA-030.1a4) printed with the red UNSAFE
+  // watermark. Shares standard_report's data object (`standardReport`).
+  | "unsafe_report"
   // Requested directly: add HMZC's Load Test / NDT (MPI, PT, RT, UT, VT, ET)
   // report templates as part of Loose Gear & Lifting Equipment, styled
   // after a real reference report (dense bordered grid) — see
@@ -412,7 +416,13 @@ export interface LooseGearVisualCertData {
 // examination-type header, an equipment ID block, free-text
 // examination details (rather than yes/no statutory questions), and a
 // single PASS/FAIL result — no statutory declaration section at all.
-export type LooseGearExaminationType = "" | "initial" | "standard" | "under_scheme" | "exceptional";
+// LEEA-030.1a4 asks "Was the examination carried out: within 6 months /
+// within 12 months / in accordance with an examination scheme / after
+// exceptional circumstances" plus "first examination after installation" -
+// one choice here drives all of those tick boxes (see leeaExamFlags in
+// data/leeaReports.ts). "standard" is the older generic option, kept so
+// reports saved before the LEEA forms still open.
+export type LooseGearExaminationType = "" | "initial" | "6monthly" | "12monthly" | "standard" | "under_scheme" | "exceptional";
 
 export interface LooseGearStandardReportData {
   customerDetails: string;
@@ -480,6 +490,15 @@ export interface LooseGearStandardReportData {
   additionalComments: string;
 
   result: "" | "pass" | "fail";
+
+  // LEEA-030.1a4 / 1b4 fields the earlier layout had no place for. Optional
+  // so reports saved before the LEEA forms still type-check and open (read
+  // through the helpers in data/leeaReports.ts, which default them).
+  defectDangerByDate?: string; // "could become a danger ... YES by:" date
+  repairParticulars?: string; // "Particulars of any repair, renewal or alteration required"
+  reportedByQualifications?: string; // "Name & Qualifications of person making this report"
+  authenticatedByName?: string; // "Name of person signing or authenticating this report on behalf of the author"
+  reporterEmployer?: string; // "Name and address of employer of persons making and authenticating this report"
 }
 
 // Template 3 — "Report of Thorough Examination (Multiple Items)", the
@@ -510,6 +529,12 @@ export interface LooseGearRegisterRow {
   typeOfInspection: string;
   nextInspectionDate: string;
   safeToUse: LooseGearYesNo;
+  // LEEA-030.1c4 columns the earlier register had no place for. Optional so
+  // registers saved before the LEEA form still open.
+  lastExamDate?: string; // "Date of Last Thorough Examination"
+  mfgDate?: string; // "Date of Manufacture (if known)"
+  reason?: LooseGearReasonForInspection; // per-row "Reason for Examination" A-E
+  testDetails?: string; // "Details of any Test"
 }
 
 // The source form's own legend: Installation (A) / 6 Monthly (B) /
@@ -524,6 +549,14 @@ export interface LooseGearMultipleItemsData {
   colourCode: string;
   reasonForInspection: LooseGearReasonForInspection;
   rows: LooseGearRegisterRow[];
+  // LEEA-030.1c4 header fields. Optional (older saved registers lack them).
+  customerNo?: string;
+  dateOfExamination?: string; // "Date of this Thorough Examination"
+  dateOfReport?: string;
+  employerNameAddress?: string; // "Name & Address of the employer for whom the examination was made"
+  premisesAddress?: string; // "Address of the premises at which the examination was made"
+  reportedByQualifications?: string; // "Name & qualifications of the person making this report"
+  authenticatedByName?: string; // "Name of the person signing or authenticating this report"
 }
 
 // Template — "Defect Report", from a real reference form (LEEA-030.1d

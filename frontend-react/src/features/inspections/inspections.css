@@ -757,3 +757,56 @@ table.insp-keep > tbody > tr > td { padding: 0; border: none; }
     html[data-hmzc-footer="margin"] .insp-footer-flow { display: none; }
   }
 }
+
+/* ---- LEEA report forms (components/LeeaReportPages.tsx) ----
+   LEEA-030.1a4 / 1b4 (portrait) and 1c4 / 1d (landscape), reproduced cell for
+   cell from the LEEA originals: plain black-ruled grids, Calibri 10.5px. The
+   boxes' minimum heights (leea-hNN) follow the originals' proportions, scaled
+   down so a form still fits one A4 page under HMZC's letterhead. */
+.leea { font-family: Calibri, Carlito, "Segoe UI", Arial, sans-serif; color: #000; font-size: 10.5px; line-height: 1.3; }
+/* On screen a landscape form needs a wider sheet than the portrait 800px. */
+.insp-cert-page:has(.leea-landscape) { max-width: 1120px; }
+.leea-docref { text-align: right; font-size: 9px; margin: 2px 0 2px; }
+.leea-title { text-align: center; font-weight: 700; font-size: 14px; margin: 4px 0 1px; }
+.leea-title-sm { font-size: 13px; margin: 0; }
+.leea-title-lg { font-size: 17px; margin: 6px 0 10px; }
+.leea-subtitle { text-align: center; font-size: 11.5px; margin: 0 0 8px; }
+.leea-subtitle-b { font-weight: 700; font-size: 10.5px; margin-bottom: 6px; }
+.leea-intro { font-size: 12px; margin: 0 0 8px; }
+.leea-center { text-align: center; }
+.leea-line { display: flex; justify-content: space-between; gap: 14px; font-size: 11px; margin: 3px 0; }
+.leea-line-spread { margin-bottom: 8px; }
+table.leea-grid { width: 100%; border-collapse: collapse; table-layout: fixed; }
+table.leea-grid td, table.leea-grid th { border: 1px solid #222; padding: 2px 6px; vertical-align: top; font-size: 10.5px; overflow-wrap: anywhere; }
+table.leea-grid th { font-weight: 700; text-align: center; vertical-align: middle; }
+table.leea-stack { margin-top: -1px; }
+table.leea-gap { margin-top: 12px; }
+.leea-grey th { background: #d9d9d9; print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+.leea-yn { text-align: center; vertical-align: middle !important; }
+.leea-box { text-align: center; vertical-align: middle !important; font-weight: 700; font-size: 13px; padding: 0 !important; }
+.leea-vmid { vertical-align: middle !important; }
+.leea-text { white-space: pre-wrap; }
+.leea-h22 td { height: 22px; } .leea-h24 td { height: 24px; } .leea-h30 td { height: 30px; } .leea-h36 td { height: 36px; }
+.leea-h46 td { height: 46px; } .leea-h50 td { height: 50px; } .leea-h62 td { height: 62px; } .leea-h66 td { height: 66px; }
+.leea-h80 td { height: 80px; } .leea-h110 td { height: 110px; }
+table.leea-reg .leea-datarow td { height: 20px; }
+.leea-hse { font-weight: 700; font-size: 11px; margin: 3px 0 10px 24px; }
+.leea-signline { margin-top: 6px; }
+.leea-sig { position: relative; display: inline-block; min-width: 150px; vertical-align: bottom; }
+.leea-stamp {
+  position: absolute; left: 58%; bottom: -10px; transform: translateX(-50%) rotate(-7deg);
+  height: 50px; width: 156px; background-image: var(--insp-stamp-url); background-size: contain; background-repeat: no-repeat;
+  opacity: .9; pointer-events: none; print-color-adjust: exact; -webkit-print-color-adjust: exact;
+}
+.leea-issued { font-size: 8px; color: #555; margin-top: 4px; }
+.leea-docfooter { display: flex; justify-content: space-between; font-size: 8px; margin-top: 10px; }
+/* LEEA-030.1b4: the large red diagonal "Unsafe" over the form body. */
+.leea-wm-host { position: relative; }
+.leea-watermark {
+  position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-45deg);
+  font-size: 170px; line-height: 1; white-space: nowrap; color: rgba(255, 0, 0, .5);
+  pointer-events: none; z-index: 2; user-select: none; print-color-adjust: exact; -webkit-print-color-adjust: exact;
+}
+@media print {
+  table.leea-grid tr, table.leea-keep { break-inside: avoid; page-break-inside: avoid; }
+}

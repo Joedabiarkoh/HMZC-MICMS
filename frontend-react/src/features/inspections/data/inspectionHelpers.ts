@@ -4,6 +4,7 @@ import { CALIBRATION_CERT_TYPES } from "./calibrationCertTypes";
 import { FRC_COMPONENT_ROWS, FRC_FUNCTION_CHECKS } from "./frcServiceReport";
 import { HOOK_ALL_CHECKS, HOOK_COMPONENT_ROWS } from "./hookReinstall";
 import { freshHookTesterReport } from "./hookTester";
+import { HMZC_COMPANY_NAME_ADDRESS, LEEA_REASON_CODES } from "./leeaReports";
 import {
   CalibrationData,
   ChecklistSection,
@@ -116,6 +117,9 @@ const LOOSE_GEAR_SUBTYPE_TAGS: Partial<Record<LooseGearSubTypeId, string>> = {
   // own tag for the same reason the NDT methods each got one, easier to
   // find/sort by report type in the Certificate Log.
   defect_report: "DR",
+  // LEEA-030.1b4 Unsafe report - its own tag so unsafe reports stand out in
+  // the Certificate Log.
+  unsafe_report: "UR",
 };
 
 export function generateCertNo(
@@ -313,7 +317,9 @@ export function freshCalibrationState(subTypeId: string): CalibrationData {
 // CertificatePreview.tsx's LooseGearCertificatePage), it just can't be
 // chosen for a new one anymore.
 export const LOOSE_GEAR_SUB_TYPES: { id: LooseGearData["subType"]; label: string }[] = [
+  // The four LEEA forms (LEEA-030.1a4 / 1b4 / 1c4 / 1d) - see data/leeaReports.ts.
   { id: "standard_report", label: "Report of Thorough Examination" },
+  { id: "unsafe_report", label: "Report of Thorough Examination - Unsafe" },
   { id: "multiple_items", label: "Report of Thorough Examination (Multiple Items)" },
   { id: "load_test", label: "Load Test Report" },
   { id: "mpi", label: "Magnetic Particle Testing (MPI)" },
@@ -360,20 +366,26 @@ export interface RegisterColumn {
   disabledPlaceholder?: string;
 }
 
+// Entry columns of the register, in the order of LEEA-030.1c4's own grid.
+// Manufacturer and Location are not printed on the LEEA form but stay here:
+// "Generate Individual Reports" groups rows by Description/SWL/Location and
+// copies the Manufacturer onto each individual report.
 export const MULTIPLE_ITEMS_REGISTER_COLUMNS: RegisterColumn[] = [
-  { key: "serialNo", label: "Serial No." },
+  { key: "serialNo", label: "Identification Number" },
   { key: "description", label: "Description" },
-  { key: "swl", label: "SWL" },
-  { key: "manufacturer", label: "Manufacturer" },
-  { key: "certNoTestDate", label: "Cert No./Test Date" },
-  { key: "itemLocation", label: "Location" },
-  { key: "typeOfInspection", label: "Type of Inspection" },
-  { key: "nextInspectionDate", label: "Next Inspection", type: "date" },
+  { key: "swl", label: "WLL / SWL" },
+  { key: "lastExamDate", label: "Date of Last Thorough Examination", type: "date" },
+  { key: "mfgDate", label: "Date of Manufacture (if known)", type: "date" },
+  { key: "nextInspectionDate", label: "Latest Date of Next Thorough Examination", type: "date" },
+  { key: "reason", label: "Reason for Examination", type: "select", options: LEEA_REASON_CODES.map((r) => ({ value: r.value, label: `${r.code} - ${r.label}` })) },
+  { key: "testDetails", label: "Details of any Test" },
   // Requested directly: "change result to (status) and move it to the
   // end close to safe to use" — see LooseGearRegisterRow.result's own
   // comment on why the field key itself stays `result`.
   { key: "result", label: "Status", type: "select", options: LOOSE_GEAR_STATUS_CODES.map((s) => ({ value: s.code, label: s.label })) },
   { key: "safeToUse", label: "Safe to Use", type: "yesno" },
+  { key: "manufacturer", label: "Manufacturer (not printed)" },
+  { key: "itemLocation", label: "Location (not printed)" },
 ];
 
 export const DEFECT_REPORT_COLUMNS: RegisterColumn[] = [
@@ -482,6 +494,11 @@ export function freshLooseGearStandardReportData(): LooseGearStandardReportData 
     testsCarriedOut: "",
     additionalComments: "",
     result: "",
+    defectDangerByDate: "",
+    repairParticulars: "",
+    reportedByQualifications: "",
+    authenticatedByName: "",
+    reporterEmployer: HMZC_COMPANY_NAME_ADDRESS,
   };
 }
 
@@ -515,6 +532,10 @@ export function freshLooseGearRegisterRow(): LooseGearRegisterRow {
     typeOfInspection: "",
     nextInspectionDate: "",
     safeToUse: "",
+    lastExamDate: "",
+    mfgDate: "",
+    reason: "",
+    testDetails: "",
   };
 }
 
@@ -523,7 +544,11 @@ export function freshLooseGearDefectRow(): LooseGearDefectRow {
 }
 
 export function freshLooseGearMultipleItemsData(): LooseGearMultipleItemsData {
-  return { jobPoNo: "", inspectedBy: "", colourCode: "", reasonForInspection: "", rows: [] };
+  return {
+    jobPoNo: "", inspectedBy: "", colourCode: "", reasonForInspection: "", rows: [],
+    customerNo: "", dateOfExamination: "", dateOfReport: "", employerNameAddress: "", premisesAddress: "",
+    reportedByQualifications: "", authenticatedByName: "",
+  };
 }
 
 export function freshLooseGearDefectReportData(): LooseGearDefectReportData {
@@ -654,6 +679,8 @@ export function freshLooseGearState(subTypeId: LooseGearData["subType"] = "stand
   const base: LooseGearData = { subType: subTypeId };
   if (subTypeId === "visual_certificate") base.visualCert = freshLooseGearVisualCertData();
   else if (subTypeId === "standard_report") base.standardReport = freshLooseGearStandardReportData();
+  // LEEA-030.1b4 - the same form, started as "Safe to operate: NO".
+  else if (subTypeId === "unsafe_report") base.standardReport = { ...freshLooseGearStandardReportData(), safeForUse: "no", result: "fail" };
   else if (subTypeId === "multiple_items") base.multipleItems = freshLooseGearMultipleItemsData();
   else if (subTypeId === "load_test") base.loadTest = freshLoadTestData();
   else if (subTypeId === "mpi") base.mpi = freshMPIData();

@@ -12,6 +12,8 @@ import PhotoUpload from "../components/PhotoUpload";
 import VesselLookupPanel from "../components/VesselLookupPanel";
 import FFEForm from "../components/FFEForm";
 import LooseGearForm from "../components/LooseGearForm";
+import type { GeneratedReport } from "../components/LooseGearForm";
+import { examinationTypeFromReason, freshDefectDataFromRegister, isBlankRegisterRow, rowReason } from "../data/leeaReports";
 import CalibrationForm from "../components/CalibrationForm";
 import PhotoReportForm from "../components/PhotoReportForm";
 import FRCServiceReportForm from "../components/FRCServiceReportForm";
@@ -698,9 +700,13 @@ export default function InspectionWorkspace() {
       if (lg?.subType === "visual_certificate" && lg.visualCert) {
         if (!lg.visualCert.itemDescription.trim()) problems.push("Item description is required");
         if (!lg.visualCert.statutory.safeToOperate) problems.push('"Safe to operate" must be answered');
-      } else if (lg?.subType === "standard_report" && lg.standardReport) {
+      } else if ((lg?.subType === "standard_report" || lg?.subType === "unsafe_report") && lg.standardReport) {
         if (!lg.standardReport.description.trim()) problems.push("Equipment description is required");
-        if (!lg.standardReport.result) problems.push("Result (pass/fail) must be selected");
+        if (!lg.standardReport.safeForUse) problems.push('"Is this equipment safe to operate?" must be answered');
+        // LEEA-030.1a4 is for equipment that is safe, 1b4 (red UNSAFE) for
+        // equipment that is not - the two must not be mixed up.
+        if (lg.subType === "standard_report" && lg.standardReport.safeForUse === "no") problems.push('Equipment is not safe to operate — issue it as "Report of Thorough Examination - Unsafe"');
+        if (lg.subType === "unsafe_report" && lg.standardReport.safeForUse === "yes") problems.push('An Unsafe report cannot say the equipment is safe to operate');
       } else if (lg?.subType === "multiple_items" && lg.multipleItems) {
         if (lg.multipleItems.rows.length === 0) problems.push("At least one item is required in the register");
         lg.multipleItems.rows.forEach((row, i) => {
@@ -718,7 +724,7 @@ export default function InspectionWorkspace() {
       // fallback ("Operator/Technician" for the 6 NDT methods matches
       // the form; "Test Witness" for Load Test, not "Inspector").
       const lgSignerLabel =
-        lg?.subType === "standard_report" ? "Examiner"
+        lg?.subType === "standard_report" || lg?.subType === "unsafe_report" ? "Examiner"
         : lg?.subType === "load_test" ? "Test Witness"
         : lg?.subType && (["mpi", "pt", "rt", "ut", "vt", "et"] as LooseGearData["subType"][]).includes(lg.subType) ? "Operator/Technician"
         : "Inspector";
@@ -871,9 +877,13 @@ export default function InspectionWorkspace() {
           standardReport: {
             ...current.looseGear.standardReport,
             serialNos: [""],
-            result: "",
+            // An Unsafe report stays "not safe"; a normal one starts unanswered.
+            result: current.looseGear.subType === "unsafe_report" ? "fail" : "",
+            safeForUse: current.looseGear.subType === "unsafe_report" ? "no" : "",
             defectsImmediate: "",
             defectImmediateDanger: "",
+            defectDangerByDate: "",
+            repairParticulars: "",
             defectsObservation: "",
             testsCarriedOut: "",
             additionalComments: "",
@@ -915,12 +925,19 @@ export default function InspectionWorkspace() {
   // saveOther (not saveCurrent/setCurrent) is used so the technician
   // stays on this Multiple Items page throughout — generating 12
   // reports shouldn't navigate them away 12 times.
-  async function handleGenerateStandardReports(rows: LooseGearRegisterRow[]) {
+  async function handleGenerateStandardReports(rows: LooseGearRegisterRow[]): Promise<GeneratedReport[]> {
     if (!current.jobRef) return [];
+    const register = current.looseGear?.multipleItems;
+    // The register's own header (employer, premises, dates, signers) is
+    // copied onto every report, so none of it is typed twice.
     const groups = new Map<string, LooseGearRegisterRow[]>();
     for (const row of rows) {
-      if (!row.description.trim() && !row.serialNo.trim()) continue;
-      const key = [row.description, row.swl, row.itemLocation].map((s) => s.trim().toLowerCase()).join("||");
+      if (isBlankRegisterRow(row)) continue;
+      const reason = register ? rowReason(row, register) : row.reason || "";
+      // Safe to Use and Reason are part of the key too: an item that is NOT
+      // safe becomes its own LEEA-030.1b4 (Unsafe) report, and the single
+      // report's "examination carried out" tick boxes need one reason.
+      const key = [row.description, row.swl, row.itemLocation, row.safeToUse, reason].map((s) => (s || "").trim().toLowerCase()).join("||");
       const bucket = groups.get(key);
       if (bucket) bucket.push(row);
       else groups.set(key, [row]);
@@ -931,7 +948,7 @@ export default function InspectionWorkspace() {
       return groupRows.every((r) => get(r) === first) ? first : "";
     }
 
-    const results: { certNo: string; description: string; swl: string; itemLocation: string; serialNos: string[] }[] = [];
+    const results: GeneratedReport[] = [];
     for (const groupRows of groups.values()) {
       const first = groupRows[0];
       let reserved: { cert_no: string };
@@ -942,6 +959,9 @@ export default function InspectionWorkspace() {
         break;
       }
       const serialNos = groupRows.map((r) => r.serialNo.trim()).filter(Boolean);
+      const safe = agree(groupRows, (r) => r.safeToUse) as "" | "yes" | "no";
+      const unsafe = safe === "no";
+      const subType = unsafe ? "unsafe_report" : "standard_report";
       const draft: InspectionCertificate = {
         ...freshCertificate("loosegear", new Set()),
         certNo: reserved.cert_no,
@@ -949,36 +969,74 @@ export default function InspectionWorkspace() {
         vesselName: current.vesselName,
         imoNo: current.imoNo,
         location: current.location,
+        // The examiner carries over; the signature does not - signing is each
+        // report's own sign-off decision.
+        engineerName: current.engineerName,
         looseGear: {
-          ...freshLooseGearState("standard_report"),
+          ...freshLooseGearState(subType),
           standardReport: {
             ...freshLooseGearStandardReportData(),
+            customerDetails: register?.employerNameAddress || "",
+            siteAddress: register?.premisesAddress || "",
+            dateOfExamination: register?.dateOfExamination || "",
+            dateOfReport: register?.dateOfReport || current.dateOfServicing || "",
+            examinationType: examinationTypeFromReason(register ? rowReason(first, register) : first.reason),
             description: first.description,
             swl: first.swl,
             itemLocation: first.itemLocation,
             manufacturer: agree(groupRows, (r) => r.manufacturer),
             serialNos: serialNos.length ? serialNos : [""],
-            // Requested directly: the register's own Status column
-            // (was "Result", free text like "Satisfactory" — see
-            // LooseGearRegisterRow.result's own comment) now holds a
-            // short code (ND/SDR/NF/OBS), not the full wording a
-            // generated Standard Report's own "Examination Result"
-            // field expects — translate the code to its label rather
-            // than printing "ND" there unexplained.
+            mfgDate: agree(groupRows, (r) => r.mfgDate || ""),
+            prevExamDate: agree(groupRows, (r) => r.lastExamDate || ""),
+            nextExamDate: agree(groupRows, (r) => r.nextInspectionDate),
+            testsCarriedOut: agree(groupRows, (r) => r.testDetails || ""),
+            // The register's own Status column holds a short code
+            // (ND/SDR/NF/OBS) - spelled out for the report's result field.
             examinationResult: (() => {
               const code = agree(groupRows, (r) => r.result);
               return LOOSE_GEAR_STATUS_CODES.find((s) => s.code === code)?.label || code;
             })(),
-            examinationCarriedOut: agree(groupRows, (r) => r.typeOfInspection) || "Thorough Examination",
-            nextExamDate: agree(groupRows, (r) => r.nextInspectionDate),
-            safeForUse: agree(groupRows, (r) => r.safeToUse) as "" | "yes" | "no",
+            examinationCarriedOut: "Thorough Examination",
+            safeForUse: safe,
+            result: safe === "yes" ? "pass" : safe === "no" ? "fail" : "",
+            reportedByQualifications: register?.reportedByQualifications || "",
+            authenticatedByName: register?.authenticatedByName || "",
           },
         },
       };
       saveOther(draft);
-      results.push({ certNo: draft.certNo, description: first.description, swl: first.swl, itemLocation: first.itemLocation, serialNos });
+      results.push({ certNo: draft.certNo, description: first.description, swl: first.swl, itemLocation: first.itemLocation, serialNos, unsafe });
     }
     return results;
+  }
+
+  // One LEEA-030.1d Defect Report List draft from this register's items that
+  // have status SDR/OBS or are not safe to use, referring back to this
+  // register's report number. The technician then fills in the defective
+  // parts, danger and repair columns and signs.
+  async function handleGenerateDefectReport(rows: LooseGearRegisterRow[]): Promise<{ certNo: string; count: number } | null> {
+    if (!current.jobRef) return null;
+    const defectData = freshDefectDataFromRegister(current.certNo, rows);
+    if (defectData.defects.length === 0) return null;
+    let reserved: { cert_no: string };
+    try {
+      reserved = await reserveCertNo(current.jobRef);
+    } catch {
+      window.alert(`Couldn't reserve a certificate number under ${current.jobRef} — it may have just been closed. Try again.`);
+      return null;
+    }
+    const draft: InspectionCertificate = {
+      ...freshCertificate("loosegear", new Set()),
+      certNo: reserved.cert_no,
+      jobRef: current.jobRef,
+      vesselName: current.vesselName,
+      imoNo: current.imoNo,
+      location: current.location,
+      engineerName: current.engineerName,
+      looseGear: { ...freshLooseGearState("defect_report"), defectReport: defectData },
+    };
+    saveOther(draft);
+    return { certNo: draft.certNo, count: defectData.defects.length };
   }
 
 
@@ -1218,7 +1276,7 @@ export default function InspectionWorkspace() {
           <div className="insp-panel">
             <div className="insp-panel-header">Loose Gear &amp; Lifting Equipment</div>
             <div className="insp-panel-body">
-              <LooseGearForm current={current} updateField={updateField} openCertificate={openCertificateWithSave} certificates={certificates} onGenerateStandardReports={handleGenerateStandardReports} allCertNos={allCertNos} />
+              <LooseGearForm current={current} updateField={updateField} openCertificate={openCertificateWithSave} certificates={certificates} onGenerateStandardReports={handleGenerateStandardReports} onGenerateDefectReport={handleGenerateDefectReport} allCertNos={allCertNos} />
             </div>
           </div>
           <div className="insp-panel">
@@ -1264,7 +1322,7 @@ export default function InspectionWorkspace() {
                 (current.jobRef is set by the Job Picker; savedAt/
                 issuedAt only get set by an actual save) — duplicating
                 a still-blank draft wouldn't save anyone any typing. */}
-            {current.looseGear?.subType === "standard_report" && current.jobRef && (current.savedAt || current.issuedAt) && (
+            {(current.looseGear?.subType === "standard_report" || current.looseGear?.subType === "unsafe_report") && current.jobRef && (current.savedAt || current.issuedAt) && (
               <button className="insp-btn insp-btn-primary" onClick={handleDuplicateForNextItem} title="Copies the equipment details — Serial Number(s) and the examination outcome (Result, defects, tests) start blank for you to reassess. Reuses this same Job.">
                 + Add Next Item to This Job
               </button>

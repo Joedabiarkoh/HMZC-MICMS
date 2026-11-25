@@ -13,6 +13,7 @@ import {
   generateCertNo,
   normalizedSerialNos,
 } from "../data/inspectionHelpers";
+import { LEEA_EXAM_TYPE_LABELS, LEEA_REASON_CODES, isBlankRegisterRow, rowNeedsDefectEntry } from "../data/leeaReports";
 import { RegisterEditTable } from "./RegisterTable";
 import {
   InspectionCertificate,
@@ -63,6 +64,16 @@ const NDT_METHOD_SUBTYPES: LooseGearData["subType"][] = ["mpi", "pt", "rt", "ut"
 // the first request was about the minimum, not an unbounded count.
 const PHOTO_KEY = "looseGear";
 
+// One draft created by "Generate Individual Reports" (see MultipleItemsForm).
+export interface GeneratedReport {
+  certNo: string;
+  description: string;
+  swl: string;
+  itemLocation: string;
+  serialNos: string[];
+  unsafe: boolean; // issued as LEEA-030.1b4 (Unsafe) rather than 1a4
+}
+
 interface Props {
   current: InspectionCertificate;
   updateField: <K extends keyof InspectionCertificate>(key: K, value: InspectionCertificate[K]) => void;
@@ -78,7 +89,11 @@ interface Props {
   // this shared Props for the same reason `certificates` is: every
   // loosegear sub-form shares one prop shape rather than each having
   // its own bespoke one.
-  onGenerateStandardReports?: (rows: LooseGearRegisterRow[]) => Promise<{ certNo: string; description: string; swl: string; itemLocation: string; serialNos: string[] }[]>;
+  onGenerateStandardReports?: (rows: LooseGearRegisterRow[]) => Promise<GeneratedReport[]>;
+  // Creates one LEEA-030.1d Defect Report List draft from the register's
+  // SDR/OBS and not-safe rows; resolves to the new report, or null if it
+  // could not be created (see MultipleItemsForm).
+  onGenerateDefectReport?: (rows: LooseGearRegisterRow[]) => Promise<{ certNo: string; count: number } | null>;
   // Requested directly: give the Load Test/NDT report types their own
   // certNo prefix instead of sharing "LG" — see changeSubType below and
   // generateCertNo's own comment in inspectionHelpers.ts. Threaded down
@@ -103,7 +118,7 @@ interface Props {
  * in place — not deleted — purely so a certificate already saved with
  * it still opens and edits correctly.
  */
-export default function LooseGearForm({ current, updateField, openCertificate, certificates, onGenerateStandardReports, allCertNos }: Props) {
+export default function LooseGearForm({ current, updateField, openCertificate, certificates, onGenerateStandardReports, onGenerateDefectReport, allCertNos }: Props) {
   const looseGear = current.looseGear || freshLooseGearState();
 
   // Regenerates certNo alongside the sub-type's data whenever the new
@@ -203,11 +218,11 @@ export default function LooseGearForm({ current, updateField, openCertificate, c
         {looseGear.subType === "visual_certificate" && looseGear.visualCert && (
           <VisualCertForm data={looseGear.visualCert} onChange={updateVisualCert} current={current} updateField={updateField} openCertificate={openCertificate} certificates={certificates} allCertNos={allCertNos} />
         )}
-        {looseGear.subType === "standard_report" && looseGear.standardReport && (
-          <StandardReportForm data={looseGear.standardReport} onChange={updateStandardReport} current={current} updateField={updateField} openCertificate={openCertificate} certificates={certificates} allCertNos={allCertNos} />
+        {(looseGear.subType === "standard_report" || looseGear.subType === "unsafe_report") && looseGear.standardReport && (
+          <StandardReportForm data={looseGear.standardReport} onChange={updateStandardReport} unsafe={looseGear.subType === "unsafe_report"} current={current} updateField={updateField} openCertificate={openCertificate} certificates={certificates} allCertNos={allCertNos} />
         )}
         {looseGear.subType === "multiple_items" && looseGear.multipleItems && (
-          <MultipleItemsForm data={looseGear.multipleItems} onChange={updateMultipleItems} current={current} updateField={updateField} openCertificate={openCertificate} certificates={certificates} onGenerateStandardReports={onGenerateStandardReports} allCertNos={allCertNos} />
+          <MultipleItemsForm data={looseGear.multipleItems} onChange={updateMultipleItems} current={current} updateField={updateField} openCertificate={openCertificate} certificates={certificates} onGenerateStandardReports={onGenerateStandardReports} onGenerateDefectReport={onGenerateDefectReport} allCertNos={allCertNos} />
         )}
         {looseGear.subType === "mpi" && looseGear.mpi && (
           <MPIForm data={looseGear.mpi} onChange={updateMPI} current={current} updateField={updateField} openCertificate={openCertificate} certificates={certificates} allCertNos={allCertNos} />
@@ -340,7 +355,7 @@ function VesselLookupAndSignatures({ current, updateField, openCertificate }: Pi
         <legend className="insp-legend">Signatures</legend>
         {(() => {
           const subType = current.looseGear?.subType;
-          if (subType === "standard_report") {
+          if (subType === "standard_report" || subType === "unsafe_report") {
             return (
               <>
                 <div className="insp-field"><label htmlFor="lg-technician-name">Examiner Name</label><input id="lg-technician-name" value={current.engineerName} onChange={(e) => updateField("engineerName", e.target.value)} /></div>
@@ -487,138 +502,79 @@ function VisualCertForm({
   );
 }
 
-const EXAMINATION_TYPE_LABELS: Record<Exclude<LooseGearExaminationType, "">, string> = {
-  initial: "Initial",
-  standard: "Standard",
-  under_scheme: "Under A Scheme",
-  exceptional: "After Exceptional Circumstances",
-};
-
-// Requested directly: "change the thorough examination report to this
-// type and style" — restructured to match the attached reference
-// ("Test & Tag" branded "Report of Thorough Examination of Lifting
-// Equipment", LOLER 1998): customer/site/examination-type header,
-// equipment identification block, free-text examination details, and
-// a PASS/FAIL result — no LOLER statutory yes/no questions section
-// (that stays on the legacy Visual Certificate template only). "Do
-// not imbed the photo" — no PhotoUpload rendered for this sub-type
-// either now (see the exclusion in VesselLookupAndSignatures below).
+// LEEA-030.1a4 "Report of Thorough Examination" and LEEA-030.1b4 "Report of
+// Thorough Examination - Unsafe" share one form: the fields below follow the
+// LEEA form box by box, so what is typed here is exactly what prints (see
+// components/LeeaReportPages.tsx). Fields the LEEA form has no box for (model,
+// MBL, factor of safety...) are folded into its "Description and
+// identification of the equipment" box.
 function StandardReportForm({
-  data, onChange, current, updateField, openCertificate,
-}: { data: LooseGearStandardReportData; onChange: (patch: Partial<LooseGearStandardReportData>) => void } & Props) {
-  // Requested directly: "is there a way we can arrange all these
-  // process and work flow to make it simple and less complicated" —
-  // Date of Report, MBL, and Factor of Safety are real LOLER/BDA
-  // fields (see their own comments further down) but the least
-  // frequently needed of the ~30 on this form, so they're tucked
-  // behind one toggle instead of always taking up space. Starts
-  // expanded if any of them already have a value (reopening a
-  // certificate that used them shouldn't hide that data by default).
-  const [showAdditional, setShowAdditional] = useState(!!(data.dateOfReport || data.mbl || data.factorOfSafety));
-  // Requested directly: "collapse the ID section" — same collapsible
-  // idea as showAdditional above, but for the whole "Description and
-  // Identification of the Equipment Item Examined" fieldset rather
-  // than a handful of rarely-used fields within it. Defaults open
-  // (unlike showAdditional's fields, these are ones a technician
-  // fills in on every report) — collapsing is for reducing clutter
-  // once they're done, not for hiding required fields from a
-  // first-time flow.
+  data, onChange, current, updateField, openCertificate, unsafe,
+}: { data: LooseGearStandardReportData; onChange: (patch: Partial<LooseGearStandardReportData>) => void; unsafe: boolean } & Props) {
+  const [showMore, setShowMore] = useState(!!(data.mbl || data.factorOfSafety || data.modelDetails || data.prvFitted));
   const [idSectionOpen, setIdSectionOpen] = useState(true);
-  // Root-caused from a real report (the Multiple Items Defect Report
-  // white-page bug): checking every other Loose Gear type for the same
-  // pattern turned this one up too — see normalizedSerialNos's own
-  // comment in inspectionHelpers.ts.
   const serialNos = normalizedSerialNos(data);
+  // "Safe to operate" also drives the older PASS/FAIL value other code
+  // (Certificate Log, finalize checks) still reads.
+  function setSafe(v: LooseGearYesNo) {
+    onChange({ safeForUse: v, result: v === "yes" ? "pass" : v === "no" ? "fail" : "" });
+  }
+  const examTypeKeys = Object.keys(LEEA_EXAM_TYPE_LABELS) as Exclude<LooseGearExaminationType, "" | "standard">[];
   return (
     <>
       <fieldset className="insp-fieldset">
-        <legend className="insp-legend">Report of Thorough Examination</legend>
+        <legend className="insp-legend">{unsafe ? "Report of Thorough Examination — Unsafe (LEEA-030.1b4)" : "Report of Thorough Examination (LEEA-030.1a4)"}</legend>
+        {unsafe && (
+          <p className="insp-help-note" style={{ color: "var(--insp-red)" }}>
+            Prints with the red UNSAFE watermark. Use this report type when the equipment is NOT safe to operate; otherwise use "Report of Thorough Examination".
+          </p>
+        )}
         <div className="insp-row2">
-          <div className="insp-field"><label htmlFor="sr-customer">Customer Details</label><input id="sr-customer" value={data.customerDetails} onChange={(e) => onChange({ customerDetails: e.target.value })} /></div>
-          <div className="insp-field"><label htmlFor="sr-site-address">Site Address</label><input id="sr-site-address" value={data.siteAddress} onChange={(e) => onChange({ siteAddress: e.target.value })} /></div>
-        </div>
-        <div className="insp-row2">
-          <div className="insp-field"><label htmlFor="sr-certno">Report No.</label><input id="sr-certno" value={current.certNo} readOnly /></div>
-          <div className="insp-field"><label htmlFor="sr-date-exam">Date of Examination</label><input id="sr-date-exam" type="date" value={data.dateOfExamination} onChange={(e) => onChange({ dateOfExamination: e.target.value })} /></div>
-        </div>
-        <button
-          type="button"
-          className="insp-btn insp-btn-outline"
-          style={{ padding: "3px 10px", fontSize: 11, marginBottom: 8 }}
-          onClick={() => setShowAdditional((v) => !v)}
-        >
-          {showAdditional ? "− Hide Additional Details" : "+ Additional Details (Date of Report, MBL, Factor of Safety)"}
-        </button>
-        {/* Requested directly: "look at this [BDA Technical Guide] at
-            the report section and include section where needed" —
-            LOLER Schedule 1 item 11 requires its own "date of the
-            report", distinct from the date the examination itself was
-            carried out above (the BDA's own example RTE shows these
-            as two separate fields). */}
-        {showAdditional && (
+          <div className="insp-field"><label htmlFor="sr-date-exam">Date of Thorough Examination</label><input id="sr-date-exam" type="date" value={data.dateOfExamination} onChange={(e) => onChange({ dateOfExamination: e.target.value })} /></div>
           <div className="insp-field"><label htmlFor="sr-date-report">Date of Report</label><input id="sr-date-report" type="date" value={data.dateOfReport} onChange={(e) => onChange({ dateOfReport: e.target.value })} /></div>
-        )}
-        <div className="insp-row2">
-          <div className="insp-field">
-            <label htmlFor="sr-exam-type">Examination Type</label>
-            <select id="sr-exam-type" value={data.examinationType} onChange={(e) => onChange({ examinationType: e.target.value as LooseGearExaminationType })}>
-              <option value="">—</option>
-              {(Object.keys(EXAMINATION_TYPE_LABELS) as Exclude<LooseGearExaminationType, "">[]).map((k) => (
-                <option key={k} value={k}>{EXAMINATION_TYPE_LABELS[k]}</option>
-              ))}
-            </select>
-          </div>
-          <div className="insp-field"><label htmlFor="sr-jobno">Job No</label><input id="sr-jobno" value={current.jobRef || data.jobNo} readOnly /></div>
         </div>
-        {/* LOLER Schedule 1 item 6(b) — only applies "in relation to
-            the first thorough examination... after installation or
-            after assembly at a new site", i.e. when Examination Type
-            above is "Initial"; shown only then rather than as an
-            always-visible field that's meaningless the rest of the
-            time. */}
+        <div className="insp-row2">
+          <div className="insp-field"><label htmlFor="sr-certno">Report Number</label><input id="sr-certno" value={current.certNo} readOnly /></div>
+          <div className="insp-field"><label htmlFor="sr-jobno">HMZC Job No</label><input id="sr-jobno" value={current.jobRef || data.jobNo} readOnly /></div>
+        </div>
+        <div className="insp-field"><label htmlFor="sr-customer">Name and Address of employer for whom the thorough examination was made</label><textarea id="sr-customer" rows={2} value={data.customerDetails} onChange={(e) => onChange({ customerDetails: e.target.value })} /></div>
+        <div className="insp-field"><label htmlFor="sr-site-address">Address of premises at which the examination was made</label><textarea id="sr-site-address" rows={2} value={data.siteAddress} onChange={(e) => onChange({ siteAddress: e.target.value })} /></div>
+        {/* Read-only — set once, by the Job Picker. Printed under the premises address. */}
+        <div className="insp-field"><label htmlFor="sr-vessel">Vessel (printed with the premises address)</label><input id="sr-vessel" value={current.vesselName} readOnly /></div>
+        <div className="insp-field">
+          <label htmlFor="sr-exam-type">Examination carried out</label>
+          <select id="sr-exam-type" value={data.examinationType} onChange={(e) => onChange({ examinationType: e.target.value as LooseGearExaminationType })}>
+            <option value="">—</option>
+            {data.examinationType === "standard" && <option value="standard">Standard (older report - choose a LEEA option)</option>}
+            {examTypeKeys.map((k) => <option key={k} value={k}>{LEEA_EXAM_TYPE_LABELS[k]}</option>)}
+          </select>
+          <p className="insp-help-note">One choice fills in the form's first-examination / 6 months / 12 months / examination scheme / exceptional circumstances tick boxes.</p>
+        </div>
         {data.examinationType === "initial" && (
-          <YesNoField id="sr-installed-correctly" label="Installed Correctly (and safe to operate)?" value={data.installedCorrectly} onChange={(v) => onChange({ installedCorrectly: v })} />
+          <YesNoField id="sr-installed-correctly" label="Has the equipment been installed correctly?" value={data.installedCorrectly} onChange={(v) => onChange({ installedCorrectly: v })} />
         )}
-        <div className="insp-row2">
-          <div className="insp-field"><label htmlFor="sr-prev-exam">Prev. Exam Date</label><input id="sr-prev-exam" type="date" value={data.prevExamDate} onChange={(e) => onChange({ prevExamDate: e.target.value })} /></div>
-          <div className="insp-field"><label htmlFor="sr-next-exam">Next Exam Date</label><input id="sr-next-exam" type="date" value={data.nextExamDate} onChange={(e) => onChange({ nextExamDate: e.target.value })} /></div>
-        </div>
-        {/* Read-only — set once, by the Job Picker, when this
-            certificate was first created (see LooseGearForm.tsx's
-            handleJobSelected). Every item under the same Job must
-            share its vessel, so this can't drift from it mid-form. */}
-        <div className="insp-field"><label htmlFor="sr-vessel">Vessel</label><input id="sr-vessel" value={current.vesselName} readOnly /></div>
       </fieldset>
 
       <fieldset className="insp-fieldset">
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          <legend className="insp-legend">Description and Identification of the Equipment Item Examined</legend>
-          <button
-            type="button"
-            className="insp-btn insp-btn-outline"
-            style={{ padding: "3px 10px", fontSize: 11 }}
-            onClick={() => setIdSectionOpen((v) => !v)}
-          >
+          <legend className="insp-legend">Description and identification of the equipment</legend>
+          <button type="button" className="insp-btn insp-btn-outline" style={{ padding: "3px 10px", fontSize: 11 }} onClick={() => setIdSectionOpen((v) => !v)}>
             {idSectionOpen ? "− Collapse" : "+ Expand"}
           </button>
         </div>
         {idSectionOpen && (
           <>
             <div className="insp-row2">
-              <div className="insp-field"><label htmlFor="sr-idno">I.D. No</label><input id="sr-idno" value={data.idNo} onChange={(e) => onChange({ idNo: e.target.value })} /></div>
               <div className="insp-field"><label htmlFor="sr-desc">Description</label><input id="sr-desc" value={data.description} onChange={(e) => onChange({ description: e.target.value })} /></div>
+              <div className="insp-field"><label htmlFor="sr-idno">Identification No.</label><input id="sr-idno" value={data.idNo} onChange={(e) => onChange({ idNo: e.target.value })} /></div>
             </div>
             <div className="insp-row2">
-              <div className="insp-field"><label htmlFor="sr-model">Model Details</label><input id="sr-model" value={data.modelDetails} onChange={(e) => onChange({ modelDetails: e.target.value })} /></div>
               <div className="insp-field"><label htmlFor="sr-manufacturer">Manufacturer</label><input id="sr-manufacturer" value={data.manufacturer} onChange={(e) => onChange({ manufacturer: e.target.value })} /></div>
+              <div className="insp-field"><label htmlFor="sr-itemlocation">Location</label><input id="sr-itemlocation" value={data.itemLocation} onChange={(e) => onChange({ itemLocation: e.target.value })} /></div>
             </div>
-            {/* Requested directly: "the items serial number can be about 20
-                for 1 set of certificate" — one report can cover a whole
-                batch of identical items (same description/model/
-                manufacturer/SWL/EWL below, examined together), each with
-                its own serial number, rather than always exactly one item
-                per report — so this is a growable list, not a single
-                field. */}
+            {/* One report can cover a batch of identical items (same
+                description/manufacturer/SWL, examined together), each with
+                its own serial number — so this is a growable list. */}
             <div className="insp-field">
               <label>Serial Number(s)</label>
               {serialNos.map((sn, i) => (
@@ -647,101 +603,84 @@ function StandardReportForm({
                   </button>
                 </div>
               ))}
-              <button
-                type="button"
-                className="insp-btn insp-btn-outline"
-                style={{ padding: "3px 10px", fontSize: 11 }}
-                onClick={() => onChange({ serialNos: [...serialNos, ""] })}
-              >
+              <button type="button" className="insp-btn insp-btn-outline" style={{ padding: "3px 10px", fontSize: 11 }} onClick={() => onChange({ serialNos: [...serialNos, ""] })}>
                 + Add Serial Number
               </button>
             </div>
-            <YesNoField id="sr-prv" label="P.R.V. Fitted" value={data.prvFitted} onChange={(v) => onChange({ prvFitted: v })} />
             <div className="insp-row2">
-              <div className="insp-field"><label htmlFor="sr-mfgdate">Mfg. Date</label><input id="sr-mfgdate" type="date" value={data.mfgDate} onChange={(e) => onChange({ mfgDate: e.target.value })} /></div>
-              <div className="insp-field"><label htmlFor="sr-itemlocation">Location</label><input id="sr-itemlocation" value={data.itemLocation} onChange={(e) => onChange({ itemLocation: e.target.value })} /></div>
+              <div className="insp-field"><label htmlFor="sr-swl">Safe Working Load(s)</label><input id="sr-swl" value={data.swl} onChange={(e) => onChange({ swl: e.target.value })} /></div>
+              <div className="insp-field"><label htmlFor="sr-mfgdate">Date of manufacture if known</label><input id="sr-mfgdate" type="date" value={data.mfgDate} onChange={(e) => onChange({ mfgDate: e.target.value })} /></div>
             </div>
-            <div className="insp-row2">
-              <div className="insp-field"><label htmlFor="sr-swl">S.W.L</label><input id="sr-swl" value={data.swl} onChange={(e) => onChange({ swl: e.target.value })} /></div>
-              <div className="insp-field"><label htmlFor="sr-ewl">WLL</label><input id="sr-ewl" value={data.ewl} onChange={(e) => onChange({ ewl: e.target.value })} /></div>
-            </div>
-            {/* Requested directly, from the BDA Technical Guide (Thorough
-                Examinations: Steel wire ropes, lifting accessories and
-                certification): "The BDA further recommends that the
-                Factor of Safety used to calculate WLLs... is added to the
-                certificate" — MBL (Minimum Breaking Load) is the figure
-                SWL/WLL is calculated FROM (WLL = MBL / FoS), and the
-                guide's own example RTE records both alongside SWL for
-                that reason. Gated by the same "Additional Details" toggle
-                as Date of Report above — see showAdditional's own comment. */}
-            {showAdditional && (
-              <div className="insp-row2">
-                <div className="insp-field"><label htmlFor="sr-mbl">MBL (Minimum Breaking Load)</label><input id="sr-mbl" value={data.mbl} onChange={(e) => onChange({ mbl: e.target.value })} placeholder="e.g. 7.12t" /></div>
-                <div className="insp-field"><label htmlFor="sr-fos">Factor of Safety</label><input id="sr-fos" value={data.factorOfSafety} onChange={(e) => onChange({ factorOfSafety: e.target.value })} placeholder="e.g. 5:1" /></div>
-              </div>
+            <div className="insp-field"><label htmlFor="sr-prev-exam">Date of last thorough examination</label><input id="sr-prev-exam" type="date" value={data.prevExamDate} onChange={(e) => onChange({ prevExamDate: e.target.value })} /></div>
+            <button type="button" className="insp-btn insp-btn-outline" style={{ padding: "3px 10px", fontSize: 11, marginBottom: 8 }} onClick={() => setShowMore((v) => !v)}>
+              {showMore ? "− Hide extra identification details" : "+ Extra identification details (WLL, model, MBL, factor of safety, PRV)"}
+            </button>
+            {showMore && (
+              <>
+                <div className="insp-row2">
+                  <div className="insp-field"><label htmlFor="sr-ewl">WLL</label><input id="sr-ewl" value={data.ewl} onChange={(e) => onChange({ ewl: e.target.value })} /></div>
+                  <div className="insp-field"><label htmlFor="sr-model">Model Details</label><input id="sr-model" value={data.modelDetails} onChange={(e) => onChange({ modelDetails: e.target.value })} /></div>
+                </div>
+                <div className="insp-row2">
+                  <div className="insp-field"><label htmlFor="sr-mbl">MBL (Minimum Breaking Load)</label><input id="sr-mbl" value={data.mbl} onChange={(e) => onChange({ mbl: e.target.value })} placeholder="e.g. 7.12t" /></div>
+                  <div className="insp-field"><label htmlFor="sr-fos">Factor of Safety</label><input id="sr-fos" value={data.factorOfSafety} onChange={(e) => onChange({ factorOfSafety: e.target.value })} placeholder="e.g. 5:1" /></div>
+                </div>
+                <YesNoField id="sr-prv" label="P.R.V. Fitted" value={data.prvFitted} onChange={(v) => onChange({ prvFitted: v })} />
+              </>
             )}
           </>
         )}
       </fieldset>
 
       <fieldset className="insp-fieldset">
-        <legend className="insp-legend">Examination Details</legend>
-        <div className="insp-row2">
-          <div className="insp-field"><label htmlFor="sr-exam-carried-out">Type of Examination/Test Carried Out</label><input id="sr-exam-carried-out" value={data.examinationCarriedOut} onChange={(e) => onChange({ examinationCarriedOut: e.target.value })} /></div>
-          <div className="insp-field"><label htmlFor="sr-exam-result">Examination Result / Equipment Status</label><input id="sr-exam-result" value={data.examinationResult} onChange={(e) => onChange({ examinationResult: e.target.value })} placeholder="e.g. Satisfactory" /></div>
+        <legend className="insp-legend">Defects, tests and observations</legend>
+        <div className="insp-field">
+          <label htmlFor="sr-defects-a">Identification of any part found to have a defect which is or could become a danger to persons, and a description of the defect</label>
+          <textarea id="sr-defects-a" rows={3} value={data.defectsImmediate} onChange={(e) => onChange({ defectsImmediate: e.target.value })} placeholder="If none, leave blank — prints NONE" />
         </div>
-        <YesNoField id="sr-safe" label="Safe For Use" value={data.safeForUse} onChange={(v) => onChange({ safeForUse: v })} />
-        <div className="insp-row2">
+        {!!data.defectsObservation?.trim() && (
           <div className="insp-field">
-            <label htmlFor="sr-defects-a">(A) Defects In Need of Attention To Prevent Immediate Failure &amp; Details of Action Required</label>
-            <textarea id="sr-defects-a" rows={3} value={data.defectsImmediate} onChange={(e) => onChange({ defectsImmediate: e.target.value })} placeholder="If none, state NONE" />
+            <label htmlFor="sr-defects-b">Defects kept under observation (from an earlier version of this form — prints after the description above)</label>
+            <textarea id="sr-defects-b" rows={2} value={data.defectsObservation} onChange={(e) => onChange({ defectsObservation: e.target.value })} />
           </div>
-          <div className="insp-field">
-            <label htmlFor="sr-defects-b">(B) Defects to be Kept Under Observation, Date When Must Be Rectified By and Parts Required</label>
-            <textarea id="sr-defects-b" rows={3} value={data.defectsObservation} onChange={(e) => onChange({ defectsObservation: e.target.value })} placeholder="If none, state NONE" />
-          </div>
+        )}
+        <YesNoField id="sr-defect-danger" label="Is the above an existing or imminent danger to persons? (a reportable defect)" value={data.defectImmediateDanger} onChange={(v) => onChange({ defectImmediateDanger: v })} />
+        <div className="insp-field"><label htmlFor="sr-danger-by">Is it a defect which is not yet but could become a danger to persons? If so, the date by when</label><input id="sr-danger-by" type="date" value={data.defectDangerByDate || ""} onChange={(e) => onChange({ defectDangerByDate: e.target.value })} /></div>
+        <div className="insp-field">
+          <label htmlFor="sr-repair">Particulars of any repair, renewal or alteration required to remedy the defect</label>
+          <textarea id="sr-repair" rows={2} value={data.repairParticulars || ""} onChange={(e) => onChange({ repairParticulars: e.target.value })} />
         </div>
-        {/* LOLER Schedule 1 item 8(a)'s own sub-question, flagged
-            explicitly in the BDA guide: a defect that IS an immediate
-            danger to persons has a materially different consequence
-            (must be reported to the enforcing authority) than one
-            merely kept under observation — needs its own explicit
-            Yes/No rather than being inferred from the free text
-            above. */}
-        <YesNoField id="sr-defect-danger" label="Is defect (A) an immediate danger to persons?" value={data.defectImmediateDanger} onChange={(v) => onChange({ defectImmediateDanger: v })} />
-        <div className="insp-row2">
-          <div className="insp-field">
-            <label htmlFor="sr-tests">Particulars of Any Tests Carried Out as Part of the Examination</label>
-            <textarea id="sr-tests" rows={3} value={data.testsCarriedOut} onChange={(e) => onChange({ testsCarriedOut: e.target.value })} placeholder="If none, state NONE" />
-          </div>
-          <div className="insp-field">
-            <label htmlFor="sr-comments">Additional Comments Made As Part of This Examination</label>
-            <textarea id="sr-comments" rows={3} value={data.additionalComments} onChange={(e) => onChange({ additionalComments: e.target.value })} />
-          </div>
+        <div className="insp-field">
+          <label htmlFor="sr-tests">Particulars of any tests carried out as part of the examination</label>
+          <textarea id="sr-tests" rows={2} value={data.testsCarriedOut} onChange={(e) => onChange({ testsCarriedOut: e.target.value })} placeholder="If none, leave blank — prints NONE" />
+        </div>
+        <div className="insp-field">
+          <label htmlFor="sr-comments">Observations / additional comments relative to this thorough examination</label>
+          <textarea id="sr-comments" rows={3} value={data.additionalComments} onChange={(e) => onChange({ additionalComments: e.target.value })} />
         </div>
       </fieldset>
 
       <fieldset className="insp-fieldset">
-        <legend className="insp-legend">Result</legend>
-        <div className="insp-yesno-toggle" role="group" aria-label="Result">
-          <button
-            type="button"
-            className={data.result === "pass" ? "selected" : ""}
-            aria-pressed={data.result === "pass"}
-            onClick={() => onChange({ result: data.result === "pass" ? "" : "pass" })}
-            style={{ color: data.result === "pass" ? undefined : "var(--insp-green)" }}
-          >
-            <span aria-hidden="true">{data.result === "pass" ? "☒" : "☐"}</span> PASS
-          </button>
-          <button
-            type="button"
-            className={data.result === "fail" ? "selected" : ""}
-            aria-pressed={data.result === "fail"}
-            onClick={() => onChange({ result: data.result === "fail" ? "" : "fail" })}
-            style={{ color: data.result === "fail" ? undefined : "var(--insp-red)" }}
-          >
-            <span aria-hidden="true">{data.result === "fail" ? "☒" : "☐"}</span> FAIL
-          </button>
+        <legend className="insp-legend">Safe to operate and sign-off</legend>
+        <YesNoField id="sr-safe" label="IS THIS EQUIPMENT SAFE TO OPERATE?" value={data.safeForUse} onChange={setSafe} />
+        {!unsafe && data.safeForUse === "no" && (
+          <p className="insp-help-note" style={{ color: "var(--insp-red)" }}>
+            This equipment is marked NOT safe — issue it as "Report of Thorough Examination - Unsafe" (Report Type above) so it prints with the UNSAFE watermark.
+          </p>
+        )}
+        {unsafe && data.safeForUse === "yes" && (
+          <p className="insp-help-note" style={{ color: "var(--insp-red)" }}>
+            This is an Unsafe report but "safe to operate" is YES — check one of them.
+          </p>
+        )}
+        <div className="insp-field"><label htmlFor="sr-next-exam">Latest date by which next thorough examination must be carried out</label><input id="sr-next-exam" type="date" value={data.nextExamDate} onChange={(e) => onChange({ nextExamDate: e.target.value })} /></div>
+        <div className="insp-row2">
+          <div className="insp-field"><label htmlFor="sr-qualifications">Qualifications of person making this report (printed under the examiner's name)</label><input id="sr-qualifications" value={data.reportedByQualifications || ""} onChange={(e) => onChange({ reportedByQualifications: e.target.value })} placeholder="e.g. LEEA Certified Thorough Examiner" /></div>
+          <div className="insp-field"><label htmlFor="sr-authenticator">Person signing or authenticating on behalf of the author</label><input id="sr-authenticator" value={data.authenticatedByName || ""} onChange={(e) => onChange({ authenticatedByName: e.target.value })} placeholder="Leave blank if the same as the examiner" /></div>
+        </div>
+        <div className="insp-field">
+          <label htmlFor="sr-reporter-employer">Name and address of employer of persons making and authenticating this report</label>
+          <textarea id="sr-reporter-employer" rows={2} value={data.reporterEmployer || ""} onChange={(e) => onChange({ reporterEmployer: e.target.value })} />
         </div>
       </fieldset>
 
@@ -750,19 +689,19 @@ function StandardReportForm({
   );
 }
 
-const REASON_LABELS: Record<Exclude<LooseGearReasonForInspection, "">, string> = {
-  installation: "Installation (A)",
-  "6monthly": "6 Monthly (B)",
-  "12monthly": "12 Monthly (C)",
-  written_scheme: "Written Scheme (D)",
-  exceptional: "Exceptional Circumstance (E)",
-};
-
+// LEEA-030.1c4 "Report of Thorough Examination (multiple items)": the header
+// boxes and register columns below follow the LEEA form (see
+// components/LeeaReportPages.tsx for the matching print). "Generate
+// Individual Reports" / "Create Defect Report List" turn this one register
+// into the single-item LEEA reports (1a4 / 1b4) and the LEEA-030.1d defect
+// list, pre-filled from it.
 function MultipleItemsForm({
-  data, onChange, current, updateField, openCertificate, onGenerateStandardReports,
+  data, onChange, current, updateField, openCertificate, onGenerateStandardReports, onGenerateDefectReport,
 }: { data: LooseGearMultipleItemsData; onChange: (patch: Partial<LooseGearMultipleItemsData>) => void } & Props) {
   const [generating, setGenerating] = useState(false);
-  const [generated, setGenerated] = useState<{ certNo: string; description: string; swl: string; itemLocation: string; serialNos: string[] }[] | null>(null);
+  const [generated, setGenerated] = useState<GeneratedReport[] | null>(null);
+  const [creatingDefect, setCreatingDefect] = useState(false);
+  const [defectCert, setDefectCert] = useState<{ certNo: string; count: number } | null | "none">(null);
 
   function addRow() {
     onChange({ rows: [...data.rows, freshLooseGearRegisterRow()] });
@@ -772,14 +711,8 @@ function MultipleItemsForm({
     next.splice(i, 1);
     onChange({ rows: next });
   }
-  // Requested directly: "coping items across and pasting them below
-  // for the next item is not possible now... one cell at a time" —
-  // same reasoning as FFEForm.tsx's duplicateItemRow, except Serial
-  // No. resets blank here (like "+ Add Next Item to This Job" already
-  // does for Standard Report) since it's this register's one field
-  // that must stay unique per physical item — everything else
-  // (Description, SWL, Manufacturer, Location, etc.) usually IS
-  // identical for the next item, which is the whole point of copying.
+  // Copies a row for the next, similar item: everything is kept except the
+  // Identification Number, which must stay unique per physical item.
   function duplicateRow(i: number) {
     const next = [...data.rows];
     next.splice(i + 1, 0, { ...next[i], serialNo: "" });
@@ -795,42 +728,51 @@ function MultipleItemsForm({
     if (!onGenerateStandardReports) return;
     setGenerating(true);
     try {
-      const results = await onGenerateStandardReports(data.rows);
-      setGenerated(results);
+      setGenerated(await onGenerateStandardReports(data.rows));
     } finally {
       setGenerating(false);
     }
   }
 
+  async function handleCreateDefect() {
+    if (!onGenerateDefectReport) return;
+    setCreatingDefect(true);
+    try {
+      setDefectCert((await onGenerateDefectReport(data.rows)) || "none");
+    } finally {
+      setCreatingDefect(false);
+    }
+  }
+
+  const defectCandidates = data.rows.filter((r) => !isBlankRegisterRow(r) && rowNeedsDefectEntry(r)).length;
+
   return (
     <>
       <fieldset className="insp-fieldset">
-        <legend className="insp-legend">Report of Thorough Examination (Multiple Items)</legend>
-        {/* Read-only — set once, by the Job Picker, when this
-            certificate was first created (see LooseGearForm.tsx's
-            handleJobSelected). Distinct from Job/PO No. below, which
-            is the CLIENT's own PO reference, not HMZC's internal job
-            grouping. */}
-        <div className="insp-field"><label htmlFor="mi-hmzc-job">HMZC Job No</label><input id="mi-hmzc-job" value={current.jobRef || "—"} readOnly /></div>
+        <legend className="insp-legend">Report of Thorough Examination — Multiple Items (LEEA-030.1c4)</legend>
         <div className="insp-row2">
-          <div className="insp-field"><label htmlFor="mi-jobpo">Job/PO No.</label><input id="mi-jobpo" value={data.jobPoNo} onChange={(e) => onChange({ jobPoNo: e.target.value })} /></div>
-          <div className="insp-field"><label htmlFor="mi-inspectedby">Inspected By</label><input id="mi-inspectedby" value={data.inspectedBy} onChange={(e) => onChange({ inspectedBy: e.target.value })} /></div>
+          <div className="insp-field"><label htmlFor="mi-reportno">Report No</label><input id="mi-reportno" value={current.certNo} readOnly /></div>
+          <div className="insp-field"><label htmlFor="mi-hmzc-job">HMZC Job No</label><input id="mi-hmzc-job" value={current.jobRef || "—"} readOnly /></div>
         </div>
         <div className="insp-row2">
-          <div className="insp-field"><label htmlFor="mi-vessel">Vessel Name</label><input id="mi-vessel" value={current.vesselName} readOnly /></div>
-          <div className="insp-field"><label htmlFor="mi-colour">Colour Code</label><input id="mi-colour" value={data.colourCode} onChange={(e) => onChange({ colourCode: e.target.value })} placeholder="e.g. Blue" /></div>
+          <div className="insp-field"><label htmlFor="mi-customerno">Customer No</label><input id="mi-customerno" value={data.customerNo || ""} onChange={(e) => onChange({ customerNo: e.target.value })} /></div>
+          <div className="insp-field"><label htmlFor="mi-colour">Colour code (if required)</label><input id="mi-colour" value={data.colourCode} onChange={(e) => onChange({ colourCode: e.target.value })} placeholder="e.g. Blue" /></div>
         </div>
         <div className="insp-row2">
+          <div className="insp-field"><label htmlFor="mi-date-exam">Date of this Thorough Examination</label><input id="mi-date-exam" type="date" value={data.dateOfExamination || ""} onChange={(e) => onChange({ dateOfExamination: e.target.value })} /></div>
+          <div className="insp-field"><label htmlFor="mi-date-report">Date of Report</label><input id="mi-date-report" type="date" value={data.dateOfReport || current.dateOfServicing} onChange={(e) => onChange({ dateOfReport: e.target.value })} /></div>
+        </div>
+        <div className="insp-field"><label htmlFor="mi-employer">Name &amp; Address of the employer for whom the examination was made</label><textarea id="mi-employer" rows={2} value={data.employerNameAddress || ""} onChange={(e) => onChange({ employerNameAddress: e.target.value })} /></div>
+        <div className="insp-field"><label htmlFor="mi-premises">Address of the premises at which the examination was made</label><textarea id="mi-premises" rows={2} value={data.premisesAddress || ""} onChange={(e) => onChange({ premisesAddress: e.target.value })} /></div>
+        <div className="insp-row2">
+          <div className="insp-field"><label htmlFor="mi-vessel">Vessel (printed with the premises)</label><input id="mi-vessel" value={current.vesselName} readOnly /></div>
           <div className="insp-field"><label htmlFor="mi-location">Location/Port</label><input id="mi-location" value={current.location} onChange={(e) => updateField("location", e.target.value)} /></div>
-          <div className="insp-field"><label htmlFor="mi-date-report">Date of Report</label><input id="mi-date-report" type="date" value={current.dateOfServicing} onChange={(e) => updateField("dateOfServicing", e.target.value)} /></div>
         </div>
         <div className="insp-field">
-          <label htmlFor="mi-reason">Reason for Inspection</label>
+          <label htmlFor="mi-reason">Reason for Examination (applies to every row unless a row has its own)</label>
           <select id="mi-reason" value={data.reasonForInspection} onChange={(e) => onChange({ reasonForInspection: e.target.value as LooseGearReasonForInspection })}>
             <option value="">—</option>
-            {(Object.keys(REASON_LABELS) as Exclude<LooseGearReasonForInspection, "">[]).map((k) => (
-              <option key={k} value={k}>{REASON_LABELS[k]}</option>
-            ))}
+            {LEEA_REASON_CODES.map((r) => <option key={r.value} value={r.value}>{r.label} ({r.code})</option>)}
           </select>
         </div>
       </fieldset>
@@ -846,34 +788,38 @@ function MultipleItemsForm({
           onChange={(i, key, value) => updateRow(i, { [key]: value } as Partial<LooseGearRegisterRow>)}
           addLabel="+ Add Row"
         />
+        <p className="insp-help-note">
+          Status: ND = No Defect, SDR = See Defect Report, NF = Not Found, OBS = Observation (see Defect Report).
+          Rows marked SDR/OBS make the printed form tick "Defect / Observation sheet attached: Yes".
+          Manufacturer and Location are not printed on the LEEA form; they are used to group items when generating individual reports.
+        </p>
       </fieldset>
 
-      {/* Requested directly: "create individual thorough report based
-          on multiple items filled for the subject by using the
-          description, SWL and location of items to create report for
-          items of same details and others... for faster issuance of
-          standard report for individual items instead of doing them
-          one by one." Rows sharing the same Description/SWL/Location
-          become one Standard Report with all their serial numbers
-          together; each generated report is a real, independent draft
-          the technician opens, reviews, and edits before printing —
-          this panel never prints or finalizes anything itself. */}
-      {!!onGenerateStandardReports && (
+      {/* One register, three outputs: every item that shares Description / WLL /
+          Location, Safe to Use and Reason becomes one single-item LEEA report
+          (1a4, or 1b4 for items not safe to use); items with SDR/OBS or "not
+          safe" feed one LEEA-030.1d Defect Report List. Everything generated is
+          a DRAFT the technician opens, checks and signs - nothing is printed or
+          finalized automatically. */}
+      {(!!onGenerateStandardReports || !!onGenerateDefectReport) && (
         <fieldset className="insp-fieldset">
-          <legend className="insp-legend">Generate Individual Reports</legend>
+          <legend className="insp-legend">Individual Reports and Defect List</legend>
           <p className="insp-help-note">
-            Groups the rows above by matching Description, SWL, and Location — each group becomes its own Standard
-            Report draft (all matching Serial Numbers on one report), ready to open, check, and edit before printing.
+            Make single-item LEEA reports from this register: items with the same Description, WLL/SWL, Location and Safe to Use
+            share one report (all their Identification Numbers on it); items marked not safe get a "Report of Thorough Examination - Unsafe".
+            Every report is created as a draft to open, check and sign.
           </p>
-          <button
-            type="button"
-            className="insp-btn insp-btn-primary"
-            onClick={handleGenerate}
-            disabled={generating || data.rows.length === 0 || !current.jobRef}
-            title={!current.jobRef ? "This certificate needs a Job attached first." : undefined}
-          >
-            {generating ? "Generating..." : "Generate Individual Reports"}
-          </button>
+          {!!onGenerateStandardReports && (
+            <button
+              type="button"
+              className="insp-btn insp-btn-primary"
+              onClick={handleGenerate}
+              disabled={generating || data.rows.length === 0 || !current.jobRef}
+              title={!current.jobRef ? "This certificate needs a Job attached first." : undefined}
+            >
+              {generating ? "Generating..." : "Generate Individual Reports"}
+            </button>
+          )}
           {generated !== null && (
             <div style={{ marginTop: 10 }}>
               {generated.length === 0 ? (
@@ -886,7 +832,7 @@ function MultipleItemsForm({
                   {generated.map((r) => (
                     <div key={r.certNo} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", border: "1px solid #DCE1E5", borderRadius: 6, padding: "6px 10px", marginBottom: 6, fontSize: 11.5 }}>
                       <span>
-                        <strong>{r.certNo}</strong> — {r.description || "(no description)"}
+                        <strong>{r.certNo}</strong>{r.unsafe ? " — UNSAFE" : ""} — {r.description || "(no description)"}
                         {r.swl && ` · SWL ${r.swl}`}
                         {r.itemLocation && ` · ${r.itemLocation}`}
                         {" · "}{r.serialNos.length} item{r.serialNos.length === 1 ? "" : "s"}
@@ -900,8 +846,32 @@ function MultipleItemsForm({
               )}
             </div>
           )}
+
+          {!!onGenerateDefectReport && (
+            <div style={{ marginTop: 14 }}>
+              <button
+                type="button"
+                className="insp-btn insp-btn-outline"
+                onClick={handleCreateDefect}
+                disabled={creatingDefect || defectCandidates === 0 || !current.jobRef}
+                title={defectCandidates === 0 ? "No row has status SDR/OBS or is marked not safe to use." : !current.jobRef ? "This certificate needs a Job attached first." : undefined}
+              >
+                {creatingDefect ? "Creating..." : `Create Defect Report List (${defectCandidates} item${defectCandidates === 1 ? "" : "s"})`}
+              </button>
+              {defectCert === "none" && <p className="insp-help-note">The defect report could not be created — try again.</p>}
+              {defectCert && defectCert !== "none" && (
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", border: "1px solid #DCE1E5", borderRadius: 6, padding: "6px 10px", marginTop: 8, fontSize: 11.5 }}>
+                  <span><strong>{defectCert.certNo}</strong> — Defect Report List · {defectCert.count} item{defectCert.count === 1 ? "" : "s"} · refers to {current.certNo}</span>
+                  <button type="button" className="insp-btn insp-btn-outline" style={{ padding: "2px 10px", fontSize: 11 }} onClick={() => openCertificate(defectCert.certNo)}>Open</button>
+                </div>
+              )}
+            </div>
+          )}
         </fieldset>
       )}
+
+      <div className="insp-field"><label htmlFor="mi-qualifications">Qualifications of the person making this report (printed under the examiner's name)</label><input id="mi-qualifications" value={data.reportedByQualifications || ""} onChange={(e) => onChange({ reportedByQualifications: e.target.value })} /></div>
+      <div className="insp-field"><label htmlFor="mi-authenticator">Person signing or authenticating this report on behalf of the author</label><input id="mi-authenticator" value={data.authenticatedByName || ""} onChange={(e) => onChange({ authenticatedByName: e.target.value })} placeholder="Leave blank if the same as the examiner" /></div>
 
       <VesselLookupAndSignatures current={current} updateField={updateField} openCertificate={openCertificate} />
     </>
