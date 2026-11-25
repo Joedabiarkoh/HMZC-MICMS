@@ -154,11 +154,9 @@ export function LeeaReportPage({ cert, data, unsafe }: { cert: InspectionCertifi
           <tbody>
             <tr className="leea-h46">
               <td>
-                <div className="leea-cap">Name and Address of employer for whom the thorough examination was made:</div>
                 <Text value={v.employer} />
               </td>
               <td>
-                <div className="leea-cap">Address of premises at which the examination was made:</div>
                 <Lines lines={v.premises} />
               </td>
             </tr>
@@ -170,7 +168,6 @@ export function LeeaReportPage({ cert, data, unsafe }: { cert: InspectionCertifi
           <tbody>
             <tr className="leea-h80">
               <td>
-                <div className="leea-cap">Description and identification of the equipment:</div>
                 <Lines lines={v.identification} />
               </td>
               <td><div className="leea-cap">Safe Working Load(s):</div><Text value={v.swl} /></td>
@@ -293,22 +290,18 @@ export function LeeaReportPage({ cert, data, unsafe }: { cert: InspectionCertifi
         <tbody>
           <tr className="leea-h66">
             <td>
-              <div className="leea-cap">Name &amp; Qualifications of person making this report:</div>
               <Lines lines={v.reporterNameQualifications} />
             </td>
             <td>
-              <div className="leea-cap">Name of person signing or authenticating this report on behalf of the author:</div>
               <div>{v.authenticatorName}</div>
-              <div className="leea-signline">Signature: <SignatureWithStamp cert={cert} /></div>
+              <div className="leea-signline"><SignatureWithStamp cert={cert} /></div>
             </td>
             <td>
-              <div className="leea-cap">Latest date by which next thorough examination must be carried out:</div>
               {dateText(v.nextExamDate)}
             </td>
           </tr>
           <tr className="leea-h50">
             <td colSpan={3}>
-              <div className="leea-cap">Name and address of employer of persons making and authenticating this report:</div>
               <Text value={v.reporterEmployer} />
             </td>
           </tr>
@@ -363,11 +356,9 @@ export function LeeaMultiplePage({ cert, data }: { cert: InspectionCertificate; 
         <tbody>
           <tr className="leea-h62">
             <td>
-              <div className="leea-cap">Name &amp; Address of the employer for whom the examination was made:</div>
               <Text value={data.employerNameAddress || ""} />
             </td>
             <td>
-              <div className="leea-cap">Address of the premises at which the examination was made:</div>
               <Lines lines={[data.premisesAddress || "", cert.vesselName ? `Vessel: ${cert.vesselName}` : ""].filter(Boolean)} />
             </td>
             <td>
@@ -431,13 +422,11 @@ export function LeeaMultiplePage({ cert, data }: { cert: InspectionCertificate; 
         <tbody>
           <tr className="leea-h66">
             <td>
-              <div className="leea-cap">Name &amp; qualifications of the person making this report:</div>
               <Lines lines={[cert.engineerName, data.reportedByQualifications || ""].filter(Boolean)} />
             </td>
             <td>
-              <div className="leea-cap">Name of the person signing or authenticating this report on behalf of the author:</div>
               <div>{data.authenticatedByName || cert.engineerName}</div>
-              <div className="leea-signline">Signature: <SignatureWithStamp cert={cert} /></div>
+              <div className="leea-signline"><SignatureWithStamp cert={cert} /></div>
             </td>
           </tr>
         </tbody>

@@ -167,11 +167,11 @@ export function buildLeeaReportBlocks(cert: InspectionCertificate, d: LooseGearS
     cell(`Report number: ${cert.certNo}`, { w: 34 }),
   ], 330)]));
   blocks.push(table([row([
-    cell([cap("Name and Address of employer for whom the thorough examination was made:"), ...lines(v.employer)], { w: 54.6 }),
-    cell([cap("Address of premises at which the examination was made:"), ...lines(v.premises)], { w: 45.4 }),
+    cell([...lines(v.employer)], { w: 54.6 }),
+    cell([...lines(v.premises)], { w: 45.4 }),
   ], 700)]));
   blocks.push(table([row([
-    cell([cap("Description and identification of the equipment:"), ...lines(v.identification)], { w: 54.6 }),
+    cell([...lines(v.identification)], { w: 54.6 }),
     cell([cap("Safe Working Load(s):"), ...lines(v.swl)], { w: 15 }),
     cell([cap("Date of manufacture if known:"), para(dateText(v.mfgDate))], { w: 15.2 }),
     cell([cap("Date of last thorough examination:"), para(dateText(v.prevExamDate))], { w: 15.2 }),
@@ -221,11 +221,11 @@ export function buildLeeaReportBlocks(cert: InspectionCertificate, d: LooseGearS
   ], 520)]));
   blocks.push(table([
     row([
-      cell([cap("Name & Qualifications of person making this report:"), ...lines(v.reporterNameQualifications)], { w: 31.5 }),
-      cell([cap("Name of person signing or authenticating this report on behalf of the author:"), para(v.authenticatorName), para("Signature:"), ...signature], { w: 35.4 }),
-      cell([cap("Latest date by which next thorough examination must be carried out:"), para(dateText(v.nextExamDate))], { w: 33.1 }),
+      cell([...lines(v.reporterNameQualifications)], { w: 31.5 }),
+      cell([para(v.authenticatorName), ...signature], { w: 35.4 }),
+      cell([para(dateText(v.nextExamDate))], { w: 33.1 }),
     ], 1000),
-    row([cell([cap("Name and address of employer of persons making and authenticating this report:"), ...lines(v.reporterEmployer)], { w: 100, span: 3 })], 720),
+    row([cell([...lines(v.reporterEmployer)], { w: 100, span: 3 })], 720),
   ]));
   blocks.push(...issuedBy(cert), docFoot(meta, PORTRAIT_WIDTH));
   return blocks;
@@ -247,8 +247,8 @@ export function buildLeeaMultipleBlocks(cert: InspectionCertificate, d: LooseGea
   ));
 
   blocks.push(table([row([
-    cell([cap("Name & Address of the employer for whom the examination was made:"), ...lines(d.employerNameAddress || "")], { w: 39 }),
-    cell([cap("Address of the premises at which the examination was made:"), ...lines([d.premisesAddress || "", cert.vesselName ? `Vessel: ${cert.vesselName}` : ""].filter(Boolean))], { w: 34.5 }),
+    cell([...lines(d.employerNameAddress || "")], { w: 39 }),
+    cell([...lines([d.premisesAddress || "", cert.vesselName ? `Vessel: ${cert.vesselName}` : ""].filter(Boolean))], { w: 34.5 }),
     cell([para("Status:"), ...LOOSE_GEAR_STATUS_CODES.map((s) => para(`${s.label}${s.code === "ND" ? ":" : ""}`))], { w: 26.5 }),
   ], 900)]));
   blocks.push(gap());
@@ -271,8 +271,8 @@ export function buildLeeaMultipleBlocks(cert: InspectionCertificate, d: LooseGea
   ], 380)]));
   blocks.push(gap());
   blocks.push(table([row([
-    cell([cap("Name & qualifications of the person making this report:"), ...lines([cert.engineerName, d.reportedByQualifications || ""].filter(Boolean))], { w: 47 }),
-    cell([cap("Name of the person signing or authenticating this report on behalf of the author:"), para(d.authenticatedByName || cert.engineerName), para("Signature:"), ...signature], { w: 53 }),
+    cell([...lines([cert.engineerName, d.reportedByQualifications || ""].filter(Boolean))], { w: 47 }),
+    cell([para(d.authenticatedByName || cert.engineerName), ...signature], { w: 53 }),
   ], 1000)]));
   blocks.push(gap());
   blocks.push(table([row([
