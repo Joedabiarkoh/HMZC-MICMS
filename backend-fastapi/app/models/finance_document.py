@@ -102,6 +102,11 @@ class Invoice(BaseModel):
     # Same USD-is-the-stored-truth design as Quotation.currency above.
     currency = Column(String, nullable=False, default="USD")
     exchange_rate = Column(Float, nullable=False, default=1.0)
+    # Angolan tax, only meaningful on AOA invoices (see core/angola_tax.py):
+    # service | supply, the IVA rate %, and the customer's withholding %.
+    tax_nature = Column(String, nullable=False, default="service")
+    iva_rate = Column(Float, nullable=False, default=0.0)
+    withholding_rate = Column(Float, nullable=False, default=0.0)
 
     issued_by_id = Column(Integer, ForeignKey("users.id"), nullable=True)
     issued_by = relationship("User")

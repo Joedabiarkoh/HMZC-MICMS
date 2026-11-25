@@ -105,6 +105,9 @@ export default function Payments() {
         total: inv.total,
         currency: inv.currency,
         exchange_rate: inv.exchange_rate,
+        tax_nature: inv.tax_nature,
+        iva_rate: inv.iva_rate,
+        withholding_rate: inv.withholding_rate,
         version: inv.version,
       });
       setInvoices((prev) => prev.map((i) => (i.id === updated.id ? updated : i)));

@@ -8,6 +8,7 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy import update
 from sqlalchemy.orm import Session, joinedload
 
+from app.core.angola_tax import normalise_tax_fields
 from app.api.deps import require_permission
 from app.core.config import settings
 from app.core.database import get_database
@@ -359,6 +360,11 @@ def save_invoice(
         inv_in.total,
     )
 
+    # Angolan tax only applies on AOA invoices, withholding only on services.
+    tax_nature, iva_rate, withholding_rate = normalise_tax_fields(
+        inv_in.currency, inv_in.tax_nature, inv_in.iva_rate, inv_in.withholding_rate
+    )
+
     existing = db.query(Invoice).filter(Invoice.invoice_no == inv_in.invoice_no).first()
     if existing:
         if not _can_edit(existing.issued_by_id, current_user):
@@ -384,6 +390,9 @@ def save_invoice(
                 total=inv_in.total,
                 currency=inv_in.currency,
                 exchange_rate=inv_in.exchange_rate,
+                tax_nature=tax_nature,
+                iva_rate=iva_rate,
+                withholding_rate=withholding_rate,
             ),
             "invoice",
         )
@@ -407,6 +416,9 @@ def save_invoice(
         total=inv_in.total,
         currency=inv_in.currency,
         exchange_rate=inv_in.exchange_rate,
+        tax_nature=tax_nature,
+        iva_rate=iva_rate,
+        withholding_rate=withholding_rate,
         issued_by_id=current_user.id,
     )
     db.add(invoice)

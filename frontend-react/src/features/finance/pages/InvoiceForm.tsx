@@ -15,6 +15,7 @@ import { DiscountType, FinanceItem, LineItem, InvoiceDoc } from "../types/financ
 import { confirmAction } from "../../../components/ConfirmDialog";
 import { hasPermission, PERM } from "../../auth/types/auth.types";
 import { CURRENCIES, formatMoney } from "../data/currencies";
+import { computeTax, DEFAULT_IVA_RATE, DEFAULT_WITHHOLDING_RATE, ivaLabel, IVA_RATES, TAX_CURRENCY, TaxNature } from "../data/angolaTax";
 
 function generateInvoiceNo(existing: InvoiceDoc[]): string {
   const ymd = new Date().toISOString().slice(0, 10).replace(/-/g, "");
@@ -53,6 +54,12 @@ export default function InvoiceForm() {
   // currency/exchangeRate only affect what's shown in the preview/PDF.
   const [currency, setCurrency] = useState("USD");
   const [exchangeRate, setExchangeRate] = useState(1);
+  // Angolan tax, Kwanza invoices only (data/angolaTax.ts): one IVA rate per
+  // invoice; withholding is the customer's deduction and applies to services.
+  const [taxNature, setTaxNature] = useState<TaxNature>("service");
+  const [ivaRate, setIvaRate] = useState<number>(DEFAULT_IVA_RATE);
+  const [withholdingOn, setWithholdingOn] = useState(false);
+  const [withholdingRate, setWithholdingRate] = useState<number>(DEFAULT_WITHHOLDING_RATE);
   const [stagedFiles, setStagedFiles] = useState<StagedAttachment[]>([]);
   const [version, setVersion] = useState<number | null>(null);
   const [issuedBy, setIssuedBy] = useState<string | null>(null);
@@ -82,6 +89,10 @@ export default function InvoiceForm() {
     setOverallDiscountAmount(found.overall_discount_amount || 0);
     setCurrency(found.currency || "USD");
     setExchangeRate(found.exchange_rate || 1);
+    setTaxNature(found.tax_nature || "service");
+    setIvaRate(found.currency === TAX_CURRENCY ? (found.iva_rate ?? DEFAULT_IVA_RATE) : DEFAULT_IVA_RATE);
+    setWithholdingOn((found.withholding_rate || 0) > 0);
+    if ((found.withholding_rate || 0) > 0) setWithholdingRate(found.withholding_rate);
     setVersion(found.version);
     setIssuedBy(found.issued_by ? (found.issued_by.full_name || found.issued_by.email) : null);
     setIssuedById(found.issued_by?.id ?? null);
@@ -126,6 +137,7 @@ export default function InvoiceForm() {
   // already checked FIN_EDIT for its own canEdit prop) and with the
   // backend, which independently re-checks _can_edit on save regardless.
   const canEdit = hasPermission(user, PERM.FIN_EDIT) && (!invoiceNo || user?.role === "admin" || issuedById === user?.id);
+  const isKwanza = currency === TAX_CURRENCY;
   const { subtotal, discountTotal, total } = computeDocumentTotals(lineItems, overallDiscountType, overallDiscountPercent, overallDiscountAmount);
 
   function addItem(item: FinanceItem) {
@@ -150,6 +162,9 @@ export default function InvoiceForm() {
       total,
       currency,
       exchange_rate: currency === "USD" ? 1 : exchangeRate,
+      tax_nature: taxNature,
+      iva_rate: isKwanza ? ivaRate : 0,
+      withholding_rate: isKwanza && taxNature === "service" && withholdingOn ? withholdingRate : 0,
       version,
     };
     try {
@@ -288,6 +303,53 @@ export default function InvoiceForm() {
             </p>
           )}
 
+          {isKwanza && (
+            <fieldset style={{ border: "1px solid var(--insp-line)", borderRadius: 6, padding: "8px 12px", marginBottom: 12 }}>
+              <legend style={{ fontSize: 11.5, fontWeight: 700 }}>Angolan tax (Kwanza invoice)</legend>
+              <div className="finance-row2">
+                <div className="finance-field">
+                  <label htmlFor="invoice-tax-nature">Invoice is for</label>
+                  <select id="invoice-tax-nature" value={taxNature} onChange={(e) => setTaxNature(e.target.value as TaxNature)} disabled={!canEdit}>
+                    <option value="service">Services (prestação de serviços)</option>
+                    <option value="supply">Supply of goods (fornecimento de bens)</option>
+                  </select>
+                </div>
+                <div className="finance-field">
+                  <label htmlFor="invoice-iva">IVA rate</label>
+                  <select id="invoice-iva" value={ivaRate} onChange={(e) => setIvaRate(Number(e.target.value))} disabled={!canEdit}>
+                    {IVA_RATES.map((r) => <option key={r} value={r}>{ivaLabel(r)}</option>)}
+                  </select>
+                </div>
+              </div>
+              {taxNature === "service" && (
+                <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap", marginBottom: 6 }}>
+                  <label style={{ fontSize: 12 }}>
+                    <input type="checkbox" checked={withholdingOn} onChange={(e) => setWithholdingOn(e.target.checked)} disabled={!canEdit} />{" "}
+                    Customer withholds tax (retenção na fonte)
+                  </label>
+                  {withholdingOn && (
+                    <label style={{ fontSize: 12 }}>
+                      Rate %{" "}
+                      <input aria-label="Withholding rate" type="number" min="0" max="25" step="0.5" value={withholdingRate}
+                        onChange={(e) => setWithholdingRate(Number(e.target.value) || 0)} disabled={!canEdit} style={{ width: 70 }} />
+                    </label>
+                  )}
+                </div>
+              )}
+              {(() => {
+                const wh = taxNature === "service" && withholdingOn ? withholdingRate : 0;
+                const tx = computeTax(total * (exchangeRate || 0), ivaRate, wh);
+                return (
+                  <p style={{ fontSize: 11, color: "var(--insp-muted)", margin: 0 }}>
+                    Base {formatMoney(tx.base, currency, 1)} + IVA {formatMoney(tx.iva, currency, 1)} = {formatMoney(tx.gross, currency, 1)}
+                    {wh > 0 && <> − withholding {formatMoney(tx.withheld, currency, 1)} = <strong>net payable {formatMoney(tx.netPayable, currency, 1)}</strong></>}
+                    . Withholding is 6.5% on services (before IVA) and is suspended for some taxpayer groups — confirm with your accountant.
+                  </p>
+                );
+              })()}
+            </fieldset>
+          )}
+
           {canEdit && (
             <>
               <h2 style={{ marginTop: 18 }}>Add Item</h2>
@@ -357,6 +419,7 @@ export default function InvoiceForm() {
             total={total}
             currency={currency}
             exchangeRate={exchangeRate}
+            tax={isKwanza ? { nature: taxNature, ivaRate, withholdingRate: taxNature === "service" && withholdingOn ? withholdingRate : 0 } : undefined}
             issuedBy={issuedBy}
             issuedAt={issuedAt}
           />

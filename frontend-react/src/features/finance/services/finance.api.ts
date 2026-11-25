@@ -159,6 +159,9 @@ export interface InvoiceSavePayload {
   total: number;
   currency: string;
   exchange_rate: number;
+  tax_nature?: string;
+  iva_rate?: number;
+  withholding_rate?: number;
   version?: number | null;
 }
 

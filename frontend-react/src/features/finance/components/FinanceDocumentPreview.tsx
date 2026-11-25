@@ -4,6 +4,7 @@ import { getCompanyInfo } from "../../auth/services/auth.api";
 import { CompanyInfo } from "../../auth/types/auth.types";
 import { LineItem } from "../types/finance.types";
 import { formatMoney } from "../data/currencies";
+import { computeTax, TAX_CURRENCY, TaxNature } from "../data/angolaTax";
 import { useFillToPageMultiple } from "../../../hooks/useFillToPageMultiple";
 import "../../inspections/inspections.css"; // reuses .insp-letterhead/.insp-print-chk/.insp-badge etc. rather than duplicating them in finance.css
 // Side-effect only — see CertificatePreview.tsx's own import of this
@@ -33,6 +34,8 @@ interface Props {
   // document (see ConditionsEditor.tsx), distinct from the company-wide
   // Terms and Conditions legal text below (which prints on invoices).
   conditions?: string[];
+  // Angolan tax block — shown on Kwanza invoices only (data/angolaTax.ts).
+  tax?: { nature: TaxNature; ivaRate: number; withholdingRate: number };
   issuedBy: string | null;
   issuedAt: string | null;
 }
@@ -61,9 +64,10 @@ function renderTermsLine(line: string, i: number) {
  * (CertificatePreview.tsx), applied here to invoices and quotations.
  */
 export default function FinanceDocumentPreview({
-  kind, docNo, customer, vesselName, imoNo, status, lineItems, subtotal, discountTotal, total, currency, exchangeRate, conditions, issuedBy, issuedAt,
+  kind, docNo, customer, vesselName, imoNo, status, lineItems, subtotal, discountTotal, total, currency, exchangeRate, conditions, tax, issuedBy, issuedAt,
 }: Props) {
   const money = (usdAmount: number) => formatMoney(usdAmount, currency, exchangeRate);
+  const taxBlock = kind === "INVOICE" && currency === TAX_CURRENCY && tax ? computeTax(total * exchangeRate, tax.ivaRate, tax.withholdingRate) : null;
   // Self-fetched rather than threaded down as a prop from InvoiceForm.tsx/
   // QuotationForm.tsx — this is a rarely-changing, company-wide constant
   // (see Settings' Company Information section), not per-document state
@@ -161,8 +165,22 @@ export default function FinanceDocumentPreview({
         <div className="finance-totals" style={{ marginLeft: conditions?.length ? 0 : "auto" }}>
           <div className="finance-totals-row"><span>Subtotal</span><span>{money(subtotal)}</span></div>
           <div className="finance-totals-row"><span>Discount</span><span>-{money(discountTotal)}</span></div>
-          <div className="finance-totals-row grand"><span>Total</span><span>{money(total)}</span></div>
-          {currency !== "USD" && (
+          {taxBlock ? (
+            <>
+              <div className="finance-totals-row grand"><span>Taxable base</span><span>{money(total)}</span></div>
+              <div className="finance-totals-row"><span>IVA {tax!.ivaRate}%</span><span>{formatMoney(taxBlock.iva, currency, 1)}</span></div>
+              <div className="finance-totals-row grand"><span>Total incl. IVA</span><span>{formatMoney(taxBlock.gross, currency, 1)}</span></div>
+              {tax!.withholdingRate > 0 && (
+                <>
+                  <div className="finance-totals-row"><span>Withholding {tax!.withholdingRate}%</span><span>-{formatMoney(taxBlock.withheld, currency, 1)}</span></div>
+                  <div className="finance-totals-row grand"><span>Net payable</span><span>{formatMoney(taxBlock.netPayable, currency, 1)}</span></div>
+                </>
+              )}
+            </>
+          ) : (
+            <div className="finance-totals-row grand"><span>Total</span><span>{money(total)}</span></div>
+          )}
+          {!taxBlock && currency !== "USD" && (
             <div className="finance-totals-row" style={{ fontSize: 9.5, color: "var(--insp-muted)" }}>
               <span>USD Equivalent</span><span>${total.toFixed(2)} @ {exchangeRate || 0}</span>
             </div>

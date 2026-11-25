@@ -157,6 +157,10 @@ export interface InvoiceDoc {
   total: number;
   currency: string;
   exchange_rate: number;
+  // Angolan tax (AOA invoices only): see data/angolaTax.ts.
+  tax_nature: "service" | "supply";
+  iva_rate: number;
+  withholding_rate: number;
   issued_by: FinanceUser | null;
   version: number;
   created_at: string;

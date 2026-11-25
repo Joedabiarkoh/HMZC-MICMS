@@ -22,6 +22,7 @@ from reportlab.platypus import (
     TableStyle,
 )
 
+from app.core.angola_tax import TAX_CURRENCY, compute_tax
 from app.core.po_terms import DEFAULT_LEGAL_NAME, DEFAULT_NIF, DEFAULT_PHONES
 from app.models.notification_settings import NotificationSettings
 
@@ -368,9 +369,26 @@ def build_document_pdf(doc, kind: str, company: Optional[NotificationSettings]) 
         ["Discount", f"-{_money(doc.discount_total, currency, exchange_rate)}"],
         [Paragraph("<b>Total</b>", _STYLE_NORMAL), Paragraph(f"<b>{_money(doc.total, currency, exchange_rate)}</b>", _STYLE_NORMAL)],
     ]
-    if currency != "USD":
+    # Angolan tax block, Kwanza invoices only (core/angola_tax.py).
+    is_tax_invoice = kind == "INVOICE" and currency == TAX_CURRENCY
+    tax_note = None
+    if is_tax_invoice:
+        iva_rate = float(getattr(doc, "iva_rate", 0) or 0)
+        wh_rate = float(getattr(doc, "withholding_rate", 0) or 0)
+        tx = compute_tax(doc.total * exchange_rate, iva_rate, wh_rate)
+        totals_data[2] = [Paragraph("<b>Taxable base</b>", _STYLE_NORMAL), Paragraph(f"<b>{_money(doc.total, currency, exchange_rate)}</b>", _STYLE_NORMAL)]
+        totals_data.append([f"IVA {iva_rate:g}%", _money(tx["iva"], currency, 1.0)])
+        totals_data.append([Paragraph("<b>Total incl. IVA</b>", _STYLE_NORMAL), Paragraph(f"<b>{_money(tx['gross'], currency, 1.0)}</b>", _STYLE_NORMAL)])
+        if wh_rate:
+            totals_data.append([f"Withholding {wh_rate:g}%", f"-{_money(tx['withheld'], currency, 1.0)}"])
+            totals_data.append([Paragraph("<b>Net payable</b>", _STYLE_NORMAL), Paragraph(f"<b>{_money(tx['net_payable'], currency, 1.0)}</b>", _STYLE_NORMAL)])
+        if iva_rate == 0:
+            tax_note = "IVA at 0% (exempt / export)."
+        if wh_rate:
+            tax_note = ((tax_note + " ") if tax_note else "") + "Withholding tax (retenção na fonte) is deducted and remitted by the customer."
+    elif currency != "USD":
         totals_data.append(["", Paragraph(f"(USD {doc.total:,.2f} @ {exchange_rate:g})", _STYLE_SMALL)])
-    totals_table = Table(totals_data, colWidths=[80, 80], hAlign="RIGHT")
+    totals_table = Table(totals_data, colWidths=[100, 95] if is_tax_invoice else [80, 80], hAlign="RIGHT")
     totals_table.setStyle(TableStyle([
         ("LINEABOVE", (0, 2), (-1, 2), 1, NAVY),
         ("TOPPADDING", (0, 0), (-1, -1), 3),
@@ -395,6 +413,9 @@ def build_document_pdf(doc, kind: str, company: Optional[NotificationSettings]) 
         story.append(row)
     else:
         story.append(totals_table)
+    if tax_note:
+        story.append(Spacer(1, 4))
+        story.append(Paragraph(tax_note, _STYLE_SMALL))
 
     # ---- bank details (invoice only) ----
     has_bank = kind == "INVOICE" and company and any([

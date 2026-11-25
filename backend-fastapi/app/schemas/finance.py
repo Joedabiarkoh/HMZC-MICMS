@@ -3,6 +3,7 @@ from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel, field_validator
 
+from app.core.angola_tax import IVA_RATES, TAX_NATURES
 from app.schemas.user import UserResponse
 
 # Requested directly: "using the USD as the main price, invoice can be
@@ -187,6 +188,9 @@ class InvoiceCreate(BaseModel):
     total: float
     currency: str = "USD"
     exchange_rate: float = 1.0
+    tax_nature: str = "service"
+    iva_rate: float = 0.0
+    withholding_rate: float = 0.0
     version: Optional[int] = None
 
     @field_validator("currency")
@@ -201,6 +205,27 @@ class InvoiceCreate(BaseModel):
     def _positive_rate(cls, v: float) -> float:
         if v <= 0:
             raise ValueError("Exchange rate must be greater than zero.")
+        return v
+
+    @field_validator("tax_nature")
+    @classmethod
+    def _valid_nature(cls, v: str) -> str:
+        if v not in TAX_NATURES:
+            raise ValueError("Tax nature must be 'service' or 'supply'.")
+        return v
+
+    @field_validator("iva_rate")
+    @classmethod
+    def _valid_iva(cls, v: float) -> float:
+        if v not in IVA_RATES:
+            raise ValueError("IVA rate must be one of 0, 5, 7 or 14.")
+        return v
+
+    @field_validator("withholding_rate")
+    @classmethod
+    def _valid_withholding(cls, v: float) -> float:
+        if v < 0 or v > 25:
+            raise ValueError("Withholding rate must be between 0 and 25.")
         return v
 
 
@@ -221,6 +246,9 @@ class InvoiceResponse(BaseModel):
     total: float
     currency: str = "USD"
     exchange_rate: float = 1.0
+    tax_nature: str = "service"
+    iva_rate: float = 0.0
+    withholding_rate: float = 0.0
     issued_by: Optional[UserResponse] = None
     version: int
     created_at: datetime
