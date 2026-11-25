@@ -32,3 +32,17 @@ DEFAULT_PO_TERMS = "\n".join([
 DEFAULT_LEGAL_NAME = "HMZC LDA — Prestação de Serviços Lda"
 DEFAULT_NIF = "5001114387"
 DEFAULT_PHONES = "+244 972 320 300 / 944 442 255"
+
+
+# HMZC's Kwanza (AOA) bank account, from the company's own proforma
+# (FTM HMZC26/195). Printed on every Kwanza invoice, quotation and purchase
+# order in place of the foreign-currency bank block. One "Label: value" per
+# line; editable in Settings (notification_settings.kwanza_bank_details).
+DEFAULT_KWANZA_BANK = "\n".join([
+    "Bank: BAI — Banco BAI, Luanda, Complexo Garden Towers, Torre BAI, Travessa Ho Chi Minh, Maianga, Angola",
+    "Beneficiary: HMZC PRESTAÇÃO DE SERVIÇOS LDA",
+    "IBAN: AO06 0040 0000 3118 6064 1513 6",
+    "Account No.: 231186064.15.001",
+    "SWIFT: BAIPAOLU",
+    "NIF: 5001114387",
+])

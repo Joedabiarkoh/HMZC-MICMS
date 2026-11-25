@@ -81,7 +81,7 @@ _COMPANY_INFO_FIELDS = [
     "peppol_id", "bank_name", "bank_address", "bank_town", "bank_postcode",
     "bank_country", "bank_beneficiary", "bank_account_number", "bank_sort_code",
     "bank_swift_code", "bank_iban", "terms_conditions",
-    "company_legal_name", "company_nif", "company_phones", "po_terms_conditions",
+    "company_legal_name", "company_nif", "company_phones", "po_terms_conditions", "kwanza_bank_details",
 ]
 
 

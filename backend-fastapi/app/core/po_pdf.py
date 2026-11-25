@@ -25,6 +25,7 @@ from app.core.invoice_pdf import (
     _id_table,
     _scaled_image,
     _terms_flowables,
+    kwanza_bank_flowables,
     letterhead_flowables,
 )
 from app.core.photo_storage import PHOTOS_DIR
@@ -230,6 +231,8 @@ def build_po_pdf(po: PurchaseOrder, company: Optional[NotificationSettings]) -> 
     block = [sigs, Spacer(1, 10), delivery]
     if po.notes:
         block += [Spacer(1, 8), Paragraph("<b>Notes</b>", _STYLE_NORMAL), Paragraph(_esc(po.notes), _STYLE_SMALL)]
+    if po.currency == "AOA":
+        block += [Spacer(1, 8), *kwanza_bank_flowables(company)]
     story.append(KeepTogether(block))
 
     # ---- standard terms, on their own page(s) ----

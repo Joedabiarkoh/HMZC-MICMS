@@ -56,6 +56,8 @@ class NotificationSettings(BaseModel):
     # purchase order - same "Label: clause" one-per-line convention as
     # terms_conditions above.
     po_terms_conditions = Column(Text, nullable=True)
+    # Bank account printed on Kwanza (AOA) invoices, quotations and POs.
+    kwanza_bank_details = Column(Text, nullable=True)
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
     updated_by_id = Column(Integer, ForeignKey("users.id"), nullable=True)
     updated_by = relationship("User")

@@ -23,7 +23,7 @@ from reportlab.platypus import (
 )
 
 from app.core.angola_tax import TAX_CURRENCY, compute_tax
-from app.core.po_terms import DEFAULT_LEGAL_NAME, DEFAULT_NIF, DEFAULT_PHONES
+from app.core.po_terms import DEFAULT_KWANZA_BANK, DEFAULT_LEGAL_NAME, DEFAULT_NIF, DEFAULT_PHONES
 from app.models.notification_settings import NotificationSettings
 
 # Requested directly: "the invoice command to give include to serve all
@@ -219,6 +219,32 @@ def _terms_flowables(terms_conditions: str) -> list:
         flowables.append(Paragraph(text, _STYLE_SMALL))
         flowables.append(Spacer(1, 3))
     return flowables
+
+
+def kwanza_bank_flowables(company: Optional[NotificationSettings]) -> list:
+    """The Kwanza (AOA) bank account block, printed on every AOA invoice,
+    quotation and purchase order. Lines are "Label: value"."""
+    text = (company.kwanza_bank_details if company else None) or DEFAULT_KWANZA_BANK
+    pairs = []
+    for line in text.splitlines():
+        if not line.strip():
+            continue
+        label, _, value = line.partition(":")
+        pairs.append((label.strip(), value.strip()) if value else ("", line.strip()))
+    if not pairs:
+        return []
+    t = Table(
+        [[Paragraph(f"<b>{a}</b>", _STYLE_NORMAL), Paragraph(b, _STYLE_NORMAL)] for a, b in pairs],
+        colWidths=[90, 380],
+    )
+    t.setStyle(TableStyle([
+        ("GRID", (0, 0), (-1, -1), 0.5, LINE),
+        ("BACKGROUND", (0, 0), (0, -1), colors.HexColor("#F4F6F7")),
+        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+        ("LEFTPADDING", (0, 0), (-1, -1), 6), ("RIGHTPADDING", (0, 0), (-1, -1), 6),
+        ("TOPPADDING", (0, 0), (-1, -1), 3), ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
+    ]))
+    return [Paragraph("BANK DETAILS (KWANZA ACCOUNT)", _STYLE_SECTION), t]
 
 
 def letterhead_lines(company: Optional[NotificationSettings]) -> list[str]:
@@ -418,7 +444,8 @@ def build_document_pdf(doc, kind: str, company: Optional[NotificationSettings]) 
         story.append(Paragraph(tax_note, _STYLE_SMALL))
 
     # ---- bank details (invoice only) ----
-    has_bank = kind == "INVOICE" and company and any([
+    is_kwanza = currency == TAX_CURRENCY
+    has_bank = kind == "INVOICE" and not is_kwanza and company and any([
         company.bank_name, company.bank_address, company.bank_town, company.bank_postcode,
         company.bank_country, company.bank_beneficiary, company.bank_account_number,
         company.bank_sort_code, company.bank_swift_code, company.bank_iban,
@@ -435,6 +462,9 @@ def build_document_pdf(doc, kind: str, company: Optional[NotificationSettings]) 
         if company.bank_iban:
             bank_rows.append(("IBAN Code", company.bank_iban, "", ""))
         story.append(_id_table(bank_rows))
+
+    if is_kwanza:
+        story.extend(kwanza_bank_flowables(company))
 
     # ---- terms and conditions (invoice only) ----
     if kind == "INVOICE" and company and company.terms_conditions:

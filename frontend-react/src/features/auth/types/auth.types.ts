@@ -210,4 +210,6 @@ export interface CompanyInfo {
   company_nif: string | null;
   company_phones: string | null;
   po_terms_conditions: string | null;
+  // HMZC's Kwanza bank account ("Label: value" per line), printed on AOA documents.
+  kwanza_bank_details: string | null;
 }

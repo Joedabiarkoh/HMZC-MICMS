@@ -20,6 +20,7 @@ const BLANK_COMPANY_FORM = {
   company_nif: "",
   company_phones: "",
   po_terms_conditions: "",
+  kwanza_bank_details: "",
 };
 
 /**
@@ -90,6 +91,7 @@ export default function NotificationSettings() {
           company_nif: data.company_nif || "",
           company_phones: data.company_phones || "",
           po_terms_conditions: data.po_terms_conditions || "",
+          kwanza_bank_details: data.kwanza_bank_details || "",
         });
       })
       .catch((e) => setCompanyErr(e?.response?.data?.detail || "Could not load company information."))
@@ -125,6 +127,7 @@ export default function NotificationSettings() {
         company_nif: updated.company_nif || "",
         company_phones: updated.company_phones || "",
         po_terms_conditions: updated.po_terms_conditions || "",
+        kwanza_bank_details: updated.kwanza_bank_details || "",
       });
       setCompanySaved(true);
     } catch (e: any) {
@@ -306,6 +309,22 @@ export default function NotificationSettings() {
               value={companyForm.terms_conditions}
               onChange={(e) => updateCompanyField("terms_conditions", e.target.value)}
               rows={10}
+              style={{ width: "100%", fontFamily: "inherit", fontSize: 12.5, padding: "7px 9px", border: "1px solid #C9D1D8", borderRadius: 5 }}
+            />
+          </div>
+
+          <div style={{ fontSize: 12, fontWeight: 700, color: "#1F3B5C", marginTop: 16, marginBottom: 8 }}>
+            Kwanza (AOA) Bank Details
+          </div>
+          <p style={{ fontSize: 11, color: "#6B7480", marginTop: 0, marginBottom: 6 }}>
+            Printed on every Kwanza invoice, quotation and purchase order. One line each, "Label: value".
+          </p>
+          <div className="auth-field">
+            <textarea
+              id="company-kwanza_bank_details"
+              value={companyForm.kwanza_bank_details}
+              onChange={(e) => updateCompanyField("kwanza_bank_details", e.target.value)}
+              rows={6}
               style={{ width: "100%", fontFamily: "inherit", fontSize: 12.5, padding: "7px 9px", border: "1px solid #C9D1D8", borderRadius: 5 }}
             />
           </div>

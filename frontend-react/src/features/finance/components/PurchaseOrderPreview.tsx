@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import FinanceLetterhead from "./FinanceLetterhead";
+import KwanzaBankBlock from "./KwanzaBankBlock";
 import { getCompanyInfo } from "../../auth/services/auth.api";
 import { CompanyInfo } from "../../auth/types/auth.types";
 import { formatPOMoney, PO_STATUS_LABELS, POLine, POStatus } from "../types/purchaseOrder.types";
@@ -187,6 +188,8 @@ export default function PurchaseOrderPreview({ d }: { d: POPreviewData }) {
               {d.deliveryContactEmail && <> · {d.deliveryContactEmail}</>}
             </p>
           )}
+
+          {d.currency === "AOA" && <KwanzaBankBlock companyInfo={company} />}
 
           {terms.length > 0 && (
             <div style={{ pageBreakBefore: "always", breakBefore: "page", marginTop: 24, fontSize: 11.5 }}>

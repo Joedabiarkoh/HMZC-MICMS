@@ -64,3 +64,29 @@ def test_aoa_pdf_shows_iva_withholding_and_net_payable(client, admin_token):
     text = " ".join(p.extract_text() for p in PdfReader(io.BytesIO(r.content)).pages)
     assert "IVA 14%" in text and "Net payable" in text and "Withholding 6.5%" in text
     assert "205.20" in text and "193.50" in text
+
+
+def _pdf_text(content):
+    return " ".join(" ".join(p.extract_text().split()) for p in PdfReader(io.BytesIO(content)).pages)
+
+
+def test_kwanza_invoice_and_quote_print_the_kwanza_bank_and_nif(client, admin_token):
+    h = _h(admin_token)
+    client.post("/api/finance/invoices", json=_invoice_payload("INV-KZ-1", currency="AOA", iva_rate=14), headers=h)
+    text = _pdf_text(client.get("/api/finance/invoices/INV-KZ-1/pdf", headers=h).content)
+    assert "BAIPAOLU" in text and "AO06 0040 0000 3118 6064 1513 6" in text and "5001114387" in text
+
+
+def test_usd_invoice_does_not_print_the_kwanza_bank(client, admin_token):
+    h = _h(admin_token)
+    client.post("/api/finance/invoices", json=_invoice_payload("INV-KZ-2"), headers=h)
+    text = _pdf_text(client.get("/api/finance/invoices/INV-KZ-2/pdf", headers=h).content)
+    assert "BAIPAOLU" not in text
+
+
+def test_kwanza_po_prints_the_kwanza_bank(client, admin_token):
+    from tests.test_purchase_orders import _create
+    h = _h(admin_token)
+    po = _create(client, h, currency="AOA")
+    text = _pdf_text(client.get(f"/api/purchase-orders/{po['po_no']}/pdf", headers=h).content)
+    assert "BAIPAOLU" in text and "HMZC PRESTA" in text

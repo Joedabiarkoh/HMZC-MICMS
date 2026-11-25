@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import FinanceLetterhead from "./FinanceLetterhead";
+import KwanzaBankBlock from "./KwanzaBankBlock";
 import { getCompanyInfo } from "../../auth/services/auth.api";
 import { CompanyInfo } from "../../auth/types/auth.types";
 import { LineItem } from "../types/finance.types";
@@ -83,7 +84,7 @@ export default function FinanceDocumentPreview({
   // only once at least one field has actually been filled in via
   // Settings, so a freshly-deployed instance with nothing configured
   // doesn't print an empty "Supplier Bank Account Details" block.
-  const hasBankDetails = kind === "INVOICE" && !!companyInfo && [
+  const hasBankDetails = kind === "INVOICE" && currency !== TAX_CURRENCY && !!companyInfo && [
     companyInfo.bank_name, companyInfo.bank_address, companyInfo.bank_town, companyInfo.bank_postcode,
     companyInfo.bank_country, companyInfo.bank_beneficiary, companyInfo.bank_account_number,
     companyInfo.bank_sort_code, companyInfo.bank_swift_code, companyInfo.bank_iban,
@@ -188,6 +189,7 @@ export default function FinanceDocumentPreview({
         </div>
       </div>
 
+      {currency === TAX_CURRENCY && <KwanzaBankBlock companyInfo={companyInfo} />}
       {hasBankDetails && companyInfo && (
         <div style={{ marginTop: 20 }}>
           <div style={{ fontSize: 11, fontWeight: 700, color: "var(--insp-navy)", textTransform: "uppercase", letterSpacing: ".03em", marginBottom: 4 }}>

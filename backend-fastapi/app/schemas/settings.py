@@ -40,6 +40,7 @@ class CompanyInfoResponse(BaseModel):
     company_nif: Optional[str] = None
     company_phones: Optional[str] = None
     po_terms_conditions: Optional[str] = None
+    kwanza_bank_details: Optional[str] = None
 
 
 class CompanyInfoUpdate(BaseModel):
@@ -59,3 +60,4 @@ class CompanyInfoUpdate(BaseModel):
     company_nif: Optional[str] = None
     company_phones: Optional[str] = None
     po_terms_conditions: Optional[str] = None
+    kwanza_bank_details: Optional[str] = None
