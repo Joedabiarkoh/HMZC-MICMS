@@ -71,7 +71,7 @@ def build_lsa_pdf(analysis: dict, company: Optional[NotificationSettings]) -> by
         story.append(Paragraph("No lifesaving-appliance certificates match these filters.", _STYLE_NORMAL))
 
     head = ["Maker", "Model", "Units", "Vessels", "Certs", "Defects", "Attention", "Defect %"]
-    widths = [42 * mm, 42 * mm, 13 * mm, 17 * mm, 13 * mm, 16 * mm, 18 * mm, 15 * mm]
+    widths = [28 * mm, 28 * mm, 12 * mm, 48 * mm, 12 * mm, 15 * mm, 17 * mm, 14 * mm]
     for cat in CATEGORIES:
         cat_rows = [r for r in rows if r["category"] == cat]
         if not cat_rows:
@@ -81,7 +81,7 @@ def build_lsa_pdf(analysis: dict, company: Optional[NotificationSettings]) -> by
             data.append([
                 Paragraph(escape(r["maker"]), _STYLE_SMALL),
                 Paragraph(escape(r["model"]), _STYLE_SMALL),
-                str(r["units"]), str(r["vessels"]), str(r["certificates"]),
+                str(r["units"]), Paragraph(escape(", ".join(r["vessel_names"]) or "—"), _STYLE_SMALL), str(r["certificates"]),
                 str(r["with_defects"]), str(r["with_attention"]), f"{r['defect_rate']:.0f}%",
             ])
         t = Table(data, colWidths=widths, repeatRows=1)
@@ -90,7 +90,8 @@ def build_lsa_pdf(analysis: dict, company: Optional[NotificationSettings]) -> by
             ("GRID", (0, 0), (-1, -1), 0.5, LINE),
             ("FONTSIZE", (0, 1), (-1, -1), 8),
             ("FONTNAME", (0, 1), (-1, -1), _FONT_NAME),
-            ("ALIGN", (2, 0), (-1, -1), "CENTER"),
+            ("ALIGN", (2, 0), (2, -1), "CENTER"),
+            ("ALIGN", (4, 0), (-1, -1), "CENTER"),
             ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
             ("TOPPADDING", (0, 0), (-1, -1), 3), ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
         ]))

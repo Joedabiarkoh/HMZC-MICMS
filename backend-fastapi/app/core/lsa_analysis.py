@@ -208,6 +208,7 @@ def build_analysis(
             "model": g["model"],
             "units": len(g["units"]),
             "vessels": len(g["vessels"]),
+            "vessel_names": sorted(g["vessels"], key=str.lower),
             "certificates": n,
             "with_defects": len(g["defect_certs"]),
             "with_attention": len(g["attention_certs"]),

@@ -52,6 +52,7 @@ def test_groups_by_maker_and_model_with_defect_rates(client, admin_token):
     assert body["certificates_analysed"] == 3
     tel26 = [r for r in _rows(body, "Lifeboat") if r["model"] == "TEL-26"][0]
     assert (tel26["units"], tel26["vessels"], tel26["certificates"], tel26["with_defects"]) == (2, 2, 2, 1)
+    assert tel26["vessel_names"] == ["MV One", "MV Two"]
     assert tel26["defect_rate"] == 50.0
     # the winch defect is attributed to the winch, not the davit
     assert _rows(body, "Winch")[0]["with_defects"] == 1
@@ -86,4 +87,5 @@ def test_pdf_download_and_permission(client, admin_token):
     text = " ".join(" ".join(p.extract_text().split()) for p in PdfReader(io.BytesIO(r.content)).pages)
     assert "Maker & Model" in text and "TEL-26" in text and "Class: DNV" in text and "5001114387" in text
     assert "TEL-30" not in text
+    assert "MV One, MV Two" in text
     assert client.get("/api/reports/lifesaving-analysis/pdf").status_code == 401

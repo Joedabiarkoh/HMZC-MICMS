@@ -1,4 +1,4 @@
-﻿import { useEffect, useRef, useState } from "react";
+﻿import { useRef, useState } from "react";
 import { exportRowsToCsv } from "../../../utils/exportCsv";
 import { downloadLifesavingAnalysisPdf, fetchLifesavingAnalysis } from "../services/reports.api";
 import { LSAAnalysis, LSAFilters } from "../types/reports.types";
@@ -15,7 +15,7 @@ const BLANK: LSAFilters = { classSociety: "", flag: "", dateFrom: "", dateTo: ""
 export default function LifesavingAnalysis() {
   const [filters, setFilters] = useState<LSAFilters>(BLANK);
   const [data, setData] = useState<LSAAnalysis | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [downloading, setDownloading] = useState(false);
   const [error, setError] = useState("");
   // Remembered across filtered runs so the class/flag suggestions don't shrink
@@ -37,11 +37,10 @@ export default function LifesavingAnalysis() {
     }
   }
 
-  useEffect(() => {
-    void run(BLANK);
-  }, []);
+  const datesChosen = !!filters.dateFrom && !!filters.dateTo;
 
   async function handleDownload() {
+    if (!datesChosen) return;
     setDownloading(true);
     setError("");
     try {
@@ -60,7 +59,7 @@ export default function LifesavingAnalysis() {
       { header: "Maker", value: (r) => r.maker },
       { header: "Model", value: (r) => r.model },
       { header: "Units", value: (r) => r.units },
-      { header: "Vessels", value: (r) => r.vessels },
+      { header: "Vessels", value: (r) => r.vessel_names.join("; ") },
       { header: "Certificates", value: (r) => r.certificates },
       { header: "Certificates with defects", value: (r) => r.with_defects },
       { header: "Certificates needing attention", value: (r) => r.with_attention },
@@ -76,15 +75,16 @@ export default function LifesavingAnalysis() {
     <section className="reports-section" aria-labelledby="lsa-heading">
       <div className="reports-toolbar">
         <div>
-          <h2 id="lsa-heading">Lifesaving Appliances — Maker &amp; Model Analysis</h2>
+          <h2 id="lsa-heading">Lifesaving Report</h2>
           <p className="reports-section-note">
-            Lifeboats, rescue boats, davits, winches and release hooks from finalized Lifesaving Appliances
-            certificates, grouped by maker and model. Filter by class or flag, then download the report.
+            Pick the period, then generate the maker and model report for lifeboats, rescue boats, davits, winches and
+            release hooks (finalized Lifesaving Appliances certificates only). Class and flag are optional — fill them in
+            when a class society or flag state asks for the report.
           </p>
         </div>
         <div style={{ display: "flex", gap: 8 }}>
           <button type="button" className="reports-btn" onClick={exportCsv} disabled={rows.length === 0}>Export CSV</button>
-          <button type="button" className="reports-btn reports-btn--primary" onClick={handleDownload} disabled={downloading}>
+          <button type="button" className="reports-btn reports-btn--primary" onClick={handleDownload} disabled={downloading || !datesChosen} title={datesChosen ? "" : "Choose the period first"}>
             {downloading ? "Preparing…" : "Download PDF Report"}
           </button>
         </div>
@@ -92,7 +92,7 @@ export default function LifesavingAnalysis() {
 
       <form
         className="reports-filters"
-        onSubmit={(e) => { e.preventDefault(); void run(filters); }}
+        onSubmit={(e) => { e.preventDefault(); if (datesChosen) void run(filters); }}
       >
         <label>Class
           <input list="lsa-classes" value={filters.classSociety} onChange={(e) => set("classSociety", e.target.value)} placeholder="e.g. DNV" />
@@ -103,13 +103,13 @@ export default function LifesavingAnalysis() {
           <datalist id="lsa-flags">{[...known.current.flags].sort().map((c) => <option key={c} value={c} />)}</datalist>
         </label>
         <label>Serviced from
-          <input type="date" value={filters.dateFrom} onChange={(e) => set("dateFrom", e.target.value)} />
+          <input type="date" required value={filters.dateFrom} onChange={(e) => set("dateFrom", e.target.value)} />
         </label>
         <label>to
-          <input type="date" value={filters.dateTo} onChange={(e) => set("dateTo", e.target.value)} />
+          <input type="date" required value={filters.dateTo} min={filters.dateFrom || undefined} onChange={(e) => set("dateTo", e.target.value)} />
         </label>
-        <button type="submit" className="reports-btn" disabled={loading}>{loading ? "Analysing…" : "Analyse"}</button>
-        <button type="button" className="reports-btn" onClick={() => { setFilters(BLANK); void run(BLANK); }}>Clear</button>
+        <button type="submit" className="reports-btn reports-btn--primary" disabled={loading || !datesChosen}>{loading ? "Generating…" : "Generate Report"}</button>
+        <button type="button" className="reports-btn" onClick={() => { setFilters(BLANK); setData(null); setError(""); }}>Clear</button>
       </form>
 
       {error && <p className="reports-section-note" role="alert">{error}</p>}
@@ -120,8 +120,8 @@ export default function LifesavingAnalysis() {
         </p>
       )}
 
-      {loading && !data ? (
-        <p className="reports-empty">Loading…</p>
+      {!data ? (
+        <p className="reports-empty">{loading ? "Generating…" : "Choose the period and click Generate Report."}</p>
       ) : rows.length === 0 ? (
         <p className="reports-empty">No lifesaving-appliance certificates match these filters.</p>
       ) : (
@@ -138,7 +138,7 @@ export default function LifesavingAnalysis() {
                     <td>{r.maker}</td>
                     <td>{r.model}</td>
                     <td>{r.units}</td>
-                    <td>{r.vessels}</td>
+                    <td>{r.vessel_names.join(", ") || "—"}</td>
                     <td>{r.certificates}</td>
                     <td>{r.with_defects}</td>
                     <td>{r.with_attention}</td>

@@ -42,6 +42,7 @@ class LSAAnalysisRow(BaseModel):
     model: str
     units: int
     vessels: int
+    vessel_names: List[str]
     certificates: int
     with_defects: int
     with_attention: int

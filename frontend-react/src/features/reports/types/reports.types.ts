@@ -40,6 +40,7 @@ export interface LSAAnalysisRow {
   model: string;
   units: number;
   vessels: number;
+  vessel_names: string[];
   certificates: number;
   with_defects: number;
   with_attention: number;
