@@ -79,7 +79,7 @@ export default function SignIn() {
 
   if (challengeToken) {
     return (
-      <div className="auth-page">
+      <div className="auth-page auth-page--hero">
         <form className="auth-card" onSubmit={handleVerifyCode}>
           <img src={HMZC_LOGO_DATA_URI} alt="HMZC LTD" />
           <div className="auth-title">Two-Factor Authentication</div>
@@ -121,11 +121,26 @@ export default function SignIn() {
   }
 
   return (
-    <div className="auth-page">
+    <div className="auth-page auth-page--hero">
+        <section className="auth-hero" aria-label="About the platform">
+          <div className="auth-hero-logo-badge"><img src={HMZC_LOGO_DATA_URI} alt="HMZC LTD" /></div>
+          <div className="auth-hero-kicker">Marine Safety &amp; Compliance</div>
+          <h1>Safe &amp; Fast Services, certified.</h1>
+          <p className="auth-hero-lead">
+            One place for lifeboat, davit and lifesaving-appliance inspections, LEEA lifting-gear reports, jobs,
+            quotations, invoices and purchase orders.
+          </p>
+          <ul className="auth-hero-points">
+            <li>Inspection certificates issued with QR verification</li>
+            <li>Jobs tracked from first quote to final report</li>
+            <li>Finance, purchase orders and Angolan tax in one workflow</li>
+          </ul>
+          <div className="auth-hero-foot">HMZC LTD — Marine Engineering Services · Cabinda &amp; Luanda, Angola</div>
+        </section>
       <form className="auth-card" onSubmit={handleSubmit}>
         <img src={HMZC_LOGO_DATA_URI} alt="HMZC LTD" />
-        <div className="auth-title">HMZC Certification Platform</div>
-        <div className="auth-subtitle">Sign in to continue</div>
+        <div className="auth-title">Welcome back</div>
+        <div className="auth-subtitle">Sign in to the HMZC Certification Platform</div>
         {sessionEndReason === "idle" && (
           <div className="auth-error" style={{ background: "#FBF0E2", border: "1px solid #B4690E", color: "#7A4A08" }}>
             You were signed out after a period of inactivity. Anything you'd saved is still there — sign in again to continue.

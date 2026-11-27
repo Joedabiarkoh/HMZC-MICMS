@@ -32,6 +32,38 @@
 .auth-switch { text-align: center; font-size: 11.5px; color: #6B7480; margin-top: 14px; }
 .auth-switch a { color: #4C7A3A; font-weight: 700; text-decoration: none; cursor: pointer; }
 
+/* Public pages (sign in, sign up, forgot password): the lifeboat-davit photo
+   behind a navy wash so white text stays readable, with the welcome copy to
+   the left of the card on wide screens. Modifier only — .auth-page is also
+   used by in-app pages (change password, signature, 2FA setup). */
+.auth-page--hero {
+  background:
+    linear-gradient(105deg, rgba(10, 28, 48, .88) 0%, rgba(10, 28, 48, .62) 45%, rgba(10, 28, 48, .35) 100%),
+    url("../../assets/signin-bg.jpg") center / cover no-repeat;
+  background-color: #0A1C30;
+  gap: 56px;
+  flex-wrap: wrap;
+}
+.auth-hero { max-width: 460px; color: #fff; text-shadow: 0 2px 4px rgba(0,0,0,.65), 0 4px 22px rgba(0,0,0,.55); }
+.auth-hero-logo-badge { display: inline-block; background: rgba(255,255,255,.94); border-radius: 10px; padding: 8px 14px; margin-bottom: 22px; box-shadow: 0 6px 24px rgba(0,0,0,.4); }
+.auth-hero-logo-badge img { height: 42px; display: block; }
+.auth-hero-kicker { font-size: 12px; font-weight: 700; letter-spacing: .16em; text-transform: uppercase; color: #BFE3A8; margin-bottom: 8px; }
+.auth-hero h1 { font-size: 40px; line-height: 1.12; margin: 0 0 14px; font-weight: 800; }
+.auth-hero-lead { font-size: 16px; line-height: 1.5; margin: 0 0 22px; color: #EEF3F8; }
+.auth-hero-points { list-style: none; margin: 0; padding: 0; display: grid; gap: 11px; }
+.auth-hero-points li { display: flex; gap: 11px; align-items: flex-start; font-size: 14.5px; line-height: 1.4; font-weight: 600; }
+.auth-hero-points li::before { content: ""; flex: none; width: 9px; height: 9px; margin-top: 6px; border-radius: 50%; background: #7FC25A; box-shadow: 0 0 0 3px rgba(127,194,90,.3); }
+.auth-hero-foot { margin-top: 24px; font-size: 12px; color: #D5DEE8; letter-spacing: .02em; }
+.auth-page--hero .auth-card { background: rgba(255,255,255,.97); box-shadow: 0 18px 60px rgba(0,0,0,.5); }
+@media (max-width: 900px) {
+  .auth-page--hero { gap: 28px; }
+  .auth-hero { text-align: center; max-width: 380px; }
+  .auth-hero h1 { font-size: 28px; }
+  .auth-hero-lead { font-size: 14px; }
+  .auth-hero-points { display: none; }
+  .auth-hero-foot { display: none; }
+}
+
 .users-page { padding: 20px; font-family: "Segoe UI", Inter, Arial, sans-serif; }
 .users-page h1 { color: #1F3B5C; font-size: 18px; }
 table.users-table { width: 100%; border-collapse: collapse; background: #fff; border-radius: 8px; overflow: hidden; border: 1px solid #DCE1E5; margin-top: 12px; }

@@ -44,7 +44,7 @@ export default function SignUp() {
 
   if (selfServiceDisabled) {
     return (
-      <div className="auth-page">
+      <div className="auth-page auth-page--hero">
         <div className="auth-card">
           <img src={HMZC_LOGO_DATA_URI} alt="HMZC LTD" />
           <div className="auth-title">Accounts Are Admin-Created</div>
@@ -63,7 +63,7 @@ export default function SignUp() {
   }
 
   return (
-    <div className="auth-page">
+    <div className="auth-page auth-page--hero">
       <form className="auth-card" onSubmit={handleSubmit}>
         <img src={HMZC_LOGO_DATA_URI} alt="HMZC LTD" />
         <div className="auth-title">First-Time Setup</div>

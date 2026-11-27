@@ -39,7 +39,7 @@ export default function ForgotPassword() {
 
   if (submitted) {
     return (
-      <div className="auth-page">
+      <div className="auth-page auth-page--hero">
         <div className="auth-card">
           <img src={HMZC_LOGO_DATA_URI} alt="HMZC LTD" />
           <div className="auth-title">Check Your Email</div>
@@ -60,7 +60,7 @@ export default function ForgotPassword() {
   }
 
   return (
-    <div className="auth-page">
+    <div className="auth-page auth-page--hero">
       <form className="auth-card" onSubmit={handleSubmit}>
         <img src={HMZC_LOGO_DATA_URI} alt="HMZC LTD" />
         <div className="auth-title">Reset Your Password</div>
