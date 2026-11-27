@@ -147,6 +147,10 @@ export interface InspectionCertificate {
   vesselName: string;
   imoNo: string;
   flag: string;
+  // Classification society (DNV, BV, LR, ABS...). Optional: certificates saved
+  // before it existed have none. Used by the Lifesaving Appliance analysis
+  // report, which classes/flags can ask for.
+  classSociety?: string;
   location: string;
 
   // Requested directly: "the job number creation should be...

@@ -2037,6 +2037,10 @@ function StatementForm({ type, current, updateField, updateNested, toggleAutoRem
           <div className="insp-field"><label htmlFor="stmt-flag">Flag</label><input id="stmt-flag" value={current.flag} onChange={(e) => updateField("flag", e.target.value)} placeholder="e.g. Cyprus" /></div>
         </div>
         <div className="insp-row2">
+          <div className="insp-field"><label htmlFor="stmt-class">Class (Classification Society)</label><input id="stmt-class" value={current.classSociety || ""} onChange={(e) => updateField("classSociety", e.target.value)} placeholder="e.g. DNV, BV, LR" /></div>
+          <div className="insp-field"></div>
+        </div>
+        <div className="insp-row2">
           <div className="insp-field"><label htmlFor="stmt-imo-no">IMO No.</label><input id="stmt-imo-no" value={current.imoNo} onChange={(e) => updateField("imoNo", e.target.value)} /></div>
           <div className="insp-field">
             <label htmlFor="stmt-location">{isBoat ? "Location on Board" : "Crane Location"}</label>

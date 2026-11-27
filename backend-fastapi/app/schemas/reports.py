@@ -34,3 +34,25 @@ class ExpiryReminderRunResult(BaseModel):
     reminded: int = 0
     reason: Optional[str] = None
     email_failed: Optional[bool] = None
+
+
+class LSAAnalysisRow(BaseModel):
+    category: str
+    maker: str
+    model: str
+    units: int
+    vessels: int
+    certificates: int
+    with_defects: int
+    with_attention: int
+    repair_items: int
+    defect_rate: float
+
+
+class LSAAnalysis(BaseModel):
+    filters: dict
+    certificates_analysed: int
+    vessels: int
+    rows: List[LSAAnalysisRow]
+    known_classes: List[str]
+    known_flags: List[str]

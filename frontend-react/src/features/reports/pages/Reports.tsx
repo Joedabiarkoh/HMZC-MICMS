@@ -7,6 +7,7 @@ import { exportRowsToCsv } from "../../../utils/exportCsv";
 import { fetchCertificatesSummary, fetchExpiringCertificates, runExpiryRemindersNow } from "../services/reports.api";
 import { CertificatesSummary, ExpiringCertificate } from "../types/reports.types";
 import MonthlyBarChart from "../components/MonthlyBarChart";
+import LifesavingAnalysis from "../components/LifesavingAnalysis";
 
 /**
  * Requested directly: "certificate expiry is 1 year period,
@@ -191,6 +192,7 @@ export default function Reports() {
               </>
             )}
           </section>
+          <LifesavingAnalysis />
         </>
       )}
 

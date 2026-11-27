@@ -162,6 +162,7 @@ export function freshCertificate(type: EquipmentTypeKey, existingNumbers: Set<st
     vesselName: "",
     imoNo: "",
     flag: "",
+    classSociety: "",
     location: "",
     jobRef: "",
     remarks: cfg.remarksTemplate ? cfg.remarksTemplate("") : "",

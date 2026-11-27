@@ -123,6 +123,11 @@ function CertificateSections({ cert, config }: Props) {
               <td className="insp-label-cell">Flag</td><td>{cert.flag || "—"}</td>
               <td className="insp-label-cell">{isBoat ? "Location on Board" : "Crane Location"}</td><td>{cert.location || "—"}</td>
             </tr>
+            {cert.classSociety && (
+              <tr>
+                <td className="insp-label-cell">Class</td><td colSpan={3}>{cert.classSociety}</td>
+              </tr>
+            )}
             {isBoat ? (
               <>
                 <tr>

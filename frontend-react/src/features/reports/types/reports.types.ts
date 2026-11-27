@@ -32,3 +32,33 @@ export interface ExpiryReminderRunResult {
   reason?: string | null;
   email_failed?: boolean | null;
 }
+
+// Lifesaving Appliances maker/model analysis — see backend core/lsa_analysis.py.
+export interface LSAAnalysisRow {
+  category: string; // Lifeboat | Rescue boat | Free-fall lifeboat | Davit | Winch | Release hook
+  maker: string;
+  model: string;
+  units: number;
+  vessels: number;
+  certificates: number;
+  with_defects: number;
+  with_attention: number;
+  repair_items: number;
+  defect_rate: number;
+}
+
+export interface LSAAnalysis {
+  filters: { class: string; flag: string; date_from: string; date_to: string };
+  certificates_analysed: number;
+  vessels: number;
+  rows: LSAAnalysisRow[];
+  known_classes: string[];
+  known_flags: string[];
+}
+
+export interface LSAFilters {
+  classSociety: string;
+  flag: string;
+  dateFrom: string;
+  dateTo: string;
+}

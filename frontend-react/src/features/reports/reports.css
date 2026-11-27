@@ -75,3 +75,9 @@
 }
 .reports-btn:hover { background: var(--insp-grey-bg); }
 .reports-no-access { color: var(--insp-muted); font-size: 12.5px; padding: 20px 0; text-align: center; }
+
+.reports-btn--primary { background: var(--insp-navy); color: #fff; border-color: var(--insp-navy); }
+.reports-btn--primary:hover { background: #17304d; }
+.reports-filters { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end; margin-bottom: 10px; }
+.reports-filters label { display: flex; flex-direction: column; font-size: 11px; color: var(--insp-muted); font-weight: 600; gap: 3px; }
+.reports-filters input { padding: 6px 8px; border: 1px solid #C9D1D8; border-radius: 6px; font-size: 12.5px; }

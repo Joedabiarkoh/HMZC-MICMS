@@ -2,11 +2,14 @@ from collections import Counter
 from datetime import datetime, timezone
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Response
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_admin_user, require_permission
 from app.core.database import get_database
+from app.core.lsa_analysis import LSA_TYPES, build_analysis
+from app.core.lsa_pdf import build_lsa_pdf
+from app.models.notification_settings import get_notification_settings
 from app.core.expiry_reminders import list_expiring_certificates, send_expiry_reminders
 from app.core.permissions import CERT_VIEW_ALL
 from app.models.certificate import Certificate
@@ -16,6 +19,7 @@ from app.schemas.reports import (
     EquipmentTypeCount,
     ExpiringCertificate,
     ExpiryReminderRunResult,
+    LSAAnalysis,
     MonthlyCertificateCount,
 )
 
@@ -79,3 +83,41 @@ def run_expiry_reminders_now(
     _admin: User = Depends(get_current_admin_user),
 ):
     return send_expiry_reminders(db)
+
+
+def _lsa_certificates(db: Session):
+    return db.query(Certificate).filter(Certificate.status == "final", Certificate.equipment_type.in_(LSA_TYPES)).all()
+
+
+# Requested directly: analyse the makers and models of the lifeboats, davits,
+# winches and release hooks inspected, and let a class society or flag state
+# have that as a report. Lifesaving Appliances certificates only; see
+# core/lsa_analysis.py for what is counted.
+@router.get("/lifesaving-analysis", response_model=LSAAnalysis)
+def lifesaving_analysis(
+    class_society: str = "",
+    flag: str = "",
+    date_from: str = "",
+    date_to: str = "",
+    db: Session = Depends(get_database),
+    _user: User = Depends(require_permission(CERT_VIEW_ALL)),
+):
+    return build_analysis(_lsa_certificates(db), class_society, flag, date_from, date_to)
+
+
+@router.get("/lifesaving-analysis/pdf")
+def lifesaving_analysis_pdf(
+    class_society: str = "",
+    flag: str = "",
+    date_from: str = "",
+    date_to: str = "",
+    db: Session = Depends(get_database),
+    _user: User = Depends(require_permission(CERT_VIEW_ALL)),
+):
+    analysis = build_analysis(_lsa_certificates(db), class_society, flag, date_from, date_to)
+    pdf = build_lsa_pdf(analysis, get_notification_settings(db))
+    return Response(
+        content=pdf,
+        media_type="application/pdf",
+        headers={"Content-Disposition": 'attachment; filename="HMZC-Lifesaving-Appliance-Analysis.pdf"'},
+    )

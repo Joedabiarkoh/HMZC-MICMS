@@ -850,6 +850,7 @@ async function buildStatementSection(cert: InspectionCertificate, config: Equipm
     ["Name of Ship", cert.vesselName || "—"],
     ["IMO No.", cert.imoNo || "—"],
     ["Flag", cert.flag || "—"],
+    ...(cert.classSociety ? ([["Class", cert.classSociety]] as Array<[string, string]>) : []),
     [isBoat ? "Location on Board" : "Crane Location", cert.location || "—"],
   ];
   if (isBoat) {
