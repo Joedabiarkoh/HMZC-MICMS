@@ -126,15 +126,6 @@ export default function SignIn() {
           <div className="auth-hero-logo-badge"><img src={HMZC_LOGO_DATA_URI} alt="HMZC LTD" /></div>
           <div className="auth-hero-kicker">Marine Safety &amp; Compliance</div>
           <h1>Safe &amp; Fast Services, certified.</h1>
-          <p className="auth-hero-lead">
-            One place for lifeboat, davit and lifesaving-appliance inspections, LEEA lifting-gear reports, jobs,
-            quotations, invoices and purchase orders.
-          </p>
-          <ul className="auth-hero-points">
-            <li>Inspection certificates issued with QR verification</li>
-            <li>Jobs tracked from first quote to final report</li>
-            <li>Finance, purchase orders and Angolan tax in one workflow</li>
-          </ul>
           <div className="auth-hero-foot">HMZC LTD — Marine Engineering Services · Cabinda &amp; Luanda, Angola</div>
         </section>
       <form className="auth-card" onSubmit={handleSubmit}>
